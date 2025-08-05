@@ -72,13 +72,7 @@ You do **not** need any `.env` file; backend endpoints are hardcoded to [TinyURL
 
 ---
 
-## 📷 Screenshots
 
-| Login Page                 | Timetable                      | Current/Next                      |
-| -------------------------- | ------------------------------ | --------------------------------- |
-| ![](screenshots/login.png) | ![](screenshots/timetable.png) | ![](screenshots/current_next.png) |
-
----
 
 ## 📦 Hosting / Backend
 
