@@ -9,7 +9,7 @@ import HomePage from "./pages/Home.jsx";
 import TimetablePage from "./pages/TimetableView.jsx";
 import SubjectsPage from "./pages/Subjects.jsx";
 
-// Lazy load analytics to reduce initial bundle size
+// Lazy load analytics to reduce initial bundle siz
 const Analytics = lazy(() => import("@vercel/analytics/react").then(module => ({ default: module.Analytics })));
 
 function App() {
