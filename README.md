@@ -107,5 +107,3 @@ This tool is unofficial and not affiliated with KL University. Use it responsibl
 
 Built with ❤️ by [@sivadhanushreddykotturu](https://github.com/sivadhanushreddykotturu)
 
-##
-Would you like this in `README.md` file format to download?
