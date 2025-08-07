@@ -35,6 +35,7 @@ export default function Login() {
         const imageData = response.data.image;
         
         console.log("Session ID from response:", sessionIdFromResponse);
+        console.log("Image data length:", imageData ? imageData.length : 0);
         
         if (sessionIdFromResponse) {
           setSessionId(sessionIdFromResponse);
@@ -47,7 +48,12 @@ export default function Login() {
         }
         
         // Set the base64 image
-        setCaptchaUrl(imageData);
+        if (imageData) {
+          setCaptchaUrl(imageData);
+          console.log("Image URL set:", imageData.substring(0, 50) + "...");
+        } else {
+          console.log("No image data received");
+        }
         
       } else {
         console.log("CAPTCHA response not successful");
@@ -78,10 +84,12 @@ export default function Login() {
   }, []);
 
   const handleCaptchaLoad = () => {
+    console.log("CAPTCHA image loaded successfully");
     setCaptchaLoading(false);
   };
 
   const handleCaptchaError = () => {
+    console.log("CAPTCHA image failed to load");
     setCaptchaLoading(false);
   };
 
@@ -210,14 +218,23 @@ export default function Login() {
                 backgroundColor: "var(--bg-tertiary)",
               }}
             >
-              <img
-                src={captchaUrl}
-                alt="CAPTCHA"
-                className="captcha-image"
-                style={{ maxWidth: "100%", maxHeight: "100%", display: captchaLoading ? "none" : "block" }}
-                onLoad={handleCaptchaLoad}
-                onError={handleCaptchaError}
-              />
+              {captchaUrl ? (
+                <img
+                  src={captchaUrl}
+                  alt="CAPTCHA"
+                  className="captcha-image"
+                  style={{ 
+                    maxWidth: "100%", 
+                    maxHeight: "100%", 
+                    display: captchaLoading ? "none" : "block",
+                    objectFit: "contain"
+                  }}
+                  onLoad={handleCaptchaLoad}
+                  onError={handleCaptchaError}
+                />
+              ) : (
+                <span>No image URL</span>
+              )}
               {captchaLoading && <span>Loading CAPTCHA...</span>}
             </div>
 
