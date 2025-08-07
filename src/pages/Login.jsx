@@ -25,44 +25,34 @@ export default function Login() {
     setSessionId(""); // Reset session ID
     
     try {
-      const response = await axios.get(API_CONFIG.CAPTCHA_URL);
+      const response = await axios.get(API_CONFIG.CAPTCHA_URL, {
+        responseType: 'blob' // Important: get the image as blob
+      });
       
-      console.log("Response data:", response.data);
+      console.log("Response headers:", response.headers);
       
-      if (response.data.success) {
-        // Get session ID from response body
-        const sessionIdFromResponse = response.data.session_id;
-        const imageData = response.data.image;
-        
-        console.log("Session ID from response:", sessionIdFromResponse);
-        console.log("Image data length:", imageData ? imageData.length : 0);
-        
-        if (sessionIdFromResponse) {
-          setSessionId(sessionIdFromResponse);
-          console.log("Session ID set:", sessionIdFromResponse);
-        } else {
-          // Fallback: use timestamp as session ID (temporary solution)
-          const fallbackSessionId = `session_${Date.now()}`;
-          setSessionId(fallbackSessionId);
-          console.log("Using fallback session ID:", fallbackSessionId);
-        }
-        
-        // Set the base64 image
-        if (imageData) {
-          setCaptchaUrl(imageData);
-          console.log("Image URL set:", imageData.substring(0, 50) + "...");
-        } else {
-          console.log("No image data received");
-        }
-        
+      // Get session ID from response headers (try different cases)
+      const sessionIdFromHeader = response.headers['x-session-id'] || 
+                                 response.headers['X-Session-ID'] || 
+                                 response.headers['X-SESSION-ID'];
+      
+      console.log("Session ID from header:", sessionIdFromHeader);
+      
+      if (sessionIdFromHeader) {
+        setSessionId(sessionIdFromHeader);
+        console.log("Session ID set:", sessionIdFromHeader);
       } else {
-        console.log("CAPTCHA response not successful");
-        setToast({
-          show: true,
-          message: response.data.message || "Failed to load CAPTCHA",
-          type: "error"
-        });
+        console.log("No session ID found in headers");
+        // Fallback: use timestamp as session ID (temporary solution)
+        const fallbackSessionId = `session_${Date.now()}`;
+        setSessionId(fallbackSessionId);
+        console.log("Using fallback session ID:", fallbackSessionId);
       }
+      
+      // Create object URL for the image
+      const imageUrl = URL.createObjectURL(response.data);
+      setCaptchaUrl(imageUrl);
+      console.log("Image URL created:", imageUrl);
       
     } catch (error) {
       console.error("Error loading CAPTCHA:", error);

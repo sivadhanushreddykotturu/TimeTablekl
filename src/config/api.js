@@ -49,4 +49,4 @@ export const getCurrentAcademicYearOptions = () => {
   options.push(`${currentYear}-${(currentYear+1).toString().slice(-2)}`);
   
   return options;
-}; 
+};
