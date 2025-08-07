@@ -26,6 +26,10 @@ export default function CaptchaRefreshModal({ onClose, onSuccess }) {
       
       if (sessionIdFromHeader) {
         setSessionId(sessionIdFromHeader);
+      } else {
+        // Fallback: use timestamp as session ID for new backend compatibility
+        const fallbackSessionId = `session_${Date.now()}`;
+        setSessionId(fallbackSessionId);
       }
       
       // Create object URL for the image

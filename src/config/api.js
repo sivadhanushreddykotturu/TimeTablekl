@@ -33,9 +33,7 @@ export const getFormData = (username, password, captcha, semester, academicYear,
   form.append("username", username);
   form.append("password", password);
   form.append("captcha", captcha);
-  if (sessionId) {
-    form.append("session_id", sessionId);
-  }
+  form.append("session_id", sessionId || ""); // Always send session_id, even if empty
   form.append("academic_year_code", getAcademicYearCode(academicYear));
   form.append("semester_id", SEMESTER_MAP[semester]);
   return form;
