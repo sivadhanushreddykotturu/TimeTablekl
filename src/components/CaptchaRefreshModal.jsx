@@ -1,25 +1,44 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { getCredentials } from "../utils/storage";
-import { getCaptchaUrl, getFormData, API_CONFIG } from "../config/api.js";
+import { getFormData, API_CONFIG } from "../config/api.js";
 
 export default function CaptchaRefreshModal({ onClose, onSuccess }) {
   const [captchaUrl, setCaptchaUrl] = useState("");
+  const [sessionId, setSessionId] = useState("");
   const [captchaInput, setCaptchaInput] = useState("");
   const [captchaLoading, setCaptchaLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const loadCaptcha = async () => {
+    setCaptchaLoading(true);
+    setError("");
+    
+    try {
+      const response = await axios.get(API_CONFIG.CAPTCHA_URL, {
+        responseType: 'blob'
+      });
+      
+      // Get session ID from response headers
+      const sessionIdFromHeader = response.headers['x-session-id'];
+      if (sessionIdFromHeader) {
+        setSessionId(sessionIdFromHeader);
+      }
+      
+      // Create object URL for the image
+      const imageUrl = URL.createObjectURL(response.data);
+      setCaptchaUrl(imageUrl);
+      
+    } catch (error) {
+      setError("Failed to load CAPTCHA");
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setCaptchaUrl(getCaptchaUrl());
+    loadCaptcha();
   }, []);
-
-  const handleCaptchaLoad = () => {
-    setCaptchaLoading(false);
-  };
-
-  const handleCaptchaError = () => {
-    setCaptchaLoading(false);
-  };
 
   const handleRefresh = async () => {
     const creds = getCredentials();
@@ -34,12 +53,17 @@ export default function CaptchaRefreshModal({ onClose, onSuccess }) {
       return;
     }
 
+    if (!sessionId) {
+      setError("CAPTCHA not loaded. Please try again.");
+      return;
+    }
+
     // Get stored semester and academic year
     const storedSemester = localStorage.getItem("semester") || "odd";
     const storedAcademicYear = localStorage.getItem("academicYear") || "2024-25";
 
     try {
-      const form = getFormData(creds.username, creds.password, captchaInput, storedSemester, storedAcademicYear);
+      const form = getFormData(creds.username, creds.password, captchaInput, storedSemester, storedAcademicYear, sessionId);
       const res = await axios.post(API_CONFIG.FETCH_URL, form);
       
       if (res.data.success) {
@@ -48,12 +72,12 @@ export default function CaptchaRefreshModal({ onClose, onSuccess }) {
         onClose();
       } else {
         setError(res.data.message || "ReSync failed");
-        setCaptchaUrl(getCaptchaUrl());
+        loadCaptcha();
         setCaptchaInput("");
       }
-    } catch {
-      setError("Error syncing timetable");
-      setCaptchaUrl(getCaptchaUrl());
+    } catch (error) {
+      setError(error.response?.data?.message || "Error syncing timetable");
+      loadCaptcha();
       setCaptchaInput("");
     }
   };
@@ -88,19 +112,31 @@ export default function CaptchaRefreshModal({ onClose, onSuccess }) {
         <p className="mb-16">Enter the new CAPTCHA:</p>
 
         <div className="captcha-container">
-          {captchaLoading ? (
-            <div className="captcha-loading">
-              Loading CAPTCHA...
-            </div>
-          ) : (
-            <img
-              src={captchaUrl}
-              alt="CAPTCHA"
-              className="captcha-image"
-              onLoad={handleCaptchaLoad}
-              onError={handleCaptchaError}
-            />
-          )}
+          <div
+            style={{
+              width: "150px",
+              height: "50px",
+              marginBottom: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "1px solid var(--border-color)",
+              backgroundColor: "var(--bg-tertiary)",
+            }}
+          >
+            {captchaLoading ? (
+              <span>Loading CAPTCHA...</span>
+            ) : captchaUrl ? (
+              <img
+                src={captchaUrl}
+                alt="CAPTCHA"
+                className="captcha-image"
+                style={{ maxWidth: "100%", maxHeight: "100%" }}
+              />
+            ) : (
+              <span>Failed to load</span>
+            )}
+          </div>
 
           <input
             placeholder="Type CAPTCHA"

@@ -4,10 +4,10 @@
 
 export const API_CONFIG = {
   // CAPTCHA endpoint
-  CAPTCHA_URL: "https://tt-production-4753.up.railway.app/get-captcha",
+  CAPTCHA_URL: "https://web-production-a569c.up.railway.app/get-captcha",
   
   // Login/Data fetch endpoint
-  FETCH_URL: "https://tt-production-4753.up.railway.app/fetch-timetable",
+  FETCH_URL: "https://web-production-a569c.up.railway.app/fetch-timetable",
 };
 
 // Semester mapping
@@ -27,12 +27,13 @@ export const getCaptchaUrl = () => {
   return `${API_CONFIG.CAPTCHA_URL}?ts=${Date.now()}`;
 };
 
-// Helper function to get form data with common fields
-export const getFormData = (username, password, captcha, semester, academicYear) => {
+// Helper function to get form data with common fields (updated for session-based system)
+export const getFormData = (username, password, captcha, semester, academicYear, sessionId) => {
   const form = new FormData();
   form.append("username", username);
   form.append("password", password);
   form.append("captcha", captcha);
+  form.append("session_id", sessionId);
   form.append("academic_year_code", getAcademicYearCode(academicYear));
   form.append("semester_id", SEMESTER_MAP[semester]);
   return form;

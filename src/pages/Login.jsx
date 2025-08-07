@@ -11,6 +11,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [captcha, setCaptcha] = useState("");
   const [captchaUrl, setCaptchaUrl] = useState("");
+  const [sessionId, setSessionId] = useState("");
   const [captchaLoading, setCaptchaLoading] = useState(true);
   const [semester, setSemester] = useState("odd");
   const [academicYear, setAcademicYear] = useState("");
@@ -18,9 +19,34 @@ export default function Login() {
 
   const navigate = useNavigate();
 
-  const refreshCaptcha = () => {
+  const refreshCaptcha = async () => {
     setCaptchaLoading(true);
-    setCaptchaUrl(getCaptchaUrl());
+    setCaptcha("");
+    
+    try {
+      const response = await axios.get(API_CONFIG.CAPTCHA_URL, {
+        responseType: 'blob' // Important: get the image as blob
+      });
+      
+      // Get session ID from response headers
+      const sessionIdFromHeader = response.headers['x-session-id'];
+      if (sessionIdFromHeader) {
+        setSessionId(sessionIdFromHeader);
+      }
+      
+      // Create object URL for the image
+      const imageUrl = URL.createObjectURL(response.data);
+      setCaptchaUrl(imageUrl);
+      
+    } catch (error) {
+      setToast({
+        show: true,
+        message: "Failed to load CAPTCHA",
+        type: "error"
+      });
+    } finally {
+      setCaptchaLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -43,17 +69,17 @@ export default function Login() {
   };
 
   const handleLogin = async () => {
-    if (!username || !password || !captcha || !semester || !academicYear) {
+    if (!username || !password || !captcha || !semester || !academicYear || !sessionId) {
       setToast({
         show: true,
-        message: "Please fill all fields.",
+        message: "Please fill all fields and ensure CAPTCHA is loaded.",
         type: "error"
       });
       return;
     }
 
     try {
-      const form = getFormData(username, password, captcha, semester, academicYear);
+      const form = getFormData(username, password, captcha, semester, academicYear, sessionId);
       const res = await axios.post(API_CONFIG.FETCH_URL, form);
       
       if (res.data.success) {
@@ -70,10 +96,10 @@ export default function Login() {
         });
         refreshCaptcha();
       }
-    } catch {
+    } catch (error) {
       setToast({
         show: true,
-        message: "Something went wrong.",
+        message: error.response?.data?.message || "Something went wrong.",
         type: "error"
       });
       refreshCaptcha();
