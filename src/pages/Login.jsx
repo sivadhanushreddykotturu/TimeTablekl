@@ -43,10 +43,6 @@ export default function Login() {
         console.log("Session ID set:", sessionIdFromHeader);
       } else {
         console.log("No session ID found in headers");
-        // Fallback: use timestamp as session ID (temporary solution)
-        const fallbackSessionId = `session_${Date.now()}`;
-        setSessionId(fallbackSessionId);
-        console.log("Using fallback session ID:", fallbackSessionId);
       }
       
       // Create object URL for the image
@@ -91,10 +87,10 @@ export default function Login() {
     console.log("Login attempt - sessionId:", sessionId);
     console.log("All fields:", { username, password, captcha, semester, academicYear, sessionId });
     
-    if (!username || !password || !captcha || !semester || !academicYear || !sessionId) {
+    if (!username || !password || !captcha || !semester || !academicYear) {
       setToast({
         show: true,
-        message: `Please fill all fields and ensure CAPTCHA is loaded. Session ID: ${sessionId ? 'OK' : 'Missing'}`,
+        message: "Please fill all fields.",
         type: "error"
       });
       return;
