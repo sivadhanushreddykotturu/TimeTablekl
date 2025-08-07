@@ -17,19 +17,23 @@ export default function CaptchaModal({ isOpen, onClose, onSuccess }) {
     setError("");
     
     try {
-      const response = await axios.get(API_CONFIG.CAPTCHA_URL, {
-        responseType: 'blob'
-      });
+      const response = await axios.get(API_CONFIG.CAPTCHA_URL);
       
-      // Get session ID from response headers
-      const sessionIdFromHeader = response.headers['x-session-id'];
-      if (sessionIdFromHeader) {
-        setSessionId(sessionIdFromHeader);
+      if (response.data.success) {
+        // Get session ID from response body
+        const sessionIdFromResponse = response.data.session_id;
+        const imageData = response.data.image;
+        
+        if (sessionIdFromResponse) {
+          setSessionId(sessionIdFromResponse);
+        }
+        
+        // Set the base64 image
+        setCaptchaUrl(imageData);
+        
+      } else {
+        setError(response.data.message || "Failed to load CAPTCHA");
       }
-      
-      // Create object URL for the image
-      const imageUrl = URL.createObjectURL(response.data);
-      setCaptchaUrl(imageUrl);
       
     } catch (error) {
       setError("Failed to load CAPTCHA");

@@ -22,23 +22,44 @@ export default function Login() {
   const refreshCaptcha = async () => {
     setCaptchaLoading(true);
     setCaptcha("");
+    setSessionId(""); // Reset session ID
     
     try {
-      const response = await axios.get(API_CONFIG.CAPTCHA_URL, {
-        responseType: 'blob' // Important: get the image as blob
-      });
+      const response = await axios.get(API_CONFIG.CAPTCHA_URL);
       
-      // Get session ID from response headers
-      const sessionIdFromHeader = response.headers['x-session-id'];
-      if (sessionIdFromHeader) {
-        setSessionId(sessionIdFromHeader);
+      console.log("Response data:", response.data);
+      
+      if (response.data.success) {
+        // Get session ID from response body
+        const sessionIdFromResponse = response.data.session_id;
+        const imageData = response.data.image;
+        
+        console.log("Session ID from response:", sessionIdFromResponse);
+        
+        if (sessionIdFromResponse) {
+          setSessionId(sessionIdFromResponse);
+          console.log("Session ID set:", sessionIdFromResponse);
+        } else {
+          // Fallback: use timestamp as session ID (temporary solution)
+          const fallbackSessionId = `session_${Date.now()}`;
+          setSessionId(fallbackSessionId);
+          console.log("Using fallback session ID:", fallbackSessionId);
+        }
+        
+        // Set the base64 image
+        setCaptchaUrl(imageData);
+        
+      } else {
+        console.log("CAPTCHA response not successful");
+        setToast({
+          show: true,
+          message: response.data.message || "Failed to load CAPTCHA",
+          type: "error"
+        });
       }
       
-      // Create object URL for the image
-      const imageUrl = URL.createObjectURL(response.data);
-      setCaptchaUrl(imageUrl);
-      
     } catch (error) {
+      console.error("Error loading CAPTCHA:", error);
       setToast({
         show: true,
         message: "Failed to load CAPTCHA",
@@ -69,10 +90,13 @@ export default function Login() {
   };
 
   const handleLogin = async () => {
+    console.log("Login attempt - sessionId:", sessionId);
+    console.log("All fields:", { username, password, captcha, semester, academicYear, sessionId });
+    
     if (!username || !password || !captcha || !semester || !academicYear || !sessionId) {
       setToast({
         show: true,
-        message: "Please fill all fields and ensure CAPTCHA is loaded.",
+        message: `Please fill all fields and ensure CAPTCHA is loaded. Session ID: ${sessionId ? 'OK' : 'Missing'}`,
         type: "error"
       });
       return;
@@ -97,6 +121,7 @@ export default function Login() {
         refreshCaptcha();
       }
     } catch (error) {
+      console.error("Login error:", error);
       setToast({
         show: true,
         message: error.response?.data?.message || "Something went wrong.",
