@@ -42,7 +42,11 @@ export default function Login() {
         setSessionId(sessionIdFromHeader);
         console.log("Session ID set:", sessionIdFromHeader);
       } else {
-        console.log("No session ID found in headers");
+        console.log("No session ID found in headers, using fallback");
+        // Fallback: use timestamp as session ID for new backend compatibility
+        const fallbackSessionId = `session_${Date.now()}`;
+        setSessionId(fallbackSessionId);
+        console.log("Using fallback session ID:", fallbackSessionId);
       }
       
       // Create object URL for the image
