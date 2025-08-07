@@ -1,38 +1,59 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { getCredentials } from "../../utils/storage.js";
-import { getCaptchaUrl, getFormData, API_CONFIG } from "../config/api.js";
+import { getFormData, API_CONFIG } from "../config/api.js";
 
 export default function CaptchaModal({ isOpen, onClose, onSuccess }) {
   const [captchaInput, setCaptchaInput] = useState("");
   const [captchaUrl, setCaptchaUrl] = useState("");
+  const [sessionId, setSessionId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [imageLoading, setImageLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const loadCaptcha = async () => {
+    setImageLoading(true);
+    setError("");
+    
+    try {
+      const response = await axios.get(API_CONFIG.CAPTCHA_URL, {
+        responseType: 'blob'
+      });
+      
+      // Get session ID from response headers
+      const sessionIdFromHeader = response.headers['x-session-id'];
+      if (sessionIdFromHeader) {
+        setSessionId(sessionIdFromHeader);
+      }
+      
+      // Create object URL for the image
+      const imageUrl = URL.createObjectURL(response.data);
+      setCaptchaUrl(imageUrl);
+      
+    } catch (error) {
+      setError("Failed to load CAPTCHA");
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       setCaptchaInput("");
       setError("");
-      setImageLoading(true);
-      
-      // Use centralized captcha URL generation
-      const url = getCaptchaUrl();
-      setCaptchaUrl(url);
-      
-      // Add a timeout to handle cases where image takes too long
-      const timeout = setTimeout(() => {
-        setImageLoading(false);
-      }, 10000); // 10 seconds timeout
-      
-      return () => clearTimeout(timeout);
+      loadCaptcha();
     }
   }, [isOpen]);
 
   const handleSubmit = async () => {
     if (!captchaInput.trim()) {
       setError("Please enter the CAPTCHA");
+      return;
+    }
+
+    if (!sessionId) {
+      setError("CAPTCHA not loaded. Please try again.");
       return;
     }
 
@@ -51,7 +72,7 @@ export default function CaptchaModal({ isOpen, onClose, onSuccess }) {
     const storedAcademicYear = localStorage.getItem("academicYear") || "2024-25";
 
     try {
-      const form = getFormData(creds.username, creds.password, captchaInput, storedSemester, storedAcademicYear);
+      const form = getFormData(creds.username, creds.password, captchaInput, storedSemester, storedAcademicYear, sessionId);
       const res = await axios.post(API_CONFIG.FETCH_URL, form);
       
       if (res.data.success) {
@@ -60,27 +81,24 @@ export default function CaptchaModal({ isOpen, onClose, onSuccess }) {
         onClose();
       } else {
         setError(res.data.message || "Invalid CAPTCHA. Please try again.");
-        // Sync captcha image
-        setCaptchaUrl(getCaptchaUrl());
+        loadCaptcha();
         setCaptchaInput("");
       }
-    } catch {
-      setError("Something went wrong. Please try again.");
-      setCaptchaUrl(getCaptchaUrl());
+    } catch (error) {
+      setError(error.response?.data?.message || "Something went wrong. Please try again.");
+      loadCaptcha();
       setCaptchaInput("");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRefreshCaptcha = () => {
+  const handleRefreshCaptcha = async () => {
     setRefreshing(true);
-    setImageLoading(true);
     setError("");
-    
-    const url = getCaptchaUrl();
-    setCaptchaUrl(url);
     setCaptchaInput("");
+    
+    await loadCaptcha();
     
     // Show syncing message for 15 seconds
     setTimeout(() => {
@@ -96,9 +114,9 @@ export default function CaptchaModal({ isOpen, onClose, onSuccess }) {
         position: "fixed",
         top: 0,
         left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        width: "100vw",
+        height: "100vh",
+        background: "rgba(0,0,0,0.5)",
         backdropFilter: "blur(5px)",
         display: "flex",
         justifyContent: "center",
@@ -110,43 +128,41 @@ export default function CaptchaModal({ isOpen, onClose, onSuccess }) {
       <div
         className="card"
         style={{
-          maxWidth: "400px",
-          width: "90%",
-          textAlign: "center",
+          minWidth: 280,
+          maxWidth: 320,
           margin: "20px",
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ marginTop: 0, marginBottom: "20px" }}>
-          Enter CAPTCHA to ReSync
-        </h3>
-        
+        <h3 style={{ marginTop: 0, marginBottom: "20px" }}>ReSync Timetable</h3>
+        <p className="mb-16">Enter the new CAPTCHA:</p>
+
         <div className="captcha-container">
-        <div style={{ position: "relative", marginBottom: "15px" }}>
-  {imageLoading && (
-    <div className="captcha-loading" style={{ textAlign: "center" }}>
-      Loading CAPTCHA...
-    </div>
-  )}
-
-  <img
-    src={captchaUrl}
-    alt="CAPTCHA"
-    className="captcha-image"
-    style={{
-      margin: "0 auto",
-      display: imageLoading ? "none" : "block"
-    }}
-    onLoad={() => {
-      setImageLoading(false);
-    }}
-    onError={() => {
-      setImageLoading(false);
-      setError("Failed to load CAPTCHA image");
-    }}
-  />
-</div>
-
+          <div
+            style={{
+              width: "150px",
+              height: "50px",
+              marginBottom: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "1px solid var(--border-color)",
+              backgroundColor: "var(--bg-tertiary)",
+            }}
+          >
+            {imageLoading ? (
+              <span>Loading CAPTCHA...</span>
+            ) : captchaUrl ? (
+              <img
+                src={captchaUrl}
+                alt="CAPTCHA"
+                className="captcha-image"
+                style={{ maxWidth: "100%", maxHeight: "100%" }}
+              />
+            ) : (
+              <span>Failed to load</span>
+            )}
+          </div>
           
           {refreshing && (
             <div style={{ 
