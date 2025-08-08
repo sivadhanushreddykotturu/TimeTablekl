@@ -36,7 +36,7 @@ A minimal Progressive Web App (PWA) for KL University B.Tech students to view th
 ## 🔐 How It Works
 
 1. User enters **username, password, and CAPTCHA**.
-2. App sends data to backend API: [`/klfetcht`](https://tinyurl.com/klfetcht).
+2. App sends data to backend API.
 3. On success:
 
    * Timetable is parsed and saved to `localStorage`.
@@ -66,11 +66,6 @@ npm install
 npm run dev
 ```
 
-### Environment
-
-You do **not** need any `.env` file; backend endpoints are hardcoded to [TinyURL links](https://tinyurl.com).
-
----
 
 
 
