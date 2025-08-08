@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/Header";
-import CaptchaModal from "../components/CaptchaModal";
 import Toast from "../components/Toast";
-import { getTodaySubjects } from "../utils/subjectMapper";
 
 const slotTimes = {
   1: { start: "07:10", end: "08:00" },
@@ -43,16 +41,13 @@ function findCurrentAndNextClass(timetable) {
   let currentClass = "No ongoing class";
   let nextClass = "No upcoming class";
 
-  // Convert slots to entries and filter valid slots
   const entries = Object.entries(slots)
     .filter(([slot]) => parseInt(slot) <= 11)
     .map(([slot, value]) => [parseInt(slot), value]);
 
-  // Find the current class block
   let currentBlock = null;
   let nextBlock = null;
 
-  // Merge consecutive slots like in TimetableView
   const merged = [];
   let i = 0;
 
@@ -77,7 +72,6 @@ function findCurrentAndNextClass(timetable) {
     i++;
   }
 
-  // Find current class (only if we're in a valid slot)
   if (currentSlot) {
     for (const block of merged) {
       if (currentSlot >= block.startSlot && currentSlot <= block.endSlot) {
@@ -87,9 +81,7 @@ function findCurrentAndNextClass(timetable) {
     }
   }
 
-  // Find next class
   if (currentSlot) {
-    // If we're in an active slot, find the next class after current slot
     for (const block of merged) {
       if (block.startSlot > currentSlot) {
         nextBlock = block;
@@ -97,7 +89,6 @@ function findCurrentAndNextClass(timetable) {
       }
     }
   } else {
-    // If we're not in an active slot (break time), find the next upcoming class
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     
@@ -112,12 +103,10 @@ function findCurrentAndNextClass(timetable) {
     }
   }
 
-  // Set current class
   if (currentBlock) {
     currentClass = `${currentBlock.content} (${slotTimes[currentBlock.startSlot].start} - ${slotTimes[currentBlock.endSlot].end})`;
   }
 
-  // Set next class
   if (nextBlock) {
     nextClass = `${nextBlock.content} (${slotTimes[nextBlock.startSlot].start} - ${slotTimes[nextBlock.endSlot].end})`;
   }
@@ -125,55 +114,33 @@ function findCurrentAndNextClass(timetable) {
   return { currentClass, nextClass };
 }
 
-
-export default function Home() {
+export default function MaddyClassInfo() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const [maddy, setMaddy] = useState(null);
   const [current, setCurrent] = useState("Loading...");
   const [next, setNext] = useState("Loading...");
-  const [timetable, setTimetable] = useState(
-    JSON.parse(localStorage.getItem("timetable") || "{}")
-  );
-  const [showCaptchaModal, setShowCaptchaModal] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
-  const [semester, setSemester] = useState("");
-  const [academicYear, setAcademicYear] = useState("");
-  const [todaySubjects, setTodaySubjects] = useState([]);
 
   useEffect(() => {
-    const { currentClass, nextClass } = findCurrentAndNextClass(timetable);
+    const maddys = JSON.parse(localStorage.getItem("maddys") || "[]");
+    const foundMaddy = maddys.find(m => m.id === parseInt(id));
+    
+    if (!foundMaddy) {
+      setToast({
+        show: true,
+        message: "Friend not found",
+        type: "error"
+      });
+      setTimeout(() => navigate("/maddys"), 2000);
+      return;
+    }
+
+    setMaddy(foundMaddy);
+    const { currentClass, nextClass } = findCurrentAndNextClass(foundMaddy.timetable);
     setCurrent(currentClass);
     setNext(nextClass);
-    
-    // Get stored semester and academic year
-    const storedSemester = localStorage.getItem("semester") || "odd";
-    const storedAcademicYear = localStorage.getItem("academicYear") || "2024-25";
-    setSemester(storedSemester);
-    setAcademicYear(storedAcademicYear);
-    
-    // Get today's subjects
-    setTodaySubjects(getTodaySubjects());
-  }, [timetable]);
-
-  // Separate useEffect for analytics tracking (runs only once on mount)
-  useEffect(() => {
-    // Track page view for analytics only once when component mounts
-  }, []); // Empty dependency array - runs only once
-
-  const handleRefresh = () => {
-    setShowCaptchaModal(true);
-  };
-
-  const handleCaptchaSuccess = (newTimetable) => {
-    // Track timetable sync
-    
-    setTimetable(newTimetable);
-    setTodaySubjects(getTodaySubjects());
-    setToast({
-      show: true,
-      message: "Timetable synced successfully!",
-      type: "success"
-    });
-  };
+  }, [id, navigate]);
 
   const closeToast = () => {
     setToast(prev => ({ ...prev, show: false }));
@@ -188,18 +155,38 @@ export default function Home() {
     }
   };
 
+  if (!maddy) {
+    return (
+      <>
+        <Header onRefresh={() => {}} />
+        <div className="container">
+          <div className="text-center">
+            <h2>Loading...</h2>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
-      <Header onRefresh={handleRefresh} />
+      <Header onRefresh={() => {}} />
 
       <div className="container">
         <div className="page-header">
           <div>
-            <h1 className="page-title">Your Timetable</h1>
+            <h1 className="page-title">{maddy.name}'s Class Info 📚</h1>
             <p className="page-subtitle">
-              {getSemesterDisplayName(semester)} • {academicYear}
+              {getSemesterDisplayName(maddy.semester)} • {maddy.academicYear}
             </p>
           </div>
+          <button 
+            onClick={() => navigate("/maddys")} 
+            className="secondary"
+            style={{ marginTop: "16px" }}
+          >
+            ← Back to Maddys
+          </button>
         </div>
 
         <div className="class-card">
@@ -216,55 +203,15 @@ export default function Home() {
           </div>
         </div>
 
-        {todaySubjects.length > 0 && (
-          <div className="class-card">
-            <h2>Today's Subjects</h2>
-            <div className="today-subjects">
-              {todaySubjects.map((subject, index) => (
-                <div key={index} className="subject-item">
-                  <span className="subject-display-name">{subject.displayName}</span>
-                  {subject.displayName !== subject.code && (
-                    <span className="subject-original-code">({subject.code})</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         <div className="button-container">
           <button 
-            onClick={() => navigate("/timetable")} 
+            onClick={() => navigate(`/maddys/${id}/timetable`)} 
             className="primary full-width-mobile"
           >
-            View Full Timetable
-          </button>
-
-          <button 
-            onClick={() => navigate("/subjects")} 
-            className="secondary full-width-mobile"
-            style={{ marginTop: "20px" }}
-          >
-            Manage Subject Names
-          </button>
-
-          <button 
-            onClick={() => navigate("/maddys")} 
-            className="secondary full-width-mobile"
-            style={{ marginTop: "20px" }}
-          >
-            Where's Maddy? 👥
+            View Full Timetable 📅
           </button>
         </div>
-
-
       </div>
-
-      <CaptchaModal
-        isOpen={showCaptchaModal}
-        onClose={() => setShowCaptchaModal(false)}
-        onSuccess={handleCaptchaSuccess}
-      />
 
       <Toast
         message={toast.message}
