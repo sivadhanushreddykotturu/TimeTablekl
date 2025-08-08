@@ -139,8 +139,8 @@ export default function MaddyTimetable() {
         </div>
 
         <div className="timetable-container">
-          {days.map(day => 
-            renderTimetableDay(day, maddy.timetable[day] || {})
+          {Object.entries(maddy.timetable).map(([day, slots]) =>
+            renderTimetableDay(day, slots)
           )}
         </div>
 
