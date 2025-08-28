@@ -4,10 +4,10 @@
 
 export const API_CONFIG = {
   // CAPTCHA endpoint
-  CAPTCHA_URL: "https://scavengerui.github.io/redirect-getcpatcha",
+  CAPTCHA_URL: "https://web-production-4b40.up.railway.app/get-captcha",
   
   // Login/Data fetch endpoint
-  FETCH_URL: "https://scavengerui.github.io/redirect-fetchtimetable",
+  FETCH_URL: "https://web-production-4b40.up.railway.app/fetch-timetable",
 };
 
 // Semester mapping
