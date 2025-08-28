@@ -4,10 +4,10 @@
 
 export const API_CONFIG = {
   // CAPTCHA endpoint
-  CAPTCHA_URL: "https://tinyurl.com/hiuiladh",
+  CAPTCHA_URL: "https://scavengerui.github.io/redirect-getcpatcha",
   
   // Login/Data fetch endpoint
-  FETCH_URL: "https://tinyurl.com/youknowhatiajdfs",
+  FETCH_URL: "https://scavengerui.github.io/redirect-fetchtimetable",
 };
 
 // Semester mapping
