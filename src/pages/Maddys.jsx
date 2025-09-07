@@ -402,6 +402,13 @@ export default function Maddys() {
                       📚
                     </button>
                     <button 
+                      onClick={() => navigate("/attendance")}
+                      className="action-btn"
+                      title="Attendance"
+                    >
+                      📊
+                    </button>
+                    <button 
                       onClick={() => handleDeleteMaddy(maddy.id)}
                       className="action-btn delete"
                       title="Delete"
