@@ -1183,6 +1183,58 @@ button.small {
   margin-left: 12px;
 }
 
+/* Total Attendance Box */
+.total-attendance-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  margin-bottom: 16px;
+}
+
+.total-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.total-badge {
+  background: var(--accent-primary);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  min-width: 60px;
+}
+
+.total-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.total-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.total-percentage {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.total-details {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 .sections-container {
   display: flex;
   flex-direction: column;
@@ -1259,6 +1311,17 @@ button.small {
     margin-left: 0;
   }
 
+  .total-attendance-box {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .total-stats {
+    align-items: flex-start;
+    width: 100%;
+  }
+
   .section-item {
     flex-direction: column;
     align-items: flex-start;
@@ -1273,6 +1336,98 @@ button.small {
   .attendance-details {
     align-items: flex-start;
   }
+}
+
+/* Calculator Styles */
+.calculator-btn {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.calculator-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+}
+
+.calculator-btn.number {
+  background: var(--card-bg);
+}
+
+.calculator-btn.operation {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+.calculator-btn.operation:hover {
+  background: var(--accent-hover);
+}
+
+.calculator-btn.equals {
+  background: var(--accent-secondary);
+  color: white;
+  border-color: var(--accent-secondary);
+}
+
+.calculator-btn.equals:hover {
+  background: var(--accent-secondary-hover);
+}
+
+.calculator-btn.special {
+  background: #ff6b6b;
+  color: white;
+  border-color: #ff6b6b;
+}
+
+.calculator-btn.special:hover {
+  background: #ff5252;
+}
+
+.calculator-btn.secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.calculator-btn.secondary:hover {
+  background: var(--border-color);
+}
+
+/* Calculator Icon Button */
+.calculator-icon-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  transition: all 0.3s ease;
+  z-index: 100;
+}
+
+.calculator-icon-btn:hover {
+  background: var(--accent-hover);
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.calculator-icon-btn:active {
+  transform: scale(0.95);
 }
 
 /* Timetable Container */
