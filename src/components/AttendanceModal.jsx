@@ -3,7 +3,7 @@ import axios from "axios";
 import { getCredentials } from "../../utils/storage.js";
 import { getFormData, API_CONFIG } from "../config/api.js";
 
-export default function AttendanceModal({ isOpen, onClose, onSuccess }) {
+export default function AttendanceModal({ isOpen, onClose, onSuccess, friendCredentials = null }) {
   const [captchaInput, setCaptchaInput] = useState("");
   const [captchaUrl, setCaptchaUrl] = useState("");
   const [sessionId, setSessionId] = useState("");
@@ -67,19 +67,20 @@ export default function AttendanceModal({ isOpen, onClose, onSuccess }) {
     setIsLoading(true);
     setError("");
 
-    const creds = getCredentials();
+    // Use friend credentials if provided, otherwise use stored credentials
+    const creds = friendCredentials || getCredentials();
     if (!creds) {
       setError("Session expired. Please log in again.");
       setIsLoading(false);
       return;
     }
 
-    // Get stored semester and academic year
-    const storedSemester = localStorage.getItem("semester") || "odd";
-    const storedAcademicYear = localStorage.getItem("academicYear") || "2024-25";
+    // Get semester and academic year (from friend or stored)
+    const semester = friendCredentials ? friendCredentials.semester : (localStorage.getItem("semester") || "odd");
+    const academicYear = friendCredentials ? friendCredentials.academicYear : (localStorage.getItem("academicYear") || "2024-25");
 
     try {
-      const form = getFormData(creds.username, creds.password, captchaInput, storedSemester, storedAcademicYear, sessionId);
+      const form = getFormData(creds.username, creds.password, captchaInput, semester, academicYear, sessionId);
       const res = await axios.post(API_CONFIG.ATTENDANCE_URL, form);
       
       if (res.data.success) {
@@ -140,8 +141,12 @@ export default function AttendanceModal({ isOpen, onClose, onSuccess }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ marginTop: 0, marginBottom: "20px" }}>Fetch Attendance</h3>
-        <p className="mb-16">Enter the CAPTCHA to fetch your attendance:</p>
+        <h3 style={{ marginTop: 0, marginBottom: "20px" }}>
+          {friendCredentials ? `Fetch ${friendCredentials.name}'s Attendance` : 'Fetch Attendance'}
+        </h3>
+        <p className="mb-16">
+          Enter the CAPTCHA to fetch {friendCredentials ? `${friendCredentials.name}'s` : 'your'} attendance:
+        </p>
 
         <div className="captcha-container">
           <div

@@ -402,7 +402,17 @@ export default function Maddys() {
                       📚
                     </button>
                     <button 
-                      onClick={() => navigate("/attendance")}
+                      onClick={() => navigate("/attendance", { 
+                        state: { 
+                          friendCredentials: {
+                            username: maddy.username,
+                            password: maddy.password,
+                            semester: maddy.semester,
+                            academicYear: maddy.academicYear,
+                            name: maddy.name
+                          }
+                        }
+                      })}
                       className="action-btn"
                       title="Attendance"
                     >
@@ -604,6 +614,13 @@ export default function Maddys() {
         isOpen={showCaptchaModal}
         onClose={() => setShowCaptchaModal(false)}
         onSuccess={handleCaptchaSuccess}
+        friendCredentials={selectedMaddy ? {
+          username: selectedMaddy.username,
+          password: selectedMaddy.password,
+          semester: selectedMaddy.semester,
+          academicYear: selectedMaddy.academicYear,
+          name: selectedMaddy.name
+        } : null}
       />
 
       <Toast

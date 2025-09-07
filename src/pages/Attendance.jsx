@@ -1,16 +1,20 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import AttendanceModal from "../components/AttendanceModal";
 import CalculatorModal from "../components/CalculatorModal";
 import Toast from "../components/Toast";
 
 export default function Attendance() {
+  const location = useLocation();
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [showCalculatorModal, setShowCalculatorModal] = useState(false);
   const [attendanceData, setAttendanceData] = useState([]);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const navigate = useNavigate();
+  
+  // Get friend credentials from location state if available
+  const friendCredentials = location.state?.friendCredentials || null;
 
   const handleFetchAttendance = () => {
     setShowAttendanceModal(true);
@@ -78,7 +82,9 @@ export default function Attendance() {
 
       <div className="container">
         <div className="page-header">
-          <h1 className="page-title">Attendance</h1>
+          <h1 className="page-title">
+            {friendCredentials ? `${friendCredentials.name}'s Attendance` : 'Attendance'}
+          </h1>
           <div className="action-buttons">
             <button onClick={() => navigate("/home")}>
               Back to Home
@@ -88,7 +94,9 @@ export default function Attendance() {
 
         {attendanceData.length === 0 ? (
           <div className="card">
-            <p className="text-center">Click "ReSync" to fetch your attendance data</p>
+            <p className="text-center">
+              Click "ReSync" to fetch {friendCredentials ? `${friendCredentials.name}'s` : 'your'} attendance data
+            </p>
           </div>
         ) : (
           <div className="attendance-container">
@@ -150,6 +158,7 @@ export default function Attendance() {
         isOpen={showAttendanceModal}
         onClose={() => setShowAttendanceModal(false)}
         onSuccess={handleAttendanceSuccess}
+        friendCredentials={friendCredentials}
       />
 
       <CalculatorModal
