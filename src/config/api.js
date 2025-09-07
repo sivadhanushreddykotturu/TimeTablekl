@@ -4,10 +4,10 @@
 
 export const API_CONFIG = {
   // CAPTCHA endpoint
-  CAPTCHA_URL: "https://web-production-4b40.up.railway.app/get-captcha",
+  CAPTCHA_URL: "https://web-production-f19d4.up.railway.app/get-captcha",
   
   // Login/Data fetch endpoint
-  FETCH_URL: "https://web-production-4b40.up.railway.app/fetch-timetable",
+  FETCH_URL: "https://web-production-f19d4.up.railway.app/fetch-timetable",
 };
 
 // Semester mapping

@@ -255,6 +255,14 @@ export default function Home() {
           >
             Where's Maddy? 👥
           </button>
+
+          <button 
+            onClick={() => navigate("/attendance")} 
+            className="secondary full-width-mobile"
+            style={{ marginTop: "20px" }}
+          >
+            Attendance
+          </button>
         </div>
 
 
