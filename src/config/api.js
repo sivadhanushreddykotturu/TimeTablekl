@@ -8,6 +8,9 @@ export const API_CONFIG = {
   
   // Login/Data fetch endpoint
   FETCH_URL: "https://web-production-f19d4.up.railway.app/fetch-timetable",
+  
+  // Attendance fetch endpoint
+  ATTENDANCE_URL: "https://web-production-f19d4.up.railway.app/fetch-attendance",
 };
 
 // Semester mapping
