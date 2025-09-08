@@ -137,6 +137,7 @@ export default function Maddys() {
   const [friendName, setFriendName] = useState("");
   const [showNameModal, setShowNameModal] = useState(false);
   const [tempFriendData, setTempFriendData] = useState(null);
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
 
   useEffect(() => {
     const savedMaddys = JSON.parse(localStorage.getItem("maddys") || "[]");
@@ -215,6 +216,7 @@ export default function Maddys() {
     }
 
     try {
+      setIsAddingFriend(true);
       const form = getFormData(friendUsername, friendPassword, friendCaptcha, friendSemester, friendAcademicYear, friendSessionId);
 
       const response = await fetch(API_CONFIG.FETCH_URL, {
@@ -251,6 +253,8 @@ export default function Maddys() {
         type: "error"
       });
       refreshFriendCaptcha();
+    } finally {
+      setIsAddingFriend(false);
     }
   };
 
@@ -563,8 +567,8 @@ export default function Maddys() {
                 >
                   Cancel
                 </button>
-                <button onClick={handleAddFriend} className="primary">
-                  Add Friend
+                <button onClick={handleAddFriend} className="primary" disabled={isAddingFriend}>
+                  {isAddingFriend ? "Adding..." : "Add Friend"}
                 </button>
               </div>
             </div>

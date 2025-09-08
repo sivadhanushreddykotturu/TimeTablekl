@@ -16,6 +16,7 @@ export default function Login() {
   const [semester, setSemester] = useState("odd");
   const [academicYear, setAcademicYear] = useState("");
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const navigate = useNavigate();
 
@@ -101,6 +102,7 @@ export default function Login() {
     }
 
     try {
+      setIsLoggingIn(true);
       const form = getFormData(username, password, captcha, semester, academicYear, sessionId);
       const res = await axios.post(API_CONFIG.FETCH_URL, form);
       
@@ -126,6 +128,8 @@ export default function Login() {
         type: "error"
       });
       refreshCaptcha();
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -245,8 +249,8 @@ export default function Login() {
             />
           </div>
 
-          <button onClick={handleLogin} className="primary full-width-mobile">
-            Login
+          <button onClick={handleLogin} className="primary full-width-mobile" disabled={isLoggingIn}>
+            {isLoggingIn ? "Logging in..." : "Login"}
           </button>
         </div>
       </div>
