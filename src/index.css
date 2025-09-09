@@ -469,6 +469,7 @@ button.secondary:hover {
   object-fit: contain;
   margin-bottom: 12px;
   transition: border-color 0.3s ease;
+  background-color: #ffffff;
 }
 
 .captcha-input {
@@ -1100,6 +1101,10 @@ button.small {
   background-color: var(--bg-tertiary);
   border-radius: 4px;
   overflow: hidden;
+}
+
+[data-theme="dark"] .captcha-image-container {
+  background-color: #ffffff;
 }
 
 /* Responsive styles for Maddys */
