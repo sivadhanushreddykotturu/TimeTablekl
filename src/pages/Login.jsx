@@ -199,6 +199,7 @@ export default function Login() {
             <p className="mb-16">
               CAPTCHA takes 5–6 seconds to load. Please wait...
               Wait 3 seconds after pressing on login
+              Some time takes longer please bear with us
             </p>
 
             <div
