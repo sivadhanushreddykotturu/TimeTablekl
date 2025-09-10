@@ -6,33 +6,22 @@ export default function CalculatorModal({ isOpen, onClose }) {
   const [totalClasses, setTotalClasses] = useState("");
   const [percentage, setPercentage] = useState(null);
   const [error, setError] = useState("");
-  const [components, setComponents] = useState([
-    { attended: "", total: "" },
-    { attended: "", total: "" },
-  ]);
+  // Components: accept up to 4 percentage values and compute average (ceil)
+  const [componentPercents, setComponentPercents] = useState(["", ""]);
   const [compError, setCompError] = useState("");
-  const [targetPercent, setTargetPercent] = useState("");
-  const [neededClasses, setNeededClasses] = useState(null);
-  const [targetError, setTargetError] = useState("");
-  const [targetCongrats, setTargetCongrats] = useState("");
-
-  const congratsMessages = [
-    "🥳 Mission complete! Time to touch some grass 🌱",
-    "⚡ You’re literally 100% overpowered. Chill now 🏖️",
-    "🚀 Attendance secured. Launch party at your place?",
-    "🦸‍♂️ You’re the Attendance Avenger. No classes can defeat you.",
-    "🎯 Target smashed! Your teacher is probably jealous 😎",
-    "🥵 Bro, you’re cooking! No more classes for you.",
-    "📢 Breaking news: Student achieves impossible attendance. Retires immediately.",
-    "💤 Your attendance is so good it’s putting us to sleep. Go nap.",
-  ];
 
   const calculatePercentage = () => {
     setError("");
     setPercentage(null);
 
-    const attended = Number(attendedClasses);
-    const total = Number(totalClasses);
+    const attendedStr = attendedClasses.trim();
+    const totalStr = totalClasses.trim();
+    if (!/^\d+$/.test(attendedStr) || !/^\d+$/.test(totalStr)) {
+      setError("Only whole numbers allowed");
+      return;
+    }
+    const attended = parseInt(attendedStr, 10);
+    const total = parseInt(totalStr, 10);
 
     if (!Number.isFinite(attended) || !Number.isFinite(total)) {
       setError("Enter valid numbers");
@@ -59,89 +48,36 @@ export default function CalculatorModal({ isOpen, onClose }) {
     setTotalClasses("");
     setPercentage(null);
     setError("");
-    setComponents([
-      { attended: "", total: "" },
-      { attended: "", total: "" },
-    ]);
+    setComponentPercents(["", ""]);
     setCompError("");
-    setTargetPercent("");
-    setNeededClasses(null);
-    setTargetError("");
-    setTargetCongrats("");
   };
 
-  const updateComponent = (index, field, value) => {
-    setComponents((prev) => {
+  const updatePercent = (index, value) => {
+    // keep only digits, limit 0-100
+    const sanitized = value.replace(/[^0-9]/g, "");
+    const bounded = sanitized === "" ? "" : String(Math.min(100, parseInt(sanitized, 10)));
+    setComponentPercents((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
+      next[index] = bounded;
       return next;
     });
   };
 
-  const addComponent = () => {
-    setComponents((prev) => [...prev, { attended: "", total: "" }]);
+  const addPercentField = () => {
+    setComponentPercents((prev) => (prev.length < 4 ? [...prev, ""] : prev));
   };
 
-  const removeComponent = (index) => {
-    setComponents((prev) => prev.filter((_, i) => i !== index));
+  const removePercentField = (index) => {
+    setComponentPercents((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const computeComponentStats = () => {
-    if (components.length === 0) return { percs: [], overall: null };
-
-    const percs = [];
-    for (const c of components) {
-      const a = Number(c.attended);
-      const t = Number(c.total);
-      if (!Number.isFinite(a) || !Number.isFinite(t)) return { percs: [], overall: null };
-      if (t <= 0 || a < 0 || a > t) return { percs: [], overall: null };
-      const p = Math.ceil((a / t) * 100);
-      percs.push(p);
-    }
-    const sum = percs.reduce((s, p) => s + p, 0);
-    const overall = Math.ceil(sum / percs.length);
-    return { percs, overall };
-  };
-
-  const calculateNeededClasses = () => {
-    setTargetError("");
-    setNeededClasses(null);
-    setTargetCongrats("");
-
-    const attended = Number(attendedClasses);
-    const total = Number(totalClasses);
-    const target = Number(targetPercent);
-
-    if (!Number.isFinite(attended) || !Number.isFinite(total) || !Number.isFinite(target)) {
-      setTargetError("Enter valid numbers");
-      return;
-    }
-    if (total < 0 || attended < 0 || attended > total) {
-      setTargetError("Check attended/total values");
-      return;
-    }
-    if (target <= 0) {
-      setNeededClasses(0);
-      setTargetCongrats(congratsMessages[Math.floor(Math.random() * congratsMessages.length)]);
-      return;
-    }
-    if (target >= 100) {
-      if (total > 0 && attended === total) {
-        setNeededClasses(0);
-        setTargetCongrats(congratsMessages[Math.floor(Math.random() * congratsMessages.length)]);
-      } else {
-        setTargetError("100% not possible after any absence");
-      }
-      return;
-    }
-
-    const numerator = target * total - 100 * attended;
-    const denominator = 100 - target;
-    const rawNeeded = numerator <= 0 ? 0 : Math.ceil(numerator / denominator);
-    setNeededClasses(rawNeeded);
-    if (rawNeeded === 0) {
-      setTargetCongrats(congratsMessages[Math.floor(Math.random() * congratsMessages.length)]);
-    }
+  const computePercentAverage = () => {
+    const nums = componentPercents
+      .map((v) => (v.trim() === "" ? null : parseInt(v, 10)))
+      .filter((v) => v !== null && Number.isInteger(v) && v >= 0 && v <= 100);
+    if (nums.length === 0) return null;
+    const sum = nums.reduce((s, n) => s + n, 0);
+    return Math.ceil(sum / nums.length);
   };
 
   if (!isOpen) return null;
@@ -215,19 +151,6 @@ export default function CalculatorModal({ isOpen, onClose }) {
             >
               Components
             </div>
-            <div
-              role="tab"
-              onClick={() => setActiveTab("target")}
-              style={{
-                padding: "6px 8px",
-                cursor: "pointer",
-                borderBottom: activeTab === "target" ? "2px solid var(--text-primary)" : "2px solid transparent",
-                color: activeTab === "target" ? "var(--text-primary)" : "var(--text-secondary)",
-                fontWeight: activeTab === "target" ? 600 : 500,
-              }}
-            >
-              Target
-            </div>
           </div>
         </div>
 
@@ -239,10 +162,11 @@ export default function CalculatorModal({ isOpen, onClose }) {
                 id="attended"
                 type="number"
                 inputMode="numeric"
+                step="1"
                 min="0"
                 placeholder="e.g., 5"
                 value={attendedClasses}
-                onChange={(e) => setAttendedClasses(e.target.value)}
+                onChange={(e) => setAttendedClasses(e.target.value.replace(/[^0-9]/g, ""))}
                 className="mb-8"
               />
             </div>
@@ -253,10 +177,11 @@ export default function CalculatorModal({ isOpen, onClose }) {
                 id="total"
                 type="number"
                 inputMode="numeric"
+                step="1"
                 min="1"
                 placeholder="e.g., 8"
                 value={totalClasses}
-                onChange={(e) => setTotalClasses(e.target.value)}
+                onChange={(e) => setTotalClasses(e.target.value.replace(/[^0-9]/g, ""))}
               />
             </div>
 
@@ -291,33 +216,31 @@ export default function CalculatorModal({ isOpen, onClose }) {
 
         {activeTab === "components" && (
           <div className="calculator-body">
-            {components.map((c, i) => {
-              const a = Number(c.attended);
-              const t = Number(c.total);
-              const valid = Number.isFinite(a) && Number.isFinite(t) && t > 0 && a >= 0 && a <= t;
-              const perc = valid ? Math.ceil((a / t) * 100) : null;
-              return (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "8px", alignItems: "end", marginBottom: "8px" }}>
-                  <div>
-                    <label style={{ display: "block", marginBottom: "6px" }}>Attended</label>
-                    <input type="number" inputMode="numeric" min="0" value={c.attended} onChange={(e) => updateComponent(i, "attended", e.target.value)} />
-                  </div>
-                  <div>
-                    <label style={{ display: "block", marginBottom: "6px" }}>Total</label>
-                    <input type="number" inputMode="numeric" min="1" value={c.total} onChange={(e) => updateComponent(i, "total", e.target.value)} />
-                  </div>
-                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                    <div style={{ minWidth: "40px", textAlign: "right", color: "var(--text-secondary)" }}>{perc !== null ? `${perc}%` : "—"}</div>
-                    {components.length > 1 && (
-                      <button type="button" className="secondary" onClick={() => removeComponent(i)} title="Remove">−</button>
-                    )}
-                  </div>
+            {componentPercents.map((val, i) => (
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "8px", alignItems: "end", marginBottom: "8px" }}>
+                <div>
+                  <label style={{ display: "block", marginBottom: "6px" }}>Component {i + 1} (%)</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={val}
+                    onChange={(e) => updatePercent(i, e.target.value)}
+                    placeholder="e.g., 90"
+                  />
                 </div>
-              );
-            })}
+                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  {componentPercents.length > 1 && (
+                    <button type="button" className="secondary" onClick={() => removePercentField(i)} title="Remove">−</button>
+                  )}
+                </div>
+              </div>
+            ))}
 
             <div style={{ display: "flex", gap: "8px", marginTop: "4px", marginBottom: "8px" }}>
-              <button type="button" className="secondary" onClick={addComponent}>Add component</button>
+              <button type="button" className="secondary" onClick={addPercentField} disabled={componentPercents.length >= 4}>Add component</button>
               <button type="button" className="secondary" onClick={clear}>Clear</button>
             </div>
 
@@ -326,7 +249,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
             )}
 
             {(() => {
-              const { overall } = computeComponentStats();
+              const overall = computePercentAverage();
               return overall !== null ? (
                 <div style={{
                   marginTop: "8px",
@@ -338,82 +261,10 @@ export default function CalculatorModal({ isOpen, onClose }) {
                   color: "var(--text-primary)",
                   fontWeight: 600,
                 }}>
-                  Component-wise Average: {overall}%
+                  Average: {overall}%
                 </div>
               ) : null;
             })()}
-          </div>
-        )}
-
-        {activeTab === "target" && (
-          <div className="calculator-body">
-            <div className="form-group" style={{ marginBottom: "12px" }}>
-              <label htmlFor="attended2" style={{ display: "block", marginBottom: "6px" }}>Attended classes</label>
-              <input
-                id="attended2"
-                type="number"
-                inputMode="numeric"
-                min="0"
-                placeholder="e.g., 5"
-                value={attendedClasses}
-                onChange={(e) => setAttendedClasses(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group" style={{ marginBottom: "12px" }}>
-              <label htmlFor="total2" style={{ display: "block", marginBottom: "6px" }}>Total classes</label>
-              <input
-                id="total2"
-                type="number"
-                inputMode="numeric"
-                min="0"
-                placeholder="e.g., 8"
-                value={totalClasses}
-                onChange={(e) => setTotalClasses(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group" style={{ marginBottom: "12px" }}>
-              <label htmlFor="target" style={{ display: "block", marginBottom: "6px" }}>Target percentage</label>
-              <input
-                id="target"
-                type="number"
-                inputMode="numeric"
-                min="1"
-                max="100"
-                placeholder="e.g., 75"
-                value={targetPercent}
-                onChange={(e) => setTargetPercent(e.target.value)}
-              />
-            </div>
-
-            {targetError && (
-              <div style={{ color: "#dc3545", fontSize: "14px", marginBottom: "12px" }}>{targetError}</div>
-            )}
-
-            <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "8px" }}>
-              <button onClick={calculateNeededClasses} className="primary">Compute</button>
-              <button onClick={clear} className="secondary">Clear</button>
-            </div>
-
-            {neededClasses !== null && targetError === "" && (
-              <div
-                style={{
-                  marginTop: "16px",
-                  background: "var(--bg-secondary)",
-                  border: "1px solid var(--border-light)",
-                  borderRadius: "8px",
-                  padding: "12px",
-                  textAlign: "center",
-                  color: "var(--text-primary)",
-                  fontWeight: 600,
-                }}
-              >
-                {neededClasses === 0 && targetCongrats
-                  ? (<span>{targetCongrats}</span>)
-                  : (<span>Attend next {neededClasses} class{neededClasses === 1 ? "" : "es"} to reach {targetPercent}%</span>)}
-              </div>
-            )}
           </div>
         )}
       </div>
