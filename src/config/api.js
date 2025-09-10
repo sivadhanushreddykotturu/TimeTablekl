@@ -4,13 +4,13 @@
 
 export const API_CONFIG = {
   // CAPTCHA endpoint
-  CAPTCHA_URL: "https://web-production-f19d4.up.railway.app/get-captcha",
+  CAPTCHA_URL: import.meta.env.VITE_CAPTCHA_URL ,
   
   // Login/Data fetch endpoint
-  FETCH_URL: "https://web-production-f19d4.up.railway.app/fetch-timetable",
+  FETCH_URL: import.meta.env.VITE_FETCH_URL ,
   
   // Attendance fetch endpoint
-  ATTENDANCE_URL: "https://web-production-f19d4.up.railway.app/fetch-attendance",
+  ATTENDANCE_URL: import.meta.env.VITE_ATTENDANCE_URL ,
 };
 
 // Semester mapping
