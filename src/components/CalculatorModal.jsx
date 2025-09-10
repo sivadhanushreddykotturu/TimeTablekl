@@ -6,31 +6,33 @@ export default function CalculatorModal({ isOpen, onClose }) {
   const [percentage, setPercentage] = useState(null);
   const [error, setError] = useState("");
 
-  const calculatePercentage = () => {
+  // Multi-component percentage averaging (max 4 components)
+  const [componentPercents, setComponentPercents] = useState([""]);
+  const [averagePercent, setAveragePercent] = useState(null);
+  const [avgError, setAvgError] = useState("");
+
+  const recalcPercentage = (attendedStr, totalStr) => {
     setError("");
     setPercentage(null);
 
-    const attended = Number(attendedClasses);
-    const total = Number(totalClasses);
+    const attended = Number(attendedStr);
+    const total = Number(totalStr);
 
+    if (!attendedStr && !totalStr) return;
     if (!Number.isFinite(attended) || !Number.isFinite(total)) {
       setError("Enter valid numbers");
       return;
     }
-
     if (total <= 0) {
       setError("Total must be > 0");
       return;
     }
-
     if (attended < 0 || attended > total) {
       setError("Attended must be between 0 and total");
       return;
     }
-
     const raw = (attended / total) * 100;
-    const result = Math.ceil(raw);
-    setPercentage(result);
+    setPercentage(Math.ceil(raw));
   };
 
   const clear = () => {
@@ -38,6 +40,51 @@ export default function CalculatorModal({ isOpen, onClose }) {
     setTotalClasses("");
     setPercentage(null);
     setError("");
+  };
+
+  const addComponent = () => {
+    if (componentPercents.length >= 4) return;
+    setComponentPercents([...componentPercents, ""]);
+  };
+
+  const removeComponent = (index) => {
+    if (componentPercents.length <= 1) return;
+    const next = componentPercents.filter((_, i) => i !== index);
+    setComponentPercents(next);
+  };
+
+  const updateComponent = (index, value) => {
+    const next = [...componentPercents];
+    next[index] = value;
+    setComponentPercents(next);
+  };
+  
+  const recalcAverage = (values) => {
+    setAvgError("");
+    setAveragePercent(null);
+    if (!values.length) return;
+    if (values.length > 4) {
+      setAvgError("Max 4 components");
+      return;
+    }
+    const nums = values.map(v => Number(v));
+    if (nums.some(v => !Number.isFinite(v))) {
+      setAvgError("Enter valid numbers");
+      return;
+    }
+    if (nums.some(v => v < 0 || v > 100)) {
+      setAvgError("Each % must be between 0 and 100");
+      return;
+    }
+    const sum = nums.reduce((a, b) => a + b, 0);
+    const avg = sum / nums.length;
+    setAveragePercent(Math.ceil(avg));
+  };
+
+  const clearAverage = () => {
+    setComponentPercents([""]);
+    setAveragePercent(null);
+    setAvgError("");
   };
 
   if (!isOpen) return null;
@@ -82,6 +129,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
         </div>
 
         <div className="calculator-body">
+          {/* Single subject attendance calculator */}
           <div className="form-group" style={{ marginBottom: "12px" }}>
             <label htmlFor="attended" style={{ display: "block", marginBottom: "6px" }}>Attended classes</label>
             <input
@@ -91,7 +139,11 @@ export default function CalculatorModal({ isOpen, onClose }) {
               min="0"
               placeholder="e.g., 5"
               value={attendedClasses}
-              onChange={(e) => setAttendedClasses(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setAttendedClasses(val);
+                recalcPercentage(val, totalClasses);
+              }}
               className="mb-8"
             />
           </div>
@@ -105,7 +157,11 @@ export default function CalculatorModal({ isOpen, onClose }) {
               min="1"
               placeholder="e.g., 8"
               value={totalClasses}
-              onChange={(e) => setTotalClasses(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setTotalClasses(val);
+                recalcPercentage(attendedClasses, val);
+              }}
             />
           </div>
 
@@ -114,7 +170,6 @@ export default function CalculatorModal({ isOpen, onClose }) {
           )}
 
           <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "8px" }}>
-            <button onClick={calculatePercentage} className="primary">Calculate</button>
             <button onClick={clear} className="secondary">Clear</button>
           </div>
 
@@ -133,6 +188,72 @@ export default function CalculatorModal({ isOpen, onClose }) {
               }}
             >
               Percentage: {percentage}%
+            </div>
+          )}
+
+          {/* Divider */}
+          <div style={{ height: 1, background: "var(--border-light)", margin: "16px 0" }}></div>
+
+          {/* Multi-component average percentage */}
+          <div style={{ marginBottom: "8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>Total Attendance (Average %)</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Up to 4 components</div>
+          </div>
+
+          {componentPercents.map((val, idx) => (
+            <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="100"
+                placeholder={`Component ${idx + 1} %`}
+                value={val}
+                onChange={(e) => {
+                  updateComponent(idx, e.target.value);
+                  recalcAverage(componentPercents.map((v, i) => i === idx ? e.target.value : v));
+                }}
+              />
+              <button
+                className="secondary"
+                onClick={() => removeComponent(idx)}
+                disabled={componentPercents.length <= 1}
+                style={{ minWidth: 44 }}
+              >
+                −
+              </button>
+              {idx === componentPercents.length - 1 && componentPercents.length < 4 && (
+                <button className="primary" onClick={() => { addComponent(); }} style={{ minWidth: 44 }}>+</button>
+              )}
+            </div>
+          ))}
+
+          {avgError && (
+            <div style={{ color: "#dc3545", fontSize: "14px", marginBottom: "12px" }}>{avgError}</div>
+          )}
+
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: 8 }}>
+            <button onClick={clearAverage} className="secondary">Clear</button>
+            {componentPercents.length < 4 && (
+              <button className="primary" onClick={addComponent}>Add Component</button>
+            )}
+          </div>
+
+          {averagePercent !== null && (
+            <div
+              style={{
+                marginTop: "16px",
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border-light)",
+                borderRadius: "8px",
+                padding: "12px",
+                textAlign: "center",
+                color: "var(--text-primary)",
+                fontWeight: 600,
+                fontSize: "18px",
+              }}
+            >
+              Total Percentage: {averagePercent}%
             </div>
           )}
         </div>
