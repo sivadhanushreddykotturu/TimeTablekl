@@ -6,9 +6,85 @@ export default function CalculatorModal({ isOpen, onClose }) {
   const [totalClasses, setTotalClasses] = useState("");
   const [percentage, setPercentage] = useState(null);
   const [error, setError] = useState("");
-  // Components: accept up to 4 percentage values and compute average (ceil)
-  const [componentPercents, setComponentPercents] = useState(["", ""]);
+
+  // -------------------------------------------------------------------
+  // ⚠️ MODIFIED LOGIC START ⚠️
+  // Component structure to hold L-T-P-S percentage values and their labels
+  const initialComponents = [
+    { label: "Lecture (100%)", type: "L", weight: 100, value: "" },
+    { label: "Tutorial (25%)", type: "T", weight: 25, value: "" },
+    { label: "Practical (50%)", type: "P", weight: 50, value: "" },
+    { label: "Skilling (25%)", type: "S", weight: 25, value: "" },
+  ];
+
+  const [componentsData, setComponentsData] = useState(initialComponents);
+  const [weightedAverage, setWeightedAverage] = useState(null); // State for the final weighted result
   const [compError, setCompError] = useState("");
+
+  // Calculates the L-T-P-S Weighted Average dynamically
+  const computeWeightedAverage = (currentComponents) => {
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    currentComponents.forEach(comp => {
+      // Only process if the value is a valid number
+      const num = parseFloat(comp.value);
+
+      if (!isNaN(num) && num >= 0 && num <= 100) {
+        weightedSum += num * comp.weight;
+        totalWeight += comp.weight;
+      }
+    });
+
+    if (totalWeight === 0) {
+      return null; // No valid components entered
+    }
+
+    const result = weightedSum / totalWeight;
+    // Clamp the result between 0 and 100 and use Math.ceil for final display
+    return Math.ceil(Math.max(0, Math.min(100, result)));
+  };
+  
+  // Numeric input handler for L-T-P-S components
+  const updateComponentValue = (index, rawValue) => {
+    // Allow typing decimals; don't block mid-entry
+    const normalized = rawValue.replace(/,/g, '.');
+    let bounded = '';
+
+    if (normalized === '') {
+      bounded = '';
+    } else if (/^\d*(\.)?\d*$/.test(normalized)) {
+      let num = Number(normalized);
+          
+      if (!Number.isFinite(num)) {
+        return; // ignore invalid characters
+      }
+      
+      // Prevent numbers greater than 100, but allow typing '10.'
+      if (num > 100) num = 100;
+      if (num < 0) num = 0;
+      
+      bounded = String(num);
+
+      // Handle trailing dot if it's the last character
+      if (normalized.endsWith('.') && !bounded.includes('.')) {
+        bounded = normalized;
+      }
+    } else {
+      return;
+    }
+
+    const nextComponents = componentsData.map((comp, i) => 
+      i === index ? { ...comp, value: bounded } : comp
+    );
+    
+    setComponentsData(nextComponents);
+    // Calculate and set the weighted average immediately upon change
+    setWeightedAverage(computeWeightedAverage(nextComponents));
+  };
+  // ⚠️ MODIFIED LOGIC END ⚠️
+  // -------------------------------------------------------------------
+
 
   const calculatePercentage = () => {
     setError("");
@@ -48,37 +124,18 @@ export default function CalculatorModal({ isOpen, onClose }) {
     setTotalClasses("");
     setPercentage(null);
     setError("");
-    setComponentPercents(["", ""]);
+    // Reset component state back to initial L-T-P-S structure with empty values
+    setComponentsData(initialComponents.map(comp => ({ ...comp, value: "" })));
+    setWeightedAverage(null);
     setCompError("");
   };
 
-  const updatePercent = (index, value) => {
-    // keep only digits, limit 0-100
-    const sanitized = value.replace(/[^0-9]/g, "");
-    const bounded = sanitized === "" ? "" : String(Math.min(100, parseInt(sanitized, 10)));
-    setComponentPercents((prev) => {
-      const next = [...prev];
-      next[index] = bounded;
-      return next;
-    });
-  };
-
-  const addPercentField = () => {
-    setComponentPercents((prev) => (prev.length < 4 ? [...prev, ""] : prev));
-  };
-
-  const removePercentField = (index) => {
-    setComponentPercents((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const computePercentAverage = () => {
-    const nums = componentPercents
-      .map((v) => (v.trim() === "" ? null : parseInt(v, 10)))
-      .filter((v) => v !== null && Number.isInteger(v) && v >= 0 && v <= 100);
-    if (nums.length === 0) return null;
-    const sum = nums.reduce((s, n) => s + n, 0);
-    return Math.ceil(sum / nums.length);
-  };
+  // The following functions are no longer needed for the L-T-P-S logic but are kept for clarity
+  // in removing the old logic.
+  const updatePercent = () => {}; // Replaced by updateComponentValue
+  const addPercentField = () => {}; // Not needed, fixed 4 components
+  const removePercentField = () => {}; // Not needed, fixed 4 components
+  const computePercentAverage = () => {}; // Replaced by computeWeightedAverage
 
   if (!isOpen) return null;
 
@@ -216,42 +273,37 @@ export default function CalculatorModal({ isOpen, onClose }) {
 
         {activeTab === "components" && (
           <div className="calculator-body">
-            {componentPercents.map((val, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "8px", alignItems: "end", marginBottom: "8px" }}>
+            {/* Map over the fixed L-T-P-S components */}
+            {componentsData.map((comp, i) => (
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px", alignItems: "end", marginBottom: "12px" }}>
                 <div>
-                  <label style={{ display: "block", marginBottom: "6px" }}>Component {i + 1} (%)</label>
+                  <label style={{ display: "block", marginBottom: "6px" }}>{comp.label} attendance (%)</label>
                   <input
                     type="number"
-                    inputMode="numeric"
+                    inputMode="decimal"
                     min="0"
                     max="100"
-                    step="1"
-                    value={val}
-                    onChange={(e) => updatePercent(i, e.target.value)}
-                    placeholder="e.g., 90"
+                    step="any"
+                    value={comp.value}
+                    onChange={(e) => updateComponentValue(i, e.target.value)}
+                    placeholder="Enter percentage"
                   />
-                </div>
-                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                  {componentPercents.length > 1 && (
-                    <button type="button" className="secondary" onClick={() => removePercentField(i)} title="Remove">−</button>
-                  )}
                 </div>
               </div>
             ))}
 
-            <div style={{ display: "flex", gap: "8px", marginTop: "4px", marginBottom: "8px" }}>
-              <button type="button" className="secondary" onClick={addPercentField} disabled={componentPercents.length >= 4}>Add component</button>
-              <button type="button" className="secondary" onClick={clear}>Clear</button>
+            <div style={{ display: "flex", gap: "8px", marginTop: "4px", marginBottom: "8px", justifyContent: "center" }}>
+              {/* Removed Add/Remove buttons as components are fixed */}
+              <button type="button" className="secondary" onClick={clear}>Clear All</button>
             </div>
 
             {compError && (
               <div style={{ color: "#dc3545", fontSize: "14px", marginBottom: "12px" }}>{compError}</div>
             )}
 
-            {(() => {
-              const overall = computePercentAverage();
-              return overall !== null ? (
-                <div style={{
+            {/* Display the dynamically calculated weighted average */}
+            {weightedAverage !== null && (
+              <div style={{
                   marginTop: "8px",
                   background: "var(--bg-secondary)",
                   border: "1px solid var(--border-light)",
@@ -260,11 +312,11 @@ export default function CalculatorModal({ isOpen, onClose }) {
                   textAlign: "center",
                   color: "var(--text-primary)",
                   fontWeight: 600,
+                  fontSize: "18px",
                 }}>
-                  Average: {overall}%
-                </div>
-              ) : null;
-            })()}
+                Overall Weighted Average: {weightedAverage}%
+              </div>
+            )}
           </div>
         )}
       </div>

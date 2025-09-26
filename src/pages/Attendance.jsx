@@ -41,6 +41,16 @@ export default function Attendance() {
   };
 
   const groupAttendanceByCourse = (attendance) => {
+    // Define the weights for L-T-P-S components
+    const LTPS_WEIGHTS = {
+        'L': 100,
+        'T': 25,
+        'P': 50,
+        'S': 25,
+        // Default to a small weight (e.g., 1) for any unknown component type to prevent division by zero
+        'O': 1 
+    };
+
     const grouped = {};
     attendance.forEach(item => {
       const courseCode = item.Coursecode;
@@ -61,15 +71,37 @@ export default function Attendance() {
       });
     });
     
-    // Calculate overall percentage for each course
+    // Calculate overall percentage for each course using Weighted Average
     Object.values(grouped).forEach(course => {
       if (course.sections.length > 0) {
-        const totalPercentage = course.sections.reduce((sum, section) => {
-          return sum + parseInt(section.percentage);
-        }, 0);
-        course.overallPercentage = Math.ceil(totalPercentage / course.sections.length);
+        let weightedSum = 0;
+        let totalWeight = 0;
+
+        course.sections.forEach(section => {
+          const componentType = section.ltps.charAt(0).toUpperCase();
+          const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS['O'];
+          const percentage = parseFloat(section.percentage);
+
+          if (!isNaN(percentage) && percentage >= 0) {
+            weightedSum += percentage * weight;
+            totalWeight += weight;
+          }
+        });
+
+        if (totalWeight > 0) {
+          const calculatedPercentage = (weightedSum / totalWeight);
+          // Clamp the result between 0 and 100 and round up (Math.ceil) for display
+          course.overallPercentage = Math.ceil(Math.max(0, Math.min(100, calculatedPercentage)));
+        } else {
+          course.overallPercentage = 0;
+        }
+
+        // Add a field to display the type of average used
+        course.averageType = "Weighted Average";
+
       } else {
         course.overallPercentage = 0;
+        course.averageType = "N/A";
       }
     });
     
@@ -121,7 +153,8 @@ export default function Attendance() {
                        {course.overallPercentage}%
                      </div>
                      <div className="total-details">
-                       Average of {course.sections.length} component{course.sections.length !== 1 ? 's' : ''}
+                       {/* Display the calculated average type */}
+                       {course.averageType || 'Weighted Average'} from {course.sections.length} component{course.sections.length !== 1 ? 's' : ''}
                      </div>
                    </div>
                  </div>
