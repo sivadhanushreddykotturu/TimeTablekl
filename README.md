@@ -5,11 +5,13 @@
 
 A minimal Progressive Web App (PWA) for KL University B.Tech students to view their personalized timetable with ease. It scrapes data from the ERP system (using your credentials + CAPTCHA), stores it locally, and shows:
 
-* ✅ Weekly timetable
-* 🕒 Current and Next class
-* 🔁 Refresh option (only requires CAPTCHA)
-* 🔐 Credentials stored locally (offline support)
-* 📱 PWA (installable on iOS & Android)
+- ✅ **Weekly timetable** — clean week view of your classes  
+- 🕒 **Current & Next class** — what’s happening now and next in your day  
+- 📊 **Attendance** — view your attendance summary by course & overall percentage  
+- 👥 **Friends** — add friends to see their timetable & attendance (opt-in only)  
+- 🔁 **Refresh** — manual refresh flow that requires completing the CAPTCHA (to respect ERP limits)  
+- 🔐 **Local-first credentials** — credentials are stored locally for offline use; nothing is sent to external servers  
+- 📱 **PWA** — installable on Android & iOS (home-screen install), works offline via service worker
 
 ---
 
@@ -18,8 +20,7 @@ A minimal Progressive Web App (PWA) for KL University B.Tech students to view th
 * **Clean UI** — Fast, simple, and mobile-friendly interface.
 * **No re-login** — Stored credentials (securely) in browser.
 * **CAPTCHA-based refresh** — Only CAPTCHA input needed after first login.
-* **Fully offline** — Works even when offline (after first load).
-* **No backend required** — Uses a pre-deployed backend (FastAPI on Railway).
+* **Fully offline** — Works even when offline (after first load), except for attendance feature.
 
 ---
 
@@ -28,7 +29,6 @@ A minimal Progressive Web App (PWA) for KL University B.Tech students to view th
 * **Frontend:** React + Vite (PWA-ready)
 * **Backend:** Python FastAPI (hosted via Railway)
 * **Storage:** `localStorage` for timetable & credentials
-* **CAPTCHA Support:** Manual entry for every refresh
 * **Deployment:** Optimized for PWA on iOS & Android
 
 ---
@@ -60,8 +60,8 @@ A minimal Progressive Web App (PWA) for KL University B.Tech students to view th
 ## 🛠 Developer Setup
 
 ```bash
-git clone https://github.com/your-username/kl-timetable-pwa.git
-cd kl-timetable-pwa
+git clone https://github.com/sivadhanushreddykotturu/TimeTablekl.git
+cd TimeTablekl
 npm install
 npm run dev
 ```
@@ -71,10 +71,11 @@ npm run dev
 
 ## 📦 Hosting / Backend
 
-The Python backend is deployed using **Railway** and handles:
+The Python backend is deployed using **Render** and handles:
 
 * Login and CAPTCHA
 * Timetable scraping
+* Attendence scraping
 * JSON formatting
 
 ---
@@ -85,10 +86,8 @@ The Python backend is deployed using **Railway** and handles:
 **A:** KL ERP always requires CAPTCHA. But password is not asked again.
 
 **Q:** Does it store my password online?
-**A:** No. Password is stored **only in your browser’s localStorage** (encrypted by you if you choose).
+**A:** No. Password is stored **only in your browser’s localStorage** .
 
-**Q:** Why does it fail on iOS sometimes?
-**A:** iOS Safari restricts some fetch/cookie behavior. Use BrowserStack to debug properly.
 
 ---
 
