@@ -9,11 +9,12 @@ export default function Attendance() {
   const location = useLocation();
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [showCalculatorModal, setShowCalculatorModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [selectedRegisterData, setSelectedRegisterData] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const navigate = useNavigate();
   
-  // Get friend credentials from location state if available
   const friendCredentials = location.state?.friendCredentials || null;
 
   const handleFetchAttendance = () => {
@@ -33,22 +34,31 @@ export default function Attendance() {
     setToast(prev => ({ ...prev, show: false }));
   };
 
+  const handleRegisterClick = (registerData) => {
+    console.log('handleRegisterClick called with:', registerData);
+    setSelectedRegisterData(registerData);
+    setShowRegisterModal(true);
+  };
+
+  const closeRegisterModal = () => {
+    setShowRegisterModal(false);
+    setSelectedRegisterData(null);
+  };
+
   const getPercentageColor = (percentage) => {
     const num = parseInt(percentage);
-    if (num >= 85) return "#28a745"; // Green
-    if (num >= 75) return "#ffc107"; // Yellow
-    return "#dc3545"; // Red
+    if (num >= 85) return "#28a745";
+    if (num >= 75) return "#ffc107";
+    return "#dc3545";
   };
 
   const groupAttendanceByCourse = (attendance) => {
-    // Define the weights for L-T-P-S components
     const LTPS_WEIGHTS = {
-        'L': 100,
-        'T': 25,
-        'P': 50,
-        'S': 25,
-        // Default to a small weight (e.g., 1) for any unknown component type to prevent division by zero
-        'O': 1 
+      L: 100,
+      T: 25,
+      P: 50,
+      S: 25,
+      O: 1
     };
 
     const grouped = {};
@@ -71,7 +81,6 @@ export default function Attendance() {
       });
     });
     
-    // Calculate overall percentage for each course using Weighted Average
     Object.values(grouped).forEach(course => {
       if (course.sections.length > 0) {
         let weightedSum = 0;
@@ -79,7 +88,7 @@ export default function Attendance() {
 
         course.sections.forEach(section => {
           const componentType = section.ltps.charAt(0).toUpperCase();
-          const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS['O'];
+          const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
           const percentage = parseFloat(section.percentage);
 
           if (!isNaN(percentage) && percentage >= 0) {
@@ -89,22 +98,19 @@ export default function Attendance() {
         });
 
         if (totalWeight > 0) {
-          const calculatedPercentage = (weightedSum / totalWeight);
-          // Clamp the result between 0 and 100 and round up (Math.ceil) for display
+          const calculatedPercentage = weightedSum / totalWeight;
           course.overallPercentage = Math.ceil(Math.max(0, Math.min(100, calculatedPercentage)));
         } else {
           course.overallPercentage = 0;
         }
 
-        // Add a field to display the type of average used
         course.averageType = "Weighted Average";
-
       } else {
         course.overallPercentage = 0;
         course.averageType = "N/A";
       }
     });
-    
+
     return Object.values(grouped);
   };
 
@@ -118,71 +124,161 @@ export default function Attendance() {
             {friendCredentials ? `${friendCredentials.name}'s Attendance` : 'Attendance'}
           </h1>
           <div className="action-buttons">
-            <button onClick={() => navigate("/home")}>
-              Back to Home
-            </button>
+            <button onClick={() => navigate("/home")}>Back to Home</button>
           </div>
         </div>
 
         {attendanceData.length === 0 ? (
           <div className="card">
             <p className="text-center">
-              Click "ReSync" to fetch {friendCredentials ? `${friendCredentials.name}'s` : 'your'} attendance data
+              Click "ReSync" to fetch {friendCredentials ? `${friendCredentials.name}'s` : 'your attendance and wait min 5 seconds becasue it also fetches register' } 
             </p>
           </div>
         ) : (
           <div className="attendance-container">
-             {groupAttendanceByCourse(attendanceData).map((course, index) => (
-               <div key={index} className="attendance-card">
-                 <div className="course-header">
-                   <h3 className="course-name">{course.courseName}</h3>
-                   <span className="course-code">{course.courseCode}</span>
-                 </div>
-                 
-                 {/* Total Attendance Box */}
-                 <div className="total-attendance-box">
-                   <div className="total-info">
-                     <span className="total-badge">TOTAL</span>
-                     <span className="total-label">Overall Attendance</span>
-                   </div>
-                   <div className="total-stats">
-                     <div 
-                       className="total-percentage"
-                       style={{ color: getPercentageColor(course.overallPercentage) }}
-                     >
-                       {course.overallPercentage}%
-                     </div>
-                     <div className="total-details">
-                       {/* Display the calculated average type */}
-                       {course.averageType || 'Weighted Average'} from {course.sections.length} component{course.sections.length !== 1 ? 's' : ''}
-                     </div>
-                   </div>
-                 </div>
-                 
-                 <div className="sections-container">
-                   {course.sections.map((section, sectionIndex) => (
-                     <div key={sectionIndex} className="section-item">
-                       <div className="section-info">
-                         <span className="ltps-badge">{section.ltps}</span>
-                         <span className="section-name">{section.section}</span>
-                       </div>
-                       <div className="attendance-stats">
-                         <div 
-                           className="percentage"
-                           style={{ color: getPercentageColor(section.percentage) }}
-                         >
-                           {section.percentage}
-                         </div>
-                         <div className="attendance-details">
-                           <span>{section.totalAttended}/{section.totalConducted}</span>
-                           <span className="absent-count">({section.totalAbsent} absent)</span>
-                         </div>
-                       </div>
-                     </div>
-                   ))}
-                 </div>
-               </div>
-             ))}
+            {groupAttendanceByCourse(attendanceData).map((course, index) => (
+              <div key={index} className="attendance-card">
+                <div className="course-header">
+                  <h3 className="course-name">{course.courseName}</h3>
+                  <span className="course-code">{course.courseCode}</span>
+                </div>
+
+                {/* Total Attendance Box */}
+                <div className="total-attendance-box">
+                  <div className="total-info">
+                    <span className="total-badge">TOTAL</span>
+                    <span className="total-label">Overall Attendance</span>
+                  </div>
+                  <div className="total-stats">
+                    <div
+                      className="total-percentage"
+                      style={{ color: getPercentageColor(course.overallPercentage) }}
+                    >
+                      {course.overallPercentage}%
+                    </div>
+                    <div className="total-details">
+                      {course.averageType || 'Weighted Average'} from{" "}
+                      {course.sections.length} component
+                      {course.sections.length !== 1 ? "s" : ""}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sections */}
+                <div className="sections-container">
+                  {course.sections.map((section, sectionIndex) => (
+                    <div key={sectionIndex} className="section-item">
+                      <div className="section-info">
+                        <span className="ltps-badge">{section.ltps}</span>
+                        <span className="section-name">{section.section}</span>
+                      </div>
+
+                      {/* ✅ Cool Register Button */}
+                      {["L", "P", "S", "T"].includes(section.ltps.charAt(0).toUpperCase()) && (
+                        <div
+                          className="register-button"
+                          style={{
+                            marginLeft: "2.6rem",
+                            marginTop: "4px",
+                            padding: "6px 12px",
+                            fontSize: "clamp(0.8rem, 1.2vw, 0.9rem)",
+                            fontWeight: 700,
+                            color: "var(--text-primary)",
+                            background: "var(--bg-primary)",
+                            border: "1px solid var(--border-color)",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.background = "var(--bg-tertiary)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.background = "var(--bg-primary)";
+                          }}
+                          onClick={() => {
+                            console.log('Register button clicked!');
+                            console.log('Looking for:', {
+                              courseCode: course.courseCode,
+                              ltps: section.ltps,
+                              section: section.section
+                            });
+                            console.log('Available attendance data:', attendanceData);
+                            
+                            // Find the corresponding attendance item with register_details
+                            const attendanceItem = attendanceData.find(item => 
+                              item.Coursecode === course.courseCode && 
+                              item.Ltps === section.ltps && 
+                              item.Section === section.section
+                            );
+                            
+                            console.log('Found attendance item:', attendanceItem);
+                            
+                            if (attendanceItem) {
+                              console.log('Attendance item found:', attendanceItem);
+                              console.log('Has register_details?', !!attendanceItem.register_details);
+                              
+                              if (attendanceItem.register_details) {
+                                console.log('Register details found:', attendanceItem.register_details);
+                                // Pass the complete attendance item data including metadata
+                                const registerData = {
+                                  metadata: {
+                                    ...attendanceItem.register_details.metadata,
+                                    Coursecode: attendanceItem.Coursecode,
+                                    Ltps: attendanceItem.Ltps,
+                                    Section: attendanceItem.Section
+                                  },
+                                  daily_attendance: attendanceItem.register_details.daily_attendance
+                                };
+                                console.log('Passing register data:', registerData);
+                                handleRegisterClick(registerData);
+                              } else {
+                                console.log('No register_details in attendance item, trying alternative approach...');
+                                // Fallback: create register data from the attendance item itself
+                                const registerData = {
+                                  metadata: {
+                                    Coursecode: attendanceItem.Coursecode,
+                                    Coursedesc: attendanceItem.Coursedesc,
+                                    Ltps: attendanceItem.Ltps,
+                                    Section: attendanceItem.Section,
+                                    "Student Uni Id": "N/A",
+                                    "Student Name": "N/A",
+                                    "Total Conducted": attendanceItem["Total Conducted"],
+                                    "Total Attended": attendanceItem["Total Attended"],
+                                    "Total Absent": attendanceItem["Total Absent"],
+                                    Percentage: attendanceItem.Percentage
+                                  },
+                                  daily_attendance: [] // Empty array if no daily attendance data
+                                };
+                                console.log('Using fallback register data:', registerData);
+                                handleRegisterClick(registerData);
+                              }
+                            } else {
+                              console.log('No attendance item found matching the criteria');
+                            }
+                          }}
+                        >
+                          Register
+                        </div>
+                      )}
+
+                      <div className="attendance-stats">
+                        <div
+                          className="percentage"
+                          style={{ color: getPercentageColor(section.percentage) }}
+                        >
+                          {section.percentage}
+                        </div>
+                        <div className="attendance-details">
+                          <span>{section.totalAttended}/{section.totalConducted}</span>
+                          <span className="absent-count">({section.totalAbsent} absent)</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -199,7 +295,6 @@ export default function Attendance() {
         onClose={() => setShowCalculatorModal(false)}
       />
 
-      {/* Calculator Icon Button */}
       <button
         className="calculator-icon-btn"
         onClick={() => setShowCalculatorModal(true)}
@@ -214,6 +309,47 @@ export default function Attendance() {
         isVisible={toast.show}
         onClose={closeToast}
       />
+
+      {/* Register Modal */}
+      {showRegisterModal && selectedRegisterData && (
+        <div className="modal-overlay" onClick={closeRegisterModal}>
+          <div className="modal-content register-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Register Details</h2>
+              <button className="close-btn" onClick={closeRegisterModal}>×</button>
+            </div>
+            
+            <div className="register-content">
+              {/* Daily Attendance */}
+              <div className="daily-attendance">
+                <div className="attendance-table">
+                  <div className="table-header" style={{display: 'flex', width: '100%', background: 'var(--bg-tertiary)', borderBottom: '2px solid var(--border-color)'}}>
+                    <span className="header-date" style={{flex: '0 0 60%', padding: '12px 16px', borderRight: '1px solid var(--border-color)', fontWeight: '600', color: 'var(--text-primary)'}}>Date & Time</span>
+                    <span className="header-status" style={{flex: '0 0 40%', padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: 'var(--text-primary)'}}>Status</span>
+                  </div>
+                  {selectedRegisterData.daily_attendance && selectedRegisterData.daily_attendance.length > 0 ? (
+                    [...selectedRegisterData.daily_attendance].reverse().map((entry, index) => {
+                      console.log('Processing entry:', entry);
+                      return (
+                        <div key={index} className="attendance-row" style={{display: 'flex', width: '100%', borderBottom: '1px solid var(--border-light)'}}>
+                          <span className="date-slot" style={{flex: '0 0 60%', padding: '12px 16px', borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)'}}>
+                            {entry.date_slot.split(' H ')[0]} H{entry.date_slot.split(' H ')[1]}
+                          </span>
+                          <span className="status" style={{flex: '0 0 40%', padding: '12px 16px', textAlign: 'center', color: 'var(--text-secondary)'}}>
+                            {entry.status === 'P' ? 'Present' : 'Absent'}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="no-data">No daily attendance data available</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

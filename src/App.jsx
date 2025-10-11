@@ -12,6 +12,7 @@ import MaddysPage from "./pages/Maddys.jsx";
 import MaddyClassInfo from "./pages/MaddyClassInfo.jsx";
 import MaddyTimetable from "./pages/MaddyTimetable.jsx";
 import AttendancePage from "./pages/Attendance.jsx";
+import RegisterPage from "./pages/Register.jsx";
 
 // Lazy load analytics to reduce initial bundle siz
 const Analytics = lazy(() => import("@vercel/analytics/react").then(module => ({ default: module.Analytics })));
@@ -35,6 +36,7 @@ function App() {
             <Route path="/maddys/:id/class" element={<MaddyClassInfo />} />
             <Route path="/maddys/:id/timetable" element={<MaddyTimetable />} />
             <Route path="/attendance" element={<AttendancePage />} />
+            <Route path="/register" element={<RegisterPage />} />
           </Routes>
           <Footer />
         </div>
