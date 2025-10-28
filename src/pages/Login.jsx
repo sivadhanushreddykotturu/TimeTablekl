@@ -30,9 +30,10 @@ export default function Login() {
         responseType: 'blob'
       });
       
-      const sessionIdFromHeader = response.headers['x-session-id'] || 
-                                 response.headers['X-Session-ID'] || 
-                                 response.headers['X-SESSION-ID'];
+      const sessionIdFromHeader =
+        response.headers['x-session-id'] || 
+        response.headers['X-Session-ID'] || 
+        response.headers['X-SESSION-ID'];
       
       if (sessionIdFromHeader) {
         setSessionId(sessionIdFromHeader);
@@ -43,7 +44,6 @@ export default function Login() {
       
       const imageUrl = URL.createObjectURL(response.data);
       setCaptchaUrl(imageUrl);
-      
     } catch (error) {
       setToast({
         show: true,
@@ -58,20 +58,12 @@ export default function Login() {
   useEffect(() => {
     refreshCaptcha();
     const currentYear = new Date().getFullYear();
-    setAcademicYear(`${currentYear}-${(currentYear+1).toString().slice(-2)}`);
+    setAcademicYear(`${currentYear}-${(currentYear + 1).toString().slice(-2)}`);
   }, []);
 
-  const handleCaptchaLoad = () => {
-    setCaptchaLoading(false);
-  };
-
-  const handleCaptchaError = () => {
-    setCaptchaLoading(false);
-  };
-
-  const closeToast = () => {
-    setToast(prev => ({ ...prev, show: false }));
-  };
+  const handleCaptchaLoad = () => setCaptchaLoading(false);
+  const handleCaptchaError = () => setCaptchaLoading(false);
+  const closeToast = () => setToast(prev => ({ ...prev, show: false }));
 
   const handleLogin = async () => {
     if (!username || !password || !captcha || !semester || !academicYear) {
@@ -96,33 +88,30 @@ export default function Login() {
         navigate("/home");
       } else {
         let message = res.data.message || "Login failed.";
-
-        // Check the server message for bad credential indicators (for success: false response)
         const lowerCaseMessage = message.toLowerCase();
-        if (lowerCaseMessage.includes("invalid") || lowerCaseMessage.includes("credential") || lowerCaseMessage.includes("password")) {
+        if (
+          lowerCaseMessage.includes("invalid") ||
+          lowerCaseMessage.includes("credential") ||
+          lowerCaseMessage.includes("password")
+        ) {
           message = "Password wrong. Please check your username and password.";
         }
 
-        setToast({
-          show: true,
-          message: message,
-          type: "error"
-        });
+        setToast({ show: true, message, type: "error" });
         refreshCaptcha();
       }
     } catch (error) {
-      // This catch block handles network errors and non-200 HTTP status codes
-      // Prioritize checking the HTTP status code and "detail" field
-      let errorMessage = error.response?.data?.detail || error.response?.data?.message || "Something went wrong.";
+      let errorMessage =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        "Something went wrong.";
 
-      // 🎯 Check for HTTP 500 Status: If the status is 500, we override the generic message.
       if (error.response?.status === 500) {
         errorMessage = "Password wrong. Please check your username and password.";
-      } 
-      // Fallback check for any other error message keyword
-      else if (errorMessage.toLowerCase().includes("invalid") || 
-               errorMessage.toLowerCase().includes("credential") ||
-               errorMessage.toLowerCase().includes("unauthorized")
+      } else if (
+        errorMessage.toLowerCase().includes("invalid") ||
+        errorMessage.toLowerCase().includes("credential") ||
+        errorMessage.toLowerCase().includes("unauthorized")
       ) {
         errorMessage = "Password wrong. Please check your username and password.";
       }
@@ -202,9 +191,7 @@ export default function Login() {
 
           <div className="captcha-container">
             <p className="mb-16">
-              CAPTCHA takes 5–6 seconds to load. Please wait...
-              Wait 3 seconds after pressing on login
-              Some time takes longer please bear with us
+              CAPTCHA takes a few seconds to load. Please wait and be patient after clicking login.
             </p>
 
             <div
