@@ -14,7 +14,7 @@ export default function Attendance() {
   const [attendanceData, setAttendanceData] = useState([]);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const navigate = useNavigate();
-  
+    
   const friendCredentials = location.state?.friendCredentials || null;
 
   const handleFetchAttendance = () => {
@@ -55,7 +55,7 @@ export default function Attendance() {
   const groupAttendanceByCourse = (attendance) => {
     const LTPS_WEIGHTS = {
       L: 100,
-      T: 25,
+      T: 100,
       P: 50,
       S: 25,
       O: 1
@@ -71,13 +71,24 @@ export default function Attendance() {
           sections: []
         };
       }
+      
+      const totalAttended = parseInt(item["Total Attended"]);
+      const totalConducted = parseInt(item["Total Conducted"]);
+      
+      let rawPercentage = 0;
+      if (totalConducted > 0) {
+        rawPercentage = (totalAttended / totalConducted) * 100;
+      }
+      
       grouped[courseCode].sections.push({
         ltps: item.Ltps,
         section: item.Section,
         percentage: item.Percentage,
         totalConducted: item["Total Conducted"],
         totalAttended: item["Total Attended"],
-        totalAbsent: item["Total Absent"]
+        totalAbsent: item["Total Absent"],
+        // Store the precise raw percentage, fixed to 2 decimals for display
+        rawPercentage: rawPercentage.toFixed(2)
       });
     });
     
@@ -89,16 +100,25 @@ export default function Attendance() {
         course.sections.forEach(section => {
           const componentType = section.ltps.charAt(0).toUpperCase();
           const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
-          const percentage = parseFloat(section.percentage);
+          
+          let calculationPercentage = 0;
+          const attended = parseInt(section.totalAttended);
+          const conducted = parseInt(section.totalConducted);
+          
+          if (conducted > 0) {
+            // Use precise percentage for weighted calculation
+            calculationPercentage = (attended / conducted) * 100;
+          }
 
-          if (!isNaN(percentage) && percentage >= 0) {
-            weightedSum += percentage * weight;
+          if (!isNaN(calculationPercentage) && calculationPercentage >= 0) {
+            weightedSum += calculationPercentage * weight;
             totalWeight += weight;
           }
         });
 
         if (totalWeight > 0) {
           const calculatedPercentage = weightedSum / totalWeight;
+          // Apply Math.ceil to the final overall average
           course.overallPercentage = Math.ceil(Math.max(0, Math.min(100, calculatedPercentage)));
         } else {
           course.overallPercentage = 0;
@@ -173,7 +193,7 @@ export default function Attendance() {
                         <span className="section-name">{section.section}</span>
                       </div>
 
-                      {/* ✅ Cool Register Button */}
+                      {/* Cool Register Button */}
                       {["L", "P", "S", "T"].includes(section.ltps.charAt(0).toUpperCase()) && (
                         <div
                           className="register-button"
@@ -267,7 +287,14 @@ export default function Attendance() {
                           className="percentage"
                           style={{ color: getPercentageColor(section.percentage) }}
                         >
+                          {/* Display the rounded percentage + % symbol */}
                           {section.percentage}
+                          {/* Display the precise raw percentage in parentheses (CORRECTED) */}
+                          {section.totalConducted > 0 && section.rawPercentage && (
+                            <span style={{ fontSize: '0.8em', color: 'var(--text-secondary)', marginLeft: '4px' }}>
+                              ({section.rawPercentage}%)
+                            </span>
+                          )}
                         </div>
                         <div className="attendance-details">
                           <span>{section.totalAttended}/{section.totalConducted}</span>

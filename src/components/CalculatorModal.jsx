@@ -12,7 +12,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
   // Component structure to hold L-T-P-S percentage values and their labels
   const initialComponents = [
     { label: "Lecture (100%)", type: "L", weight: 100, value: "" },
-    { label: "Tutorial (25%)", type: "T", weight: 25, value: "" },
+    { label: "Tutorial (100%)", type: "T", weight: 100, value: "" }, // CHANGED weight and label
     { label: "Practical (50%)", type: "P", weight: 50, value: "" },
     { label: "Skilling (25%)", type: "S", weight: 25, value: "" },
   ];
@@ -55,7 +55,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
       bounded = '';
     } else if (/^\d*(\.)?\d*$/.test(normalized)) {
       let num = Number(normalized);
-          
+            
       if (!Number.isFinite(num)) {
         return; // ignore invalid characters
       }
@@ -64,6 +64,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
       if (num > 100) num = 100;
       if (num < 0) num = 0;
       
+      // Keep two decimal places for better precision in the display if not an integer
       bounded = String(num);
 
       // Handle trailing dot if it's the last character
