@@ -116,7 +116,8 @@ export default function CalculatorModal({ isOpen, onClose }) {
     }
 
     const raw = (attended / total) * 100;
-    const result = Math.ceil(raw);
+    // REMOVED Math.ceil and applied toFixed(2) for precise display
+    const result = raw.toFixed(2); 
     setPercentage(result);
   };
 
