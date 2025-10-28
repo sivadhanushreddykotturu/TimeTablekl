@@ -279,7 +279,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
             {componentsData.map((comp, i) => (
               <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px", alignItems: "end", marginBottom: "12px" }}>
                 <div>
-                  <label style={{ display: "block", marginBottom: "6px" }}>{comp.label} attendance (%)</label>
+                  <label style={{ display: "block", marginBottom: "6px" }}>{comp.label} </label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -316,7 +316,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
                   fontWeight: 600,
                   fontSize: "18px",
                 }}>
-                Overall Weighted Average: {weightedAverage}%
+                Overall Average: {weightedAverage}%
               </div>
             )}
           </div>
