@@ -23,40 +23,28 @@ export default function Login() {
   const refreshCaptcha = async () => {
     setCaptchaLoading(true);
     setCaptcha("");
-    setSessionId(""); // Reset session ID
+    setSessionId("");
     
     try {
       const response = await axios.get(API_CONFIG.CAPTCHA_URL, {
-        responseType: 'blob' // Important: get the image as blob
+        responseType: 'blob'
       });
       
-      console.log("Response headers:", response.headers);
-      
-      // Get session ID from response headers (try different cases)
       const sessionIdFromHeader = response.headers['x-session-id'] || 
                                  response.headers['X-Session-ID'] || 
                                  response.headers['X-SESSION-ID'];
       
-      console.log("Session ID from header:", sessionIdFromHeader);
-      
       if (sessionIdFromHeader) {
         setSessionId(sessionIdFromHeader);
-        console.log("Session ID set:", sessionIdFromHeader);
       } else {
-        console.log("No session ID found in headers, using fallback");
-        // Fallback: use timestamp as session ID for new backend compatibility
         const fallbackSessionId = `session_${Date.now()}`;
         setSessionId(fallbackSessionId);
-        console.log("Using fallback session ID:", fallbackSessionId);
       }
       
-      // Create object URL for the image
       const imageUrl = URL.createObjectURL(response.data);
       setCaptchaUrl(imageUrl);
-      console.log("Image URL created:", imageUrl);
       
     } catch (error) {
-      console.error("Error loading CAPTCHA:", error);
       setToast({
         show: true,
         message: "Failed to load CAPTCHA",
@@ -69,18 +57,15 @@ export default function Login() {
 
   useEffect(() => {
     refreshCaptcha();
-    // Set default academic year to current year
     const currentYear = new Date().getFullYear();
     setAcademicYear(`${currentYear}-${(currentYear+1).toString().slice(-2)}`);
   }, []);
 
   const handleCaptchaLoad = () => {
-    console.log("CAPTCHA image loaded successfully");
     setCaptchaLoading(false);
   };
 
   const handleCaptchaError = () => {
-    console.log("CAPTCHA image failed to load");
     setCaptchaLoading(false);
   };
 
@@ -89,9 +74,6 @@ export default function Login() {
   };
 
   const handleLogin = async () => {
-    console.log("Login attempt - sessionId:", sessionId);
-    console.log("All fields:", { username, password, captcha, semester, academicYear, sessionId });
-    
     if (!username || !password || !captcha || !semester || !academicYear) {
       setToast({
         show: true,
@@ -113,18 +95,41 @@ export default function Login() {
         localStorage.setItem("academicYear", academicYear);
         navigate("/home");
       } else {
+        let message = res.data.message || "Login failed.";
+
+        // Check the server message for bad credential indicators (for success: false response)
+        const lowerCaseMessage = message.toLowerCase();
+        if (lowerCaseMessage.includes("invalid") || lowerCaseMessage.includes("credential") || lowerCaseMessage.includes("password")) {
+          message = "Password wrong. Please check your username and password.";
+        }
+
         setToast({
           show: true,
-          message: res.data.message || "Login failed.",
+          message: message,
           type: "error"
         });
         refreshCaptcha();
       }
     } catch (error) {
-      console.error("Login error:", error);
+      // This catch block handles network errors and non-200 HTTP status codes
+      // Prioritize checking the HTTP status code and "detail" field
+      let errorMessage = error.response?.data?.detail || error.response?.data?.message || "Something went wrong.";
+
+      // 🎯 Check for HTTP 500 Status: If the status is 500, we override the generic message.
+      if (error.response?.status === 500) {
+        errorMessage = "Password wrong. Please check your username and password.";
+      } 
+      // Fallback check for any other error message keyword
+      else if (errorMessage.toLowerCase().includes("invalid") || 
+               errorMessage.toLowerCase().includes("credential") ||
+               errorMessage.toLowerCase().includes("unauthorized")
+      ) {
+        errorMessage = "Password wrong. Please check your username and password.";
+      }
+      
       setToast({
         show: true,
-        message: error.response?.data?.message || "Something went wrong.",
+        message: errorMessage,
         type: "error"
       });
       refreshCaptcha();
