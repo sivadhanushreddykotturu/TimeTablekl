@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import AttendanceModal from "../components/AttendanceModal";
@@ -16,6 +16,22 @@ export default function Attendance() {
   const navigate = useNavigate();
     
   const friendCredentials = location.state?.friendCredentials || null;
+  const [targetPercentage, setTargetPercentage] = useState(() => {
+    const saved = localStorage.getItem("attendanceTargetPercentage");
+    const parsed = saved ? parseFloat(saved) : NaN;
+    return Number.isFinite(parsed) ? parsed : 75;
+  });
+  const [showTargetModal, setShowTargetModal] = useState(false);
+  const [targetInput, setTargetInput] = useState("");
+  const [targetError, setTargetError] = useState("");
+
+  useEffect(() => {
+    // Sync input when modal opens
+    if (showTargetModal) {
+      setTargetInput(String(targetPercentage));
+      setTargetError("");
+    }
+  }, [showTargetModal]);
 
   const handleFetchAttendance = () => {
     setShowAttendanceModal(true);
@@ -50,6 +66,28 @@ export default function Attendance() {
     if (num >= 85) return "#28a745";
     if (num >= 75) return "#ffc107";
     return "#dc3545";
+  };
+
+  // Save target to local storage when changed
+  const saveTargetPercentage = (value) => {
+    setTargetPercentage(value);
+    try {
+      localStorage.setItem("attendanceTargetPercentage", String(value));
+    } catch (_) {}
+  };
+
+  // Minimum classes to attend consecutively to reach target
+  const classesToReachTarget = (present, total, target) => {
+    if (target >= 100) return Infinity;
+    const needed = (target * total - 100 * present) / (100 - target);
+    return Math.max(0, Math.ceil(needed));
+  };
+
+  // How many classes can be missed while staying at or above target
+  const safeBunksAtTarget = (present, total, target) => {
+    if (target <= 0) return Infinity;
+    const available = (100 * present - target * total) / target;
+    return Math.max(0, Math.floor(available));
   };
 
   const groupAttendanceByCourse = (attendance) => {
@@ -144,7 +182,12 @@ export default function Attendance() {
             {friendCredentials ? `${friendCredentials.name}'s Attendance` : 'Attendance'}
           </h1>
           <div className="action-buttons">
-            <button onClick={() => navigate("/home")}>Back to Home</button>
+            <button
+              onClick={() => setShowTargetModal(true)}
+              className="edit-target-btn"
+            >
+              Edit Safe % (now {targetPercentage}%)
+            </button>
           </div>
         </div>
 
@@ -300,6 +343,29 @@ export default function Attendance() {
                           <span>{section.totalAttended}/{section.totalConducted}</span>
                           <span className="absent-count">({section.totalAbsent} absent)</span>
                         </div>
+                        {/* Target guidance (reach/ safe sessions) */}
+                        {(() => {
+                          const attended = parseInt(section.totalAttended);
+                          const conducted = parseInt(section.totalConducted);
+                          if (!Number.isFinite(attended) || !Number.isFinite(conducted) || conducted <= 0) {
+                            return null;
+                          }
+                          const current = (attended / conducted) * 100;
+                          if (current >= targetPercentage) {
+                            const safe = safeBunksAtTarget(attended, conducted, targetPercentage);
+                            return (
+                              <div style={{ marginTop: "4px", fontSize: "0.9em", color: "var(--text-secondary)" }}>
+                                Safe sessions at {targetPercentage}%: <strong style={{ color: "var(--text-primary)" }}>{safe}</strong>
+                              </div>
+                            );
+                          }
+                          const need = classesToReachTarget(attended, conducted, targetPercentage);
+                          return (
+                            <div style={{ marginTop: "4px", fontSize: "0.9em", color: "var(--text-secondary)" }}>
+                              Attend next <strong style={{ color: "var(--text-primary)" }}>{need}</strong> to reach {targetPercentage}%
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   ))}
@@ -309,6 +375,24 @@ export default function Attendance() {
           </div>
         )}
       </div>
+
+      {/* Bottom action bar (after data loads) */}
+      {attendanceData.length > 0 && (
+        <div style={{
+          marginTop: "16px",
+          padding: "10px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px"
+        }}>
+          <button onClick={() => navigate("/home")} className="secondary">
+            Back to Home
+          </button>
+          <button onClick={() => setShowTargetModal(true)} className="primary">
+            Edit Safe % (now {targetPercentage}%)
+          </button>
+        </div>
+      )}
 
       <AttendanceModal
         isOpen={showAttendanceModal}
@@ -372,6 +456,52 @@ export default function Attendance() {
                     <div className="no-data">No daily attendance data available</div>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Target percentage modal */}
+      {showTargetModal && (
+        <div className="modal-overlay" onClick={() => setShowTargetModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "360px" }}>
+            <div className="modal-header">
+              <h2>Edit Safe Percentage</h2>
+              <button className="close-btn" onClick={() => setShowTargetModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <label htmlFor="targetPercent" style={{ display: "block", marginBottom: "6px" }}>Target Percentage (0-100)</label>
+              <input
+                id="targetPercent"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                max="100"
+                step="0.1"
+                value={targetInput}
+                onChange={(e) => setTargetInput(e.target.value)}
+              />
+              {targetError && (
+                <div style={{ color: "#dc3545", fontSize: "14px", marginTop: "8px" }}>{targetError}</div>
+              )}
+              <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                <button className="secondary" onClick={() => setShowTargetModal(false)} style={{ flex: 1 }}>Cancel</button>
+                <button
+                  className="primary"
+                  style={{ flex: 1 }}
+                  onClick={() => {
+                    const num = parseFloat((targetInput || "").trim());
+                    if (!Number.isFinite(num) || num < 0 || num > 100) {
+                      setTargetError("Enter a number between 0 and 100.");
+                      return;
+                    }
+                    saveTargetPercentage(Math.round(num * 100) / 100);
+                    setShowTargetModal(false);
+                  }}
+                >
+                  Save
+                </button>
               </div>
             </div>
           </div>
