@@ -6,90 +6,135 @@ export default function CalculatorModal({ isOpen, onClose }) {
   const [totalClasses, setTotalClasses] = useState("");
   const [percentage, setPercentage] = useState(null);
   const [error, setError] = useState("");
+  const [isBunkCalculator, setIsBunkCalculator] = useState(false);
+  const [requiredPercentage, setRequiredPercentage] = useState("");
+  const [bunkResult, setBunkResult] = useState(null);
 
-  // -------------------------------------------------------------------
-  // ⚠️ MODIFIED LOGIC START ⚠️
-  // Component structure to hold L-T-P-S percentage values and their labels
   const initialComponents = [
     { label: "Lecture (100%)", type: "L", weight: 100, value: "" },
-    { label: "Tutorial (100%)", type: "T", weight: 100, value: "" }, // CHANGED weight and label
+    { label: "Tutorial (100%)", type: "T", weight: 100, value: "" },
     { label: "Practical (50%)", type: "P", weight: 50, value: "" },
     { label: "Skilling (25%)", type: "S", weight: 25, value: "" },
   ];
-
   const [componentsData, setComponentsData] = useState(initialComponents);
-  const [weightedAverage, setWeightedAverage] = useState(null); // State for the final weighted result
+  const [weightedAverage, setWeightedAverage] = useState(null);
   const [compError, setCompError] = useState("");
 
-  // Calculates the L-T-P-S Weighted Average dynamically
   const computeWeightedAverage = (currentComponents) => {
     let weightedSum = 0;
     let totalWeight = 0;
-
     currentComponents.forEach(comp => {
-      // Only process if the value is a valid number
       const num = parseFloat(comp.value);
-
       if (!isNaN(num) && num >= 0 && num <= 100) {
         weightedSum += num * comp.weight;
         totalWeight += comp.weight;
       }
     });
-
-    if (totalWeight === 0) {
-      return null; // No valid components entered
-    }
-
+    if (totalWeight === 0) return null;
     const result = weightedSum / totalWeight;
-    // Clamp the result between 0 and 100 and use Math.ceil for final display
     return Math.ceil(Math.max(0, Math.min(100, result)));
   };
-  
-  // Numeric input handler for L-T-P-S components
+
   const updateComponentValue = (index, rawValue) => {
-    // Allow typing decimals; don't block mid-entry
     const normalized = rawValue.replace(/,/g, '.');
     let bounded = '';
-
     if (normalized === '') {
       bounded = '';
     } else if (/^\d*(\.)?\d*$/.test(normalized)) {
       let num = Number(normalized);
-            
-      if (!Number.isFinite(num)) {
-        return; // ignore invalid characters
-      }
-      
-      // Prevent numbers greater than 100, but allow typing '10.'
+      if (!Number.isFinite(num)) return;
       if (num > 100) num = 100;
       if (num < 0) num = 0;
-      
-      // Keep two decimal places for better precision in the display if not an integer
       bounded = String(num);
-
-      // Handle trailing dot if it's the last character
       if (normalized.endsWith('.') && !bounded.includes('.')) {
         bounded = normalized;
       }
     } else {
       return;
     }
-
     const nextComponents = componentsData.map((comp, i) => 
       i === index ? { ...comp, value: bounded } : comp
     );
-    
     setComponentsData(nextComponents);
-    // Calculate and set the weighted average immediately upon change
     setWeightedAverage(computeWeightedAverage(nextComponents));
   };
-  // ⚠️ MODIFIED LOGIC END ⚠️
-  // -------------------------------------------------------------------
 
+  const reqAttendance = (present, total, percentage) => {
+    const needed = (percentage * total - 100 * present) / (100 - percentage);
+    return Math.ceil(needed);
+  };
+
+  const daysToBunk = (present, total, percentage) => {
+    const available = (100 * present - percentage * total) / percentage;
+    return Math.floor(available);
+  };
+
+  const calculateBunkClasses = () => {
+    setError("");
+    setBunkResult(null);
+    setPercentage(null);
+
+    const attendedStr = attendedClasses.trim();
+    const totalStr = totalClasses.trim();
+    const requiredStr = requiredPercentage.trim();
+
+    if (!/^\d+$/.test(attendedStr) || !/^\d+$/.test(totalStr)) {
+      setError("Attended/Total must be whole numbers.");
+      return;
+    }
+    const requiredNum = parseFloat(requiredStr);
+    if (!requiredStr || isNaN(requiredNum) || requiredNum < 0 || requiredNum > 100) {
+      setError("Required Percentage must be between 0 and 100.");
+      return;
+    }
+    
+    const attended = parseInt(attendedStr, 10);
+    const total = parseInt(totalStr, 10);
+    const required = requiredNum;
+
+    if (total <= 0) {
+      setError("Total classes must be greater than 0.");
+      return;
+    }
+    if (attended < 0 || attended > total) {
+      setError("Attended must be between 0 and total.");
+      return;
+    }
+
+    const currentPercent = (attended / total) * 100;
+    const currentPercentFormatted = currentPercent.toFixed(2);
+
+    if (currentPercent >= required) {
+      const daysAvailableToBunk = daysToBunk(attended, total, required);
+      let outputLine1 = `🟢 Attendance: ${currentPercentFormatted}%`;
+      let outputLine2;
+
+      if (daysAvailableToBunk < 0 || daysAvailableToBunk === 0) {
+          outputLine2 = `🚫 Bunks Left: 0 (Must attend)`;
+      } else {
+          outputLine2 = `🕒 Bunks Left: ${daysAvailableToBunk}`;
+      }
+      
+      setBunkResult(`${outputLine1}<br/>${outputLine2}`);
+    } else {
+      const attendanceNeeded = reqAttendance(attended, total, required);
+      let outputLine1 = `🔴 Attendance: ${currentPercentFormatted}%`;
+      let outputLine2;
+
+      if (!Number.isFinite(attendanceNeeded) || attendanceNeeded < 0) {
+          outputLine2 = `❌ Attend Required: Goal Unrealistic`;
+      } else {
+          outputLine2 = `⬆️ Attend Required: ${attendanceNeeded}`;
+      }
+      
+      setBunkResult(`${outputLine1}<br/>${outputLine2}`);
+    }
+  };
 
   const calculatePercentage = () => {
     setError("");
     setPercentage(null);
+    setBunkResult(null);
 
     const attendedStr = attendedClasses.trim();
     const totalStr = totalClasses.trim();
@@ -99,45 +144,47 @@ export default function CalculatorModal({ isOpen, onClose }) {
     }
     const attended = parseInt(attendedStr, 10);
     const total = parseInt(totalStr, 10);
-
     if (!Number.isFinite(attended) || !Number.isFinite(total)) {
       setError("Enter valid numbers");
       return;
     }
-
     if (total <= 0) {
       setError("Total must be > 0");
       return;
     }
-
     if (attended < 0 || attended > total) {
       setError("Attended must be between 0 and total");
       return;
     }
-
     const raw = (attended / total) * 100;
-    // REMOVED Math.ceil and applied toFixed(2) for precise display
     const result = raw.toFixed(2); 
     setPercentage(result);
   };
+
+  const handleCalculateClick = () => {
+    if (isBunkCalculator) {
+        calculateBunkClasses();
+    } else {
+        calculatePercentage();
+    }
+  }
 
   const clear = () => {
     setAttendedClasses("");
     setTotalClasses("");
     setPercentage(null);
     setError("");
-    // Reset component state back to initial L-T-P-S structure with empty values
+    setRequiredPercentage(""); 
+    setBunkResult(null); 
     setComponentsData(initialComponents.map(comp => ({ ...comp, value: "" })));
     setWeightedAverage(null);
     setCompError("");
   };
 
-  // The following functions are no longer needed for the L-T-P-S logic but are kept for clarity
-  // in removing the old logic.
-  const updatePercent = () => {}; // Replaced by updateComponentValue
-  const addPercentField = () => {}; // Not needed, fixed 4 components
-  const removePercentField = () => {}; // Not needed, fixed 4 components
-  const computePercentAverage = () => {}; // Replaced by computeWeightedAverage
+  const updatePercent = () => {}; 
+  const addPercentField = () => {}; 
+  const removePercentField = () => {}; 
+  const computePercentAverage = () => {};
 
   if (!isOpen) return null;
 
@@ -215,6 +262,34 @@ export default function CalculatorModal({ isOpen, onClose }) {
 
         {activeTab === "percentage" && (
           <div className="calculator-body">
+            <div 
+                style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    marginBottom: '16px',
+                    padding: '8px 0',
+                    borderBottom: "1px solid var(--border-color)",
+                }}
+            >
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Bunk Calculator</span>
+                <button 
+                    onClick={() => setIsBunkCalculator(!isBunkCalculator)}
+                    style={{
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        border: 'none',
+                        fontWeight: 500,
+                        backgroundColor: isBunkCalculator ? 'var(--primary-color)' : 'var(--border-color)',
+                        color: isBunkCalculator ? 'white' : 'var(--text-primary)',
+                        transition: 'background-color 0.2s',
+                    }}
+                >
+                    {isBunkCalculator ? 'ON' : 'OFF'}
+                </button>
+            </div>
+            
             <div className="form-group" style={{ marginBottom: "12px" }}>
               <label htmlFor="attended" style={{ display: "block", marginBottom: "6px" }}>Attended classes</label>
               <input
@@ -243,17 +318,53 @@ export default function CalculatorModal({ isOpen, onClose }) {
                 onChange={(e) => setTotalClasses(e.target.value.replace(/[^0-9]/g, ""))}
               />
             </div>
-
+            
+            {isBunkCalculator && (
+                <div className="form-group" style={{ marginBottom: "12px" }}>
+                    <label htmlFor="required-percent" style={{ display: "block", marginBottom: "6px" }}>Required Percentage (%)</label>
+                    <input
+                        id="required-percent"
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        placeholder="e.g., 75.0"
+                        value={requiredPercentage}
+                        onChange={(e) => setRequiredPercentage(e.target.value)}
+                    />
+                </div>
+            )}
+            
             {error && (
               <div style={{ color: "#dc3545", fontSize: "14px", marginBottom: "12px" }}>{error}</div>
             )}
 
             <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "8px" }}>
-              <button onClick={calculatePercentage} className="primary">Calculate</button>
+              <button onClick={handleCalculateClick} className="primary">
+                {isBunkCalculator ? 'Calculate Bunk' : 'Calculate Percentage'}
+              </button>
               <button onClick={clear} className="secondary">Clear</button>
             </div>
+            
+            {isBunkCalculator && bunkResult !== null && (
+                <div
+                    style={{
+                      marginTop: "16px",
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border-light)",
+                      borderRadius: "8px",
+                      padding: "12px",
+                      textAlign: "center",
+                      color: "var(--text-primary)",
+                      fontWeight: 600,
+                      fontSize: "18px",
+                    }}
+                    dangerouslySetInnerHTML={{ __html: bunkResult }}
+                />
+            )}
 
-            {percentage !== null && (
+            {!isBunkCalculator && percentage !== null && (
               <div
                 style={{
                   marginTop: "16px",
@@ -275,7 +386,6 @@ export default function CalculatorModal({ isOpen, onClose }) {
 
         {activeTab === "components" && (
           <div className="calculator-body">
-            {/* Map over the fixed L-T-P-S components */}
             {componentsData.map((comp, i) => (
               <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px", alignItems: "end", marginBottom: "12px" }}>
                 <div>
@@ -295,7 +405,6 @@ export default function CalculatorModal({ isOpen, onClose }) {
             ))}
 
             <div style={{ display: "flex", gap: "8px", marginTop: "4px", marginBottom: "8px", justifyContent: "center" }}>
-              {/* Removed Add/Remove buttons as components are fixed */}
               <button type="button" className="secondary" onClick={clear}>Clear All</button>
             </div>
 
@@ -303,7 +412,6 @@ export default function CalculatorModal({ isOpen, onClose }) {
               <div style={{ color: "#dc3545", fontSize: "14px", marginBottom: "12px" }}>{compError}</div>
             )}
 
-            {/* Display the dynamically calculated weighted average */}
             {weightedAverage !== null && (
               <div style={{
                   marginTop: "8px",
