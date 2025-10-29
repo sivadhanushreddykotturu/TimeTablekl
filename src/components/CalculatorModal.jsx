@@ -23,7 +23,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
   const computeWeightedAverage = (currentComponents) => {
     let weightedSum = 0;
     let totalWeight = 0;
-    currentComponents.forEach(comp => {
+    currentComponents.forEach((comp) => {
       const num = parseFloat(comp.value);
       if (!isNaN(num) && num >= 0 && num <= 100) {
         weightedSum += num * comp.weight;
@@ -36,23 +36,23 @@ export default function CalculatorModal({ isOpen, onClose }) {
   };
 
   const updateComponentValue = (index, rawValue) => {
-    const normalized = rawValue.replace(/,/g, '.');
-    let bounded = '';
-    if (normalized === '') {
-      bounded = '';
+    const normalized = rawValue.replace(/,/g, ".");
+    let bounded = "";
+    if (normalized === "") {
+      bounded = "";
     } else if (/^\d*(\.)?\d*$/.test(normalized)) {
       let num = Number(normalized);
       if (!Number.isFinite(num)) return;
       if (num > 100) num = 100;
       if (num < 0) num = 0;
       bounded = String(num);
-      if (normalized.endsWith('.') && !bounded.includes('.')) {
+      if (normalized.endsWith(".") && !bounded.includes(".")) {
         bounded = normalized;
       }
     } else {
       return;
     }
-    const nextComponents = componentsData.map((comp, i) => 
+    const nextComponents = componentsData.map((comp, i) =>
       i === index ? { ...comp, value: bounded } : comp
     );
     setComponentsData(nextComponents);
@@ -87,7 +87,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
       setError("Required Percentage must be between 0 and 100.");
       return;
     }
-    
+
     const attended = parseInt(attendedStr, 10);
     const total = parseInt(totalStr, 10);
     const required = requiredNum;
@@ -110,11 +110,11 @@ export default function CalculatorModal({ isOpen, onClose }) {
       let outputLine2;
 
       if (daysAvailableToBunk < 0 || daysAvailableToBunk === 0) {
-          outputLine2 = `🚫 Bunks Left: 0 (Must attend)`;
+        outputLine2 = `🚫 Bunks Left: 0 (Must attend)`;
       } else {
-          outputLine2 = `🕒 Bunks Left: ${daysAvailableToBunk}`;
+        outputLine2 = `🕒 Bunks Left: ${daysAvailableToBunk}`;
       }
-      
+
       setBunkResult(`${outputLine1}<br/>${outputLine2}`);
     } else {
       const attendanceNeeded = reqAttendance(attended, total, required);
@@ -122,11 +122,11 @@ export default function CalculatorModal({ isOpen, onClose }) {
       let outputLine2;
 
       if (!Number.isFinite(attendanceNeeded) || attendanceNeeded < 0) {
-          outputLine2 = `❌ Attend Required: Goal Unrealistic`;
+        outputLine2 = `❌ Attend Required: Goal Unrealistic`;
       } else {
-          outputLine2 = `⬆️ Attend Required: ${attendanceNeeded}`;
+        outputLine2 = `⬆️ Attend Required: ${attendanceNeeded}`;
       }
-      
+
       setBunkResult(`${outputLine1}<br/>${outputLine2}`);
     }
   };
@@ -157,34 +157,29 @@ export default function CalculatorModal({ isOpen, onClose }) {
       return;
     }
     const raw = (attended / total) * 100;
-    const result = raw.toFixed(2); 
+    const result = raw.toFixed(2);
     setPercentage(result);
   };
 
   const handleCalculateClick = () => {
     if (isBunkCalculator) {
-        calculateBunkClasses();
+      calculateBunkClasses();
     } else {
-        calculatePercentage();
+      calculatePercentage();
     }
-  }
+  };
 
   const clear = () => {
     setAttendedClasses("");
     setTotalClasses("");
     setPercentage(null);
     setError("");
-    setRequiredPercentage(""); 
-    setBunkResult(null); 
-    setComponentsData(initialComponents.map(comp => ({ ...comp, value: "" })));
+    setRequiredPercentage("");
+    setBunkResult(null);
+    setComponentsData(initialComponents.map((comp) => ({ ...comp, value: "" })));
     setWeightedAverage(null);
     setCompError("");
   };
-
-  const updatePercent = () => {}; 
-  const addPercentField = () => {}; 
-  const removePercentField = () => {}; 
-  const computePercentAverage = () => {};
 
   if (!isOpen) return null;
 
@@ -237,8 +232,14 @@ export default function CalculatorModal({ isOpen, onClose }) {
               style={{
                 padding: "6px 8px",
                 cursor: "pointer",
-                borderBottom: activeTab === "percentage" ? "2px solid var(--text-primary)" : "2px solid transparent",
-                color: activeTab === "percentage" ? "var(--text-primary)" : "var(--text-secondary)",
+                borderBottom:
+                  activeTab === "percentage"
+                    ? "2px solid var(--text-primary)"
+                    : "2px solid transparent",
+                color:
+                  activeTab === "percentage"
+                    ? "var(--text-primary)"
+                    : "var(--text-secondary)",
                 fontWeight: activeTab === "percentage" ? 600 : 500,
               }}
             >
@@ -250,8 +251,14 @@ export default function CalculatorModal({ isOpen, onClose }) {
               style={{
                 padding: "6px 8px",
                 cursor: "pointer",
-                borderBottom: activeTab === "components" ? "2px solid var(--text-primary)" : "2px solid transparent",
-                color: activeTab === "components" ? "var(--text-primary)" : "var(--text-secondary)",
+                borderBottom:
+                  activeTab === "components"
+                    ? "2px solid var(--text-primary)"
+                    : "2px solid transparent",
+                color:
+                  activeTab === "components"
+                    ? "var(--text-primary)"
+                    : "var(--text-secondary)",
                 fontWeight: activeTab === "components" ? 600 : 500,
               }}
             >
@@ -262,36 +269,84 @@ export default function CalculatorModal({ isOpen, onClose }) {
 
         {activeTab === "percentage" && (
           <div className="calculator-body">
-            <div 
-                style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between', 
-                    marginBottom: '16px',
-                    padding: '8px 0',
-                    borderBottom: "1px solid var(--border-color)",
-                }}
+            {/* Modern Toggle Switch */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "16px",
+                padding: "8px 0",
+                borderBottom: "1px solid var(--border-color)",
+                minHeight: "40px",
+              }}
             >
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Bunk Calculator</span>
-                <button 
-                    onClick={() => setIsBunkCalculator(!isBunkCalculator)}
-                    style={{
-                        padding: '4px 8px',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        border: 'none',
-                        fontWeight: 500,
-                        backgroundColor: isBunkCalculator ? 'var(--primary-color)' : 'var(--border-color)',
-                        color: isBunkCalculator ? 'white' : 'var(--text-primary)',
-                        transition: 'background-color 0.2s',
-                    }}
-                >
-                    {isBunkCalculator ? 'ON' : 'OFF'}
-                </button>
+              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                Bunk Calculator
+              </span>
+              <label
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  width: "48px",
+                  height: "26px",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isBunkCalculator}
+                  onChange={() => setIsBunkCalculator(!isBunkCalculator)}
+                  style={{ display: "none" }}
+                />
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    borderRadius: "26px",
+                    transition: "all 0.3s ease",
+                    backgroundColor: isBunkCalculator
+                      ? "var(--primary-color)"
+                      : "var(--bg-secondary)",
+                    border: isBunkCalculator
+                      ? "1px solid transparent"
+                      : "1px solid var(--border-color)",
+                    boxShadow:
+                      "inset 0 0 2px rgba(0,0,0,0.2), 0 0 1px rgba(0,0,0,0.05)",
+                  }}
+                />
+                <span
+                  style={{
+                    position: "absolute",
+                    top: "3px",
+                    left: isBunkCalculator ? "26px" : "3px",
+                    width: "20px",
+                    height: "20px",
+                    backgroundColor: "white",
+                    borderRadius: "50%",
+                    transition: "left 0.3s ease, box-shadow 0.3s ease",
+                    boxShadow:
+                      isBunkCalculator
+                        ? "0 0 6px var(--primary-color)"
+                        : "0 1px 2px rgba(0,0,0,0.3)",
+                    border:
+                      window.matchMedia &&
+                      window.matchMedia("(prefers-color-scheme: dark)").matches
+                        ? "1px solid #555"
+                        : "1px solid #ccc",
+                  }}
+                />
+              </label>
             </div>
-            
+
             <div className="form-group" style={{ marginBottom: "12px" }}>
-              <label htmlFor="attended" style={{ display: "block", marginBottom: "6px" }}>Attended classes</label>
+              <label htmlFor="attended" style={{ display: "block", marginBottom: "6px" }}>
+                Attended classes
+              </label>
               <input
                 id="attended"
                 type="number"
@@ -300,13 +355,16 @@ export default function CalculatorModal({ isOpen, onClose }) {
                 min="0"
                 placeholder="e.g., 5"
                 value={attendedClasses}
-                onChange={(e) => setAttendedClasses(e.target.value.replace(/[^0-9]/g, ""))}
-                className="mb-8"
+                onChange={(e) =>
+                  setAttendedClasses(e.target.value.replace(/[^0-9]/g, ""))
+                }
               />
             </div>
 
             <div className="form-group" style={{ marginBottom: "12px" }}>
-              <label htmlFor="total" style={{ display: "block", marginBottom: "6px" }}>Total classes</label>
+              <label htmlFor="total" style={{ display: "block", marginBottom: "6px" }}>
+                Total classes
+              </label>
               <input
                 id="total"
                 type="number"
@@ -315,53 +373,77 @@ export default function CalculatorModal({ isOpen, onClose }) {
                 min="1"
                 placeholder="e.g., 8"
                 value={totalClasses}
-                onChange={(e) => setTotalClasses(e.target.value.replace(/[^0-9]/g, ""))}
+                onChange={(e) =>
+                  setTotalClasses(e.target.value.replace(/[^0-9]/g, ""))
+                }
               />
             </div>
-            
+
             {isBunkCalculator && (
-                <div className="form-group" style={{ marginBottom: "12px" }}>
-                    <label htmlFor="required-percent" style={{ display: "block", marginBottom: "6px" }}>Required Percentage (%)</label>
-                    <input
-                        id="required-percent"
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        placeholder="e.g., 75.0"
-                        value={requiredPercentage}
-                        onChange={(e) => setRequiredPercentage(e.target.value)}
-                    />
-                </div>
-            )}
-            
-            {error && (
-              <div style={{ color: "#dc3545", fontSize: "14px", marginBottom: "12px" }}>{error}</div>
+              <div className="form-group" style={{ marginBottom: "12px" }}>
+                <label
+                  htmlFor="required-percent"
+                  style={{ display: "block", marginBottom: "6px" }}
+                >
+                  Required Percentage (%)
+                </label>
+                <input
+                  id="required-percent"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  placeholder="e.g., 75.0"
+                  value={requiredPercentage}
+                  onChange={(e) => setRequiredPercentage(e.target.value)}
+                />
+              </div>
             )}
 
-            <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "8px" }}>
+            {error && (
+              <div
+                style={{
+                  color: "#dc3545",
+                  fontSize: "14px",
+                  marginBottom: "12px",
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                justifyContent: "center",
+                marginTop: "8px",
+              }}
+            >
               <button onClick={handleCalculateClick} className="primary">
-                {isBunkCalculator ? 'Calculate Bunk' : 'Calculate Percentage'}
+                {isBunkCalculator ? "Calculate Bunk" : "Calculate Percentage"}
               </button>
-              <button onClick={clear} className="secondary">Clear</button>
+              <button onClick={clear} className="secondary">
+                Clear
+              </button>
             </div>
-            
+
             {isBunkCalculator && bunkResult !== null && (
-                <div
-                    style={{
-                      marginTop: "16px",
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-light)",
-                      borderRadius: "8px",
-                      padding: "12px",
-                      textAlign: "center",
-                      color: "var(--text-primary)",
-                      fontWeight: 600,
-                      fontSize: "18px",
-                    }}
-                    dangerouslySetInnerHTML={{ __html: bunkResult }}
-                />
+              <div
+                style={{
+                  marginTop: "16px",
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border-light)",
+                  borderRadius: "8px",
+                  padding: "12px",
+                  textAlign: "center",
+                  color: "var(--text-primary)",
+                  fontWeight: 600,
+                  fontSize: "18px",
+                }}
+                dangerouslySetInnerHTML={{ __html: bunkResult }}
+              />
             )}
 
             {!isBunkCalculator && percentage !== null && (
@@ -387,9 +469,20 @@ export default function CalculatorModal({ isOpen, onClose }) {
         {activeTab === "components" && (
           <div className="calculator-body">
             {componentsData.map((comp, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px", alignItems: "end", marginBottom: "12px" }}>
+              <div
+                key={i}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr",
+                  gap: "8px",
+                  alignItems: "end",
+                  marginBottom: "12px",
+                }}
+              >
                 <div>
-                  <label style={{ display: "block", marginBottom: "6px" }}>{comp.label} </label>
+                  <label style={{ display: "block", marginBottom: "6px" }}>
+                    {comp.label}
+                  </label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -404,16 +497,35 @@ export default function CalculatorModal({ isOpen, onClose }) {
               </div>
             ))}
 
-            <div style={{ display: "flex", gap: "8px", marginTop: "4px", marginBottom: "8px", justifyContent: "center" }}>
-              <button type="button" className="secondary" onClick={clear}>Clear All</button>
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                marginTop: "4px",
+                marginBottom: "8px",
+                justifyContent: "center",
+              }}
+            >
+              <button type="button" className="secondary" onClick={clear}>
+                Clear All
+              </button>
             </div>
 
             {compError && (
-              <div style={{ color: "#dc3545", fontSize: "14px", marginBottom: "12px" }}>{compError}</div>
+              <div
+                style={{
+                  color: "#dc3545",
+                  fontSize: "14px",
+                  marginBottom: "12px",
+                }}
+              >
+                {compError}
+              </div>
             )}
 
             {weightedAverage !== null && (
-              <div style={{
+              <div
+                style={{
                   marginTop: "8px",
                   background: "var(--bg-secondary)",
                   border: "1px solid var(--border-light)",
@@ -423,7 +535,8 @@ export default function CalculatorModal({ isOpen, onClose }) {
                   color: "var(--text-primary)",
                   fontWeight: 600,
                   fontSize: "18px",
-                }}>
+                }}
+              >
                 Overall Average: {weightedAverage}%
               </div>
             )}
