@@ -328,11 +328,13 @@ export default function Attendance() {
                       <div className="attendance-stats">
                         <div
                           className="percentage"
-                          style={{ color: getPercentageColor(section.percentage) }}
+                          // 1. UPDATED: Use section.rawPercentage for color logic (for consistency)
+                          style={{ color: getPercentageColor(section.rawPercentage) }} 
                         >
-                          {/* Display the rounded percentage + % symbol */}
-                          {section.percentage}
-                          {/* Display the precise raw percentage in parentheses (CORRECTED) */}
+                          {/* 2. UPDATED: Display the Math.ceil(rawPercentage) to match overall course % */}
+                          {Math.ceil(parseFloat(section.rawPercentage))}%
+                          
+                          {/* Display the precise raw percentage in parentheses */}
                           {section.totalConducted > 0 && section.rawPercentage && (
                             <span style={{ fontSize: '0.8em', color: 'var(--text-secondary)', marginLeft: '4px' }}>
                               ({section.rawPercentage}%)
