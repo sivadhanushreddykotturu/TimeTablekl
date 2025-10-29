@@ -399,6 +399,30 @@ button.secondary:hover {
   align-items: center;
 }
 
+/* Theme-aware header edit button */
+.edit-target-btn {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+.edit-target-btn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+[data-theme="dark"] .edit-target-btn {
+  background: #101114;
+  color: #ffffff;
+  border: 1px solid #2a2d33;
+}
+[data-theme="dark"] .edit-target-btn:hover {
+  background: #15181d;
+  border-color: #3a3f47;
+  color: #ffffff;
+}
+
 /* Header */
 .app-header {
   background-color: var(--header-bg);
