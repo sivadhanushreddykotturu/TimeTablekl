@@ -169,6 +169,12 @@ export default function Attendance() {
     <>
       <Header onRefresh={handleFetchAttendance} />
 
+      <div style={{ marginTop: "16px", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+        <button onClick={() => navigate("/home")} className="secondary">
+          Back to Home
+        </button>
+      </div>
+
       <div className="container">
         <div className="page-header">
           <h1 className="page-title">
@@ -367,24 +373,6 @@ export default function Attendance() {
           </div>
         )}
       </div>
-
-      {/* Bottom action bar (after data loads) */}
-      {attendanceData.length > 0 && (
-        <div style={{
-          marginTop: "16px",
-          padding: "10px 12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "8px"
-        }}>
-          <button onClick={() => navigate("/home")} className="secondary">
-            Back to Home
-          </button>
-          <button onClick={() => setShowTargetModal(true)} className="primary">
-            Edit Safe % (now {targetPercentage}%)
-          </button>
-        </div>
-      )}
 
       <AttendanceModal
         isOpen={showAttendanceModal}
