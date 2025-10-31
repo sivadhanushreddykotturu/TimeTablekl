@@ -5,6 +5,7 @@ import CaptchaModal from "../components/CaptchaModal";
 import Toast from "../components/Toast";
 import { getTodaySubjects } from "../utils/subjectMapper";
 import FeedbackButton from '../components/FeedbackButton';
+import RecentContributors from '../components/RecentContributors.jsx';
 
 const slotTimes = {
   1: { start: "07:10", end: "08:00" },
@@ -267,6 +268,7 @@ export default function Home() {
         </div>
 
         <FeedbackButton />
+        <RecentContributors />
       </div>
 
       <CaptchaModal
