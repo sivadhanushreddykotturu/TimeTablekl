@@ -371,13 +371,40 @@ button.secondary:hover {
 }
 
 .page-header {
+  position: relative;
+  z-index: 10;
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-color);
-  transition: border-color 0.3s ease;
+  padding: 16px 20px;
+  background-color: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+/* Double border effect for page header */
+.page-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  z-index: -1;
+}
+
+[data-theme="dark"] .page-header {
+  background-color: rgba(45, 45, 45, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .page-header::before {
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .page-title {
@@ -540,13 +567,47 @@ button.secondary:hover {
 
 /* Current/Next Class Cards */
 .class-card {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 20px;
+  position: relative;
+  z-index: 10;
+  background-color: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  padding: 24px;
   margin-bottom: 20px;
-  box-shadow: var(--card-shadow);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
+}
+
+/* Double border effect using ::before pseudo-element */
+.class-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  z-index: -1;
+}
+
+[data-theme="dark"] .class-card {
+  background-color: rgba(45, 45, 45, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .class-card::before {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.class-card:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+[data-theme="dark"] .class-card:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .class-card h2 {
@@ -920,6 +981,58 @@ button.small {
   flex-direction: column;
   gap: 20px;
   margin-top: 24px;
+}
+
+/* Glassmorphism buttons for Home page */
+.button-container button {
+  position: relative;
+  z-index: 10;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+/* Double border effect for buttons */
+.button-container button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Light mode button backgrounds with glassmorphism */
+.button-container button:not(.primary):not(.secondary) {
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.button-container button.primary {
+  background-color: rgba(0, 123, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.button-container button.secondary {
+  background-color: rgba(108, 117, 125, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.button-container button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] .button-container button {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .button-container button::before {
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 @media (min-width: 768px) {
