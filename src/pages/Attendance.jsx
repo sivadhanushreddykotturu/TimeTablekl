@@ -106,23 +106,27 @@ export default function Attendance() {
         };
       }
       
-      const totalAttended = parseInt(item["Total Attended"]);
-      const totalConducted = parseInt(item["Total Conducted"]);
-      
-      let rawPercentage = 0;
-      if (totalConducted > 0) {
-        rawPercentage = (totalAttended / totalConducted) * 100;
-      }
-      
-      grouped[courseCode].sections.push({
-        ltps: item.Ltps,
-        section: item.Section,
-        percentage: item.Percentage,
-        totalConducted: item["Total Conducted"],
-        totalAttended: item["Total Attended"],
-        totalAbsent: item["Total Absent"],
-        rawPercentage: rawPercentage.toFixed(2)
-      });
+      const totalAttended = parseInt(item["Total Attended"]);
+      const totalConducted = parseInt(item["Total Conducted"]);
+      const tcbr = parseInt(item["Tcbr"] || "0");
+      
+      let rawPercentage = 0;
+      if (totalConducted > 0) {
+        // Add tcbr to totalAttended when calculating percentage
+        const adjustedAttended = totalAttended + (tcbr > 0 ? tcbr : 0);
+        rawPercentage = (adjustedAttended / totalConducted) * 100;
+      }
+      
+      grouped[courseCode].sections.push({
+        ltps: item.Ltps,
+        section: item.Section,
+        percentage: item.Percentage,
+        totalConducted: item["Total Conducted"],
+        totalAttended: item["Total Attended"],
+        totalAbsent: item["Total Absent"],
+        tcbr: tcbr,
+        rawPercentage: rawPercentage.toFixed(2)
+      });
     });
     
     Object.values(grouped).forEach(course => {
@@ -130,17 +134,20 @@ export default function Attendance() {
         let weightedSum = 0;
         let totalWeight = 0;
 
-        course.sections.forEach(section => {
-          const componentType = section.ltps.charAt(0).toUpperCase();
-          const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
-          
-          let calculationPercentage = 0;
-          const attended = parseInt(section.totalAttended);
-          const conducted = parseInt(section.totalConducted);
-          
-          if (conducted > 0) {
-            calculationPercentage = (attended / conducted) * 100;
-          }
+        course.sections.forEach(section => {
+          const componentType = section.ltps.charAt(0).toUpperCase();
+          const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
+          
+          let calculationPercentage = 0;
+          const attended = parseInt(section.totalAttended);
+          const conducted = parseInt(section.totalConducted);
+          const tcbr = parseInt(section.tcbr || "0");
+          
+          if (conducted > 0) {
+            // Add tcbr to attended when calculating percentage
+            const adjustedAttended = attended + (tcbr > 0 ? tcbr : 0);
+            calculationPercentage = (adjustedAttended / conducted) * 100;
+          }
 
           if (!isNaN(calculationPercentage) && calculationPercentage >= 0) {
             weightedSum += calculationPercentage * weight;
@@ -337,33 +344,42 @@ export default function Attendance() {
                             </span>
                           )}
                         </div>
-                        <div className="attendance-details">
-                          <span>{section.totalAttended}/{section.totalConducted}</span>
-                          <span className="absent-count">({section.totalAbsent} absent)</span>
-                        </div>
-                        {/* Target guidance (reach/ safe sessions) */}
-                        {(() => {
-                          const attended = parseInt(section.totalAttended);
-                          const conducted = parseInt(section.totalConducted);
-                          if (!Number.isFinite(attended) || !Number.isFinite(conducted) || conducted <= 0) {
-                            return null;
-                          }
-                          const current = (attended / conducted) * 100;
-                          if (current >= targetPercentage) {
-                            const safe = safeBunksAtTarget(attended, conducted, targetPercentage);
-                            return (
-                              <div style={{ marginTop: "4px", fontSize: "0.9em", color: "var(--text-secondary)" }}>
-                                Safe sessions at {targetPercentage}%: <strong style={{ color: "var(--text-primary)" }}>{safe} (hrs)</strong>
-                              </div>
-                            );
-                          }
-                          const need = classesToReachTarget(attended, conducted, targetPercentage);
-                          return (
-                            <div style={{ marginTop: "4px", fontSize: "0.9em", color: "var(--text-secondary)" }}>
-                              Attend next <strong style={{ color: "var(--text-primary)" }}>{need} (hrs)</strong> to reach {targetPercentage}%
-                            </div>
-                          );
-                        })()}
+                <div className="attendance-details">
+                  <span>{section.totalAttended}/{section.totalConducted}</span>
+                  <span className="absent-count">({section.totalAbsent} absent)</span>
+                  {(() => {
+                    const tcbrValue = parseInt(section.tcbr || "0");
+                    return tcbrValue > 0 ? (
+                      <span className="absent-count" style={{ marginLeft: "4px" }}>tcbr={tcbrValue}</span>
+                    ) : null;
+                  })()}
+                </div>
+                {/* Target guidance (reach/ safe sessions) */}
+                {(() => {
+                  const attended = parseInt(section.totalAttended);
+                  const conducted = parseInt(section.totalConducted);
+                  const tcbr = parseInt(section.tcbr || "0");
+                  if (!Number.isFinite(attended) || !Number.isFinite(conducted) || conducted <= 0) {
+                    return null;
+                  }
+                  // Add tcbr to attended when calculating current percentage for guidance
+                  const adjustedAttended = attended + (tcbr > 0 ? tcbr : 0);
+                  const current = (adjustedAttended / conducted) * 100;
+                  if (current >= targetPercentage) {
+                    const safe = safeBunksAtTarget(adjustedAttended, conducted, targetPercentage);
+                    return (
+                      <div style={{ marginTop: "4px", fontSize: "0.9em", color: "var(--text-secondary)" }}>
+                        Safe sessions at {targetPercentage}%: <strong style={{ color: "var(--text-primary)" }}>{safe} (hrs)</strong>
+                      </div>
+                    );
+                  }
+                  const need = classesToReachTarget(adjustedAttended, conducted, targetPercentage);
+                  return (
+                    <div style={{ marginTop: "4px", fontSize: "0.9em", color: "var(--text-secondary)" }}>
+                      Attend next <strong style={{ color: "var(--text-primary)" }}>{need} (hrs)</strong> to reach {targetPercentage}%
+                    </div>
+                  );
+                })()}
                       </div>
                     </div>
                   ))}
