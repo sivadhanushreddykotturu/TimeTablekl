@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import CaptchaModal from "../components/CaptchaModal";
 import Toast from "../components/Toast";
+import { getSubjectName } from "../utils/subjectMapper";
 
 
 const slotTimes = {
@@ -47,6 +48,29 @@ export default function TimetableView() {
     setToast(prev => ({ ...prev, show: false }));
   };
 
+  // Function to replace course code with custom subject name in timetable entry
+  const replaceCourseCodeWithCustomName = (content) => {
+    if (!content || content === "-") return content;
+    
+    // Extract course code (alphanumeric part at the start)
+    // Format: "24MT2012-L - S-205 -RoomNo-S914"
+    // Match course code at the beginning
+    const match = content.match(/^([A-Za-z0-9]+)/);
+    if (!match) return content;
+    
+    const courseCode = match[1];
+    
+    // Get custom name from localStorage
+    const customName = getSubjectName(courseCode);
+    
+    // If custom name exists and is different, replace the course code in the content
+    if (customName !== courseCode) {
+      return content.replace(courseCode, customName);
+    }
+    
+    return content;
+  };
+
   const renderDay = (day, slots) => {
     const entries = Object.entries(slots)
       .filter(([slot]) => parseInt(slot) <= 11)
@@ -79,14 +103,17 @@ export default function TimetableView() {
     return (
       <div key={day} className="timetable-day">
         <h3>{day}</h3>
-        {merged.map((block, idx) => (
-          <div key={idx} className="class-block">
-            <div className="class-name">{block.content}</div>
-            <div className="class-time">
-              {slotTimes[block.startSlot].start} – {slotTimes[block.endSlot].end}
+        {merged.map((block, idx) => {
+          const displayContent = replaceCourseCodeWithCustomName(block.content);
+          return (
+            <div key={idx} className="class-block">
+              <div className="class-name">{displayContent}</div>
+              <div className="class-time">
+                {slotTimes[block.startSlot].start} – {slotTimes[block.endSlot].end}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
