@@ -5,6 +5,7 @@ import CaptchaModal from "../components/CaptchaModal";
 import Toast from "../components/Toast";
 import { getTodaySubjects } from "../utils/subjectMapper";
 import { getCurrentAcademicYearOptions, API_CONFIG, getFormData } from "../config/api.js";
+import { trackEvent } from "../utils/analytics";
 
 const slotTimes = {
   1: { start: "07:10", end: "08:00" },
@@ -142,6 +143,11 @@ export default function Maddys() {
   useEffect(() => {
     const savedMaddys = JSON.parse(localStorage.getItem("maddys") || "[]");
     setMaddys(savedMaddys);
+    
+    // Track maddys page view
+    trackEvent('maddys_page_viewed', {
+      maddy_count: savedMaddys.length
+    });
   }, []);
 
   useEffect(() => {
@@ -277,6 +283,14 @@ export default function Maddys() {
     const updatedMaddys = [...maddys, newMaddy];
     saveMaddys(updatedMaddys);
     
+    // Track maddy added
+    trackEvent('maddy_added', {
+      maddy_name: friendName,
+      semester: tempFriendData.semester,
+      academic_year: tempFriendData.academicYear,
+      total_maddys: updatedMaddys.length
+    });
+    
     setShowNameModal(false);
     setTempFriendData(null);
     setFriendName("");
@@ -392,31 +406,52 @@ export default function Maddys() {
                       🔄
                     </button>
                     <button 
-                      onClick={() => navigate(`/maddys/${maddy.id}/timetable`)}
+                      onClick={() => {
+                        trackEvent('maddy_viewed', {
+                          maddy_id: maddy.id,
+                          maddy_name: maddy.name,
+                          view_type: 'timetable'
+                        });
+                        navigate(`/maddys/${maddy.id}/timetable`);
+                      }}
                       className="action-btn"
                       title="View Timetable"
                     >
                       📅
                     </button>
                     <button 
-                      onClick={() => navigate(`/maddys/${maddy.id}/class`)}
+                      onClick={() => {
+                        trackEvent('maddy_viewed', {
+                          maddy_id: maddy.id,
+                          maddy_name: maddy.name,
+                          view_type: 'class_info'
+                        });
+                        navigate(`/maddys/${maddy.id}/class`);
+                      }}
                       className="action-btn"
                       title="Class Info"
                     >
                       📚
                     </button>
                     <button 
-                      onClick={() => navigate("/attendance", { 
-                        state: { 
-                          friendCredentials: {
-                            username: maddy.username,
-                            password: maddy.password,
-                            semester: maddy.semester,
-                            academicYear: maddy.academicYear,
-                            name: maddy.name
+                      onClick={() => {
+                        trackEvent('maddy_viewed', {
+                          maddy_id: maddy.id,
+                          maddy_name: maddy.name,
+                          view_type: 'attendance'
+                        });
+                        navigate("/attendance", { 
+                          state: { 
+                            friendCredentials: {
+                              username: maddy.username,
+                              password: maddy.password,
+                              semester: maddy.semester,
+                              academicYear: maddy.academicYear,
+                              name: maddy.name
+                            }
                           }
-                        }
-                      })}
+                        });
+                      }}
                       className="action-btn"
                       title="Attendance"
                     >
