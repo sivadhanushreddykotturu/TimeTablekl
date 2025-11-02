@@ -6,6 +6,7 @@ import Toast from "../components/Toast";
 import { getTodaySubjects } from "../utils/subjectMapper";
 import FeedbackButton from '../components/FeedbackButton';
 import RecentContributors from '../components/RecentContributors.jsx';
+import { trackEvent } from "../utils/analytics";
 
 const slotTimes = {
   1: { start: "07:10", end: "08:00" },
@@ -156,10 +157,14 @@ export default function Home() {
     setTodaySubjects(getTodaySubjects());
   }, [timetable]);
 
-  // Separate useEffect for analytics tracking (runs only once on mount)
+  // Track home page view
   useEffect(() => {
-    // Track page view for analytics only once when component mounts
-  }, []); // Empty dependency array - runs only once
+    trackEvent('home_page_viewed', {
+      has_timetable: Object.keys(timetable).length > 0,
+      today_subjects_count: todaySubjects.length,
+      has_current_class: current !== "Loading..." && current !== "No ongoing class"
+    });
+  }, []); // Track only once on mount
 
   const handleRefresh = () => {
     setShowCaptchaModal(true);
@@ -167,6 +172,12 @@ export default function Home() {
 
   const handleCaptchaSuccess = (newTimetable) => {
     // Track timetable sync
+    const dayCount = Object.keys(newTimetable).length;
+    trackEvent('timetable_synced', {
+      sync_location: 'home_page',
+      day_count: dayCount,
+      sync_method: 'captcha'
+    });
     
     setTimetable(newTimetable);
     setTodaySubjects(getTodaySubjects());

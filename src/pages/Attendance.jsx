@@ -4,6 +4,7 @@ import Header from "../components/Header";
 import AttendanceModal from "../components/AttendanceModal";
 import CalculatorModal from "../components/CalculatorModal";
 import Toast from "../components/Toast";
+import { trackEvent } from "../utils/analytics";
 
 export default function Attendance() {
   const location = useLocation();
@@ -36,14 +37,29 @@ export default function Attendance() {
     setShowAttendanceModal(true);
   };
 
-  const handleAttendanceSuccess = (attendance) => {
-    setAttendanceData(attendance);
-    setToast({
-      show: true,
-      message: "Attendance fetched successfully!",
-      type: "success"
-    });
-  };
+  const handleAttendanceSuccess = (attendance) => {
+    // Track attendance fetch
+    const grouped = groupAttendanceByCourse(attendance);
+    const courseCount = grouped.length;
+    const overallPercentages = grouped.map(c => c.overallPercentage);
+    const avgPercentage = overallPercentages.length > 0 
+      ? Math.round(overallPercentages.reduce((a, b) => a + b, 0) / overallPercentages.length)
+      : 0;
+    
+    trackEvent('attendance_fetched', {
+      course_count: courseCount,
+      average_percentage: avgPercentage,
+      is_friend: !!friendCredentials,
+      friend_name: friendCredentials?.name || null
+    });
+    
+    setAttendanceData(attendance);
+    setToast({
+      show: true,
+      message: "Attendance fetched successfully!",
+      type: "success"
+    });
+  };
 
   const closeToast = () => {
     setToast(prev => ({ ...prev, show: false }));
@@ -169,10 +185,19 @@ export default function Attendance() {
       }
     });
 
-    return Object.values(grouped);
-  };
+    return Object.values(grouped);
+  };
 
-  return (
+  // Track attendance page view
+  useEffect(() => {
+    trackEvent('attendance_page_viewed', {
+      has_attendance_data: attendanceData.length > 0,
+      is_friend: !!friendCredentials,
+      friend_name: friendCredentials?.name || null
+    });
+  }, []); // Track only once on mount
+
+  return (
     <>
       <Header onRefresh={handleFetchAttendance} />
 

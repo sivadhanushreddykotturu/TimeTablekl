@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Header from "../components/Header";
 import CaptchaModal from "../components/CaptchaModal";
 import Toast from "../components/Toast";
 import { getSubjectName } from "../utils/subjectMapper";
+import { trackEvent } from "../utils/analytics";
 
 
 const slotTimes = {
@@ -29,13 +30,27 @@ export default function TimetableView() {
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const navigate = useNavigate();
 
-
+  // Track timetable page view
+  useEffect(() => {
+    const dayCount = Object.keys(timetable).length;
+    trackEvent('timetable_page_viewed', {
+      has_timetable: dayCount > 0,
+      day_count: dayCount
+    });
+  }, []); // Track only once on mount
 
   const refreshTimetable = () => {
     setShowCaptchaModal(true);
   };
 
   const handleCaptchaSuccess = (newTimetable) => {
+    const dayCount = Object.keys(newTimetable).length;
+    trackEvent('timetable_synced', {
+      sync_location: 'timetable_page',
+      day_count: dayCount,
+      sync_method: 'captcha'
+    });
+    
     setTimetable(newTimetable);
     setToast({
       show: true,
