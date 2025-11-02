@@ -140,7 +140,8 @@ const FeedbackButton = () => {
 <input
   type="text"
   id="contact"
-  placeholder="your.email@example.com or +1234567890"
+  required
+  placeholder="email or phone"
   value={contact}
   onChange={(e) => setContact(e.target.value)}
 />
