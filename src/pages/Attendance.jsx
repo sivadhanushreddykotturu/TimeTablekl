@@ -38,7 +38,6 @@ export default function Attendance() {
   };
 
   const handleAttendanceSuccess = (attendance) => {
-    // Track attendance fetch
     const grouped = groupAttendanceByCourse(attendance);
     const courseCount = grouped.length;
     const overallPercentages = grouped.map(c => c.overallPercentage);
@@ -128,7 +127,6 @@ export default function Attendance() {
       
       let rawPercentage = 0;
       if (totalConducted > 0) {
-        // Add tcbr to totalAttended when calculating percentage
         const adjustedAttended = totalAttended + (tcbr > 0 ? tcbr : 0);
         rawPercentage = (adjustedAttended / totalConducted) * 100;
       }
@@ -145,57 +143,50 @@ export default function Attendance() {
       });
     });
     
-    Object.values(grouped).forEach(course => {
-      if (course.sections.length > 0) {
-        let weightedSum = 0;
-        let totalWeight = 0;
+    Object.values(grouped).forEach(course => {
+      if (course.sections.length > 0) {
+        let weightedAttendedSum = 0;
+        let weightedConductedSum = 0;
 
         course.sections.forEach(section => {
           const componentType = section.ltps.charAt(0).toUpperCase();
           const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
-          
-          let calculationPercentage = 0;
+
           const attended = parseInt(section.totalAttended);
           const conducted = parseInt(section.totalConducted);
           const tcbr = parseInt(section.tcbr || "0");
-          
-          if (conducted > 0) {
-            // Add tcbr to attended when calculating percentage
-            const adjustedAttended = attended + (tcbr > 0 ? tcbr : 0);
-            calculationPercentage = (adjustedAttended / conducted) * 100;
-          }
+          const adjustedAttended = (Number.isFinite(attended) ? attended : 0) + (tcbr > 0 ? tcbr : 0);
+          const safeConducted = Number.isFinite(conducted) ? conducted : 0;
 
-          if (!isNaN(calculationPercentage) && calculationPercentage >= 0) {
-            weightedSum += calculationPercentage * weight;
-            totalWeight += weight;
-          }
-        });
+          weightedAttendedSum += adjustedAttended * weight;
+          weightedConductedSum += safeConducted * weight;
+        });
 
-        if (totalWeight > 0) {
-          const calculatedPercentage = weightedSum / totalWeight;
-          course.overallPercentage = Math.ceil(Math.max(0, Math.min(100, calculatedPercentage)));
-        } else {
-          course.overallPercentage = 0;
-        }
+        if (weightedConductedSum > 0) {
+          const calculated = (weightedAttendedSum / weightedConductedSum) * 100;
+          course.overallPercentage = Math.ceil(Math.max(0, Math.min(100, calculated)));
+        } else {
+          course.overallPercentage = 0;
+        }
 
-        course.averageType = "Weighted Average";
-      } else {
-        course.overallPercentage = 0;
-        course.averageType = "N/A";
-      }
-    });
+        course.averageType = "Weighted (L/T/P/S)";
+      } else {
+        course.overallPercentage = 0;
+        course.averageType = "N/A";
+      }
+    });
 
     return Object.values(grouped);
   };
 
-  // Track attendance page view
+  
   useEffect(() => {
     trackEvent('attendance_page_viewed', {
       has_attendance_data: attendanceData.length > 0,
       is_friend: !!friendCredentials,
       friend_name: friendCredentials?.name || null
     });
-  }, []); // Track only once on mount
+  }, []);
 
   return (
     <>
@@ -237,7 +228,7 @@ export default function Attendance() {
                   <span className="course-code">{course.courseCode}</span>
                 </div>
 
-                {/* Total Attendance Box */}
+                
                 <div className="total-attendance-box">
                   <div className="total-info">
                     <span className="total-badge">TOTAL</span>
@@ -258,7 +249,7 @@ export default function Attendance() {
                   </div>
                 </div>
 
-                {/* Sections */}
+                
                 <div className="sections-container">
                   {course.sections.map((section, sectionIndex) => (
                     <div key={sectionIndex} className="section-item">
@@ -267,7 +258,7 @@ export default function Attendance() {
                         <span className="section-name">{section.section}</span>
                       </div>
 
-                      {/* Cool Register Button */}
+                      
                       {["L", "P", "S", "T"].includes(section.ltps.charAt(0).toUpperCase()) && (
                         <div
                           className="register-button"
@@ -299,7 +290,7 @@ export default function Attendance() {
                             });
                             console.log('Available attendance data:', attendanceData);
                             
-                            // Find the corresponding attendance item with register_details
+                            
                             const attendanceItem = attendanceData.find(item => 
                               item.Coursecode === course.courseCode && 
                               item.Ltps === section.ltps && 
@@ -314,7 +305,7 @@ export default function Attendance() {
                               
                               if (attendanceItem.register_details) {
                                 console.log('Register details found:', attendanceItem.register_details);
-                                // Pass the complete attendance item data including metadata
+                                
                                 const registerData = {
                                   metadata: {
                                     ...attendanceItem.register_details.metadata,
@@ -328,7 +319,7 @@ export default function Attendance() {
                                 handleRegisterClick(registerData);
                               } else {
                                 console.log('No register_details in attendance item, trying alternative approach...');
-                                // Fallback: create register data from the attendance item itself
+                                
                                 const registerData = {
                                   metadata: {
                                     Coursecode: attendanceItem.Coursecode,
@@ -342,7 +333,7 @@ export default function Attendance() {
                                     "Total Absent": attendanceItem["Total Absent"],
                                     Percentage: attendanceItem.Percentage
                                   },
-                                  daily_attendance: [] // Empty array if no daily attendance data
+                                  daily_attendance: []
                                 };
                                 console.log('Using fallback register data:', registerData);
                                 handleRegisterClick(registerData);
@@ -379,7 +370,7 @@ export default function Attendance() {
                     ) : null;
                   })()}
                 </div>
-                {/* Target guidance (reach/ safe sessions) */}
+                
                 {(() => {
                   const attended = parseInt(section.totalAttended);
                   const conducted = parseInt(section.totalConducted);
@@ -387,7 +378,7 @@ export default function Attendance() {
                   if (!Number.isFinite(attended) || !Number.isFinite(conducted) || conducted <= 0) {
                     return null;
                   }
-                  // Add tcbr to attended when calculating current percentage for guidance
+                  
                   const adjustedAttended = attended + (tcbr > 0 ? tcbr : 0);
                   const current = (adjustedAttended / conducted) * 100;
                   if (current >= targetPercentage) {
@@ -442,7 +433,7 @@ export default function Attendance() {
         onClose={closeToast}
       />
 
-      {/* Register Modal */}
+      
       {showRegisterModal && selectedRegisterData && (
         <div className="modal-overlay" onClick={closeRegisterModal}>
           <div className="modal-content register-modal" onClick={(e) => e.stopPropagation()}>
@@ -452,7 +443,7 @@ export default function Attendance() {
             </div>
             
             <div className="register-content">
-              {/* Daily Attendance */}
+              
               <div className="daily-attendance">
                 <div className="attendance-table">
                   <div className="table-header" style={{display: 'flex', width: '100%', background: 'var(--bg-tertiary)', borderBottom: '2px solid var(--border-color)'}}>
@@ -483,7 +474,7 @@ export default function Attendance() {
         </div>
       )}
 
-      {/* Target percentage modal */}
+      
       {showTargetModal && (
         <div className="modal-overlay" onClick={() => setShowTargetModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "360px" }}>
