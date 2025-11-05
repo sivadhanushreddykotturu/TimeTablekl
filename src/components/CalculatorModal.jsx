@@ -1,63 +1,123 @@
 import React, { useState } from "react";
 
 export default function CalculatorModal({ isOpen, onClose }) {
+  // State for Percentage/Bunk Tab
   const [activeTab, setActiveTab] = useState("percentage");
   const [attendedClasses, setAttendedClasses] = useState("");
   const [totalClasses, setTotalClasses] = useState("");
+  const [tcbr, setTcbr] = useState("");
   const [percentage, setPercentage] = useState(null);
   const [error, setError] = useState("");
   const [isBunkCalculator, setIsBunkCalculator] = useState(false);
   const [requiredPercentage, setRequiredPercentage] = useState("");
   const [bunkResult, setBunkResult] = useState(null);
 
+  // Constants and State for Components Tab
+  const LTPS_WEIGHTS = {
+    L: 100,
+    T: 100,
+    P: 50,
+    S: 25,
+    O: 1,
+  };
+
   const initialComponents = [
-    { label: "Lecture (100%)", type: "L", weight: 100, value: "" },
-    { label: "Tutorial (100%)", type: "T", weight: 100, value: "" },
-    { label: "Practical (50%)", type: "P", weight: 50, value: "" },
-    { label: "Skilling (25%)", type: "S", weight: 25, value: "" },
+    // Updated to use attended/conducted/tcbr counts for accurate weighted average
+    { label: "Lecture (L)", type: "L", attended: "", conducted: "", tcbr: "" },
+    { label: "Tutorial (T)", type: "T", attended: "", conducted: "", tcbr: "" },
+    { label: "Practical (P)", type: "P", attended: "", conducted: "", tcbr: "" },
+    { label: "Skilling (S)", type: "S", attended: "", conducted: "", tcbr: "" },
   ];
   const [componentsData, setComponentsData] = useState(initialComponents);
   const [weightedAverage, setWeightedAverage] = useState(null);
   const [compError, setCompError] = useState("");
+  
+  // State for tracking which component inputs are open/collapsed
+  const initialOpenState = {
+    L: false,
+    T: false,
+    P: false,
+    S: false,
+  };
+  const [isComponentOpen, setIsComponentOpen] = useState(initialOpenState);
 
-  const computeWeightedAverage = (currentComponents) => {
-    let weightedSum = 0;
-    let totalWeight = 0;
-    currentComponents.forEach((comp) => {
-      const num = parseFloat(comp.value);
-      if (!isNaN(num) && num >= 0 && num <= 100) {
-        weightedSum += num * comp.weight;
-        totalWeight += comp.weight;
-      }
-    });
-    if (totalWeight === 0) return null;
-    const result = weightedSum / totalWeight;
-    return Math.ceil(Math.max(0, Math.min(100, result)));
+  /**
+   * Toggles the open/collapsed state of a specific component block.
+   */
+  const toggleOpen = (type) => {
+    setIsComponentOpen(prev => ({ ...prev, [type]: !prev[type] }));
   };
 
-  const updateComponentValue = (index, rawValue) => {
-    const normalized = rawValue.replace(/,/g, ".");
-    let bounded = "";
-    if (normalized === "") {
-      bounded = "";
-    } else if (/^\d*(\.)?\d*$/.test(normalized)) {
-      let num = Number(normalized);
-      if (!Number.isFinite(num)) return;
-      if (num > 100) num = 100;
-      if (num < 0) num = 0;
-      bounded = String(num);
-      if (normalized.endsWith(".") && !bounded.includes(".")) {
-        bounded = normalized;
+
+  /**
+   * Calculates the weighted average percentage based on attended, conducted, and TCBR counts.
+   * Formula: ceil( Sum((Attended + Tcbr) * Weight) / Sum(Conducted * Weight) ) * 100
+   */
+  const computeWeightedAverage = (currentComponents) => {
+    let weightedAttendedSum = 0;
+    let weightedConductedSum = 0;
+
+    currentComponents.forEach((comp) => {
+      // Parse inputs, enforcing 0 if empty or invalid
+      const attended = parseInt(comp.attended || "0", 10);
+      const conducted = parseInt(comp.conducted || "0", 10);
+      const tcbrValue = parseInt(comp.tcbr || "0", 10);
+
+      // Skip component if it cannot be calculated or is missing valid counts
+      if (conducted <= 0 || !Number.isFinite(attended) || attended < 0 || tcbrValue < 0) {
+        return;
       }
+      
+      // Get weight based on type
+      const componentType = comp.type.charAt(0).toUpperCase();
+      const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
+      
+      // Calculate adjusted attended classes (Attended + Tcbr)
+      const adjustedAttended = attended + tcbrValue;
+
+      // Add to weighted sums
+      weightedAttendedSum += adjustedAttended * weight;
+      weightedConductedSum += conducted * weight;
+    });
+
+    if (weightedConductedSum > 0) {
+      const calculated = (weightedAttendedSum / weightedConductedSum) * 100;
+      // Use Math.ceil to match standard attendance rounding
+      return Math.ceil(Math.max(0, Math.min(100, calculated)));
     } else {
-      return;
+      return null;
     }
+  };
+
+  /**
+   * Updates the attended, conducted, or tcbr value for a specific component.
+   * Accepts only whole numbers.
+   */
+  const updateComponentValue = (index, field, rawValue) => {
+    // Only allow whole numbers
+    const value = rawValue.replace(/[^0-9]/g, "");
+
     const nextComponents = componentsData.map((comp, i) =>
-      i === index ? { ...comp, value: bounded } : comp
+      i === index ? { ...comp, [field]: value } : comp
     );
+    
+    // Validation: Attended + Tcbr cannot exceed Conducted
+    const currentComp = nextComponents[index];
+    const attendedNum = parseInt(currentComp.attended || "0", 10);
+    const conductedNum = parseInt(currentComp.conducted || "0", 10);
+    const tcbrNum = parseInt(currentComp.tcbr || "0", 10);
+
+    if (conductedNum > 0 && (attendedNum + tcbrNum) > conductedNum) {
+      setCompError(`${currentComp.label}: Attended + Tcbr (${attendedNum + tcbrNum}) cannot exceed Conducted (${conductedNum}).`);
+    } else {
+      setCompError("");
+    }
+
     setComponentsData(nextComponents);
     setWeightedAverage(computeWeightedAverage(nextComponents));
   };
+
+  // --- Percentage / Bunk Calculator Logic (Unchanged) ---
 
   const reqAttendance = (present, total, percentage) => {
     const needed = (percentage * total - 100 * present) / (100 - percentage);
@@ -77,6 +137,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
     const attendedStr = attendedClasses.trim();
     const totalStr = totalClasses.trim();
     const requiredStr = requiredPercentage.trim();
+    const tcbrStr = tcbr.trim();
 
     if (!/^\d+$/.test(attendedStr) || !/^\d+$/.test(totalStr)) {
       setError("Attended/Total must be whole numbers.");
@@ -90,6 +151,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
 
     const attended = parseInt(attendedStr, 10);
     const total = parseInt(totalStr, 10);
+    const tcbrValue = parseInt(tcbrStr || "0", 10);
     const required = requiredNum;
 
     if (total <= 0) {
@@ -100,12 +162,17 @@ export default function CalculatorModal({ isOpen, onClose }) {
       setError("Attended must be between 0 and total.");
       return;
     }
+    if (tcbrValue < 0) {
+      setError("Tcbr must be 0 or greater.");
+      return;
+    }
 
-    const currentPercent = (attended / total) * 100;
+    const adjustedAttended = attended + (tcbrValue > 0 ? tcbrValue : 0);
+    const currentPercent = (adjustedAttended / total) * 100;
     const currentPercentFormatted = currentPercent.toFixed(2);
 
     if (currentPercent >= required) {
-      const daysAvailableToBunk = daysToBunk(attended, total, required);
+      const daysAvailableToBunk = daysToBunk(adjustedAttended, total, required);
       let outputLine1 = `🟢 Attendance: ${currentPercentFormatted}%`;
       let outputLine2;
 
@@ -115,9 +182,13 @@ export default function CalculatorModal({ isOpen, onClose }) {
         outputLine2 = `🕒 Bunks Left: ${daysAvailableToBunk}`;
       }
 
+      if (tcbrValue > 0) {
+        outputLine1 += ` (tcbr=${tcbrValue})`;
+      }
+
       setBunkResult(`${outputLine1}<br/>${outputLine2}`);
     } else {
-      const attendanceNeeded = reqAttendance(attended, total, required);
+      const attendanceNeeded = reqAttendance(adjustedAttended, total, required);
       let outputLine1 = `🔴 Attendance: ${currentPercentFormatted}%`;
       let outputLine2;
 
@@ -125,6 +196,10 @@ export default function CalculatorModal({ isOpen, onClose }) {
         outputLine2 = `❌ Attend Required: Goal Unrealistic`;
       } else {
         outputLine2 = `⬆️ Attend Required: ${attendanceNeeded}`;
+      }
+
+      if (tcbrValue > 0) {
+        outputLine1 += ` (tcbr=${tcbrValue})`;
       }
 
       setBunkResult(`${outputLine1}<br/>${outputLine2}`);
@@ -138,12 +213,15 @@ export default function CalculatorModal({ isOpen, onClose }) {
 
     const attendedStr = attendedClasses.trim();
     const totalStr = totalClasses.trim();
+    const tcbrStr = tcbr.trim();
+
     if (!/^\d+$/.test(attendedStr) || !/^\d+$/.test(totalStr)) {
       setError("Only whole numbers allowed");
       return;
     }
     const attended = parseInt(attendedStr, 10);
     const total = parseInt(totalStr, 10);
+    const tcbrValue = parseInt(tcbrStr || "0", 10);
     if (!Number.isFinite(attended) || !Number.isFinite(total)) {
       setError("Enter valid numbers");
       return;
@@ -156,7 +234,12 @@ export default function CalculatorModal({ isOpen, onClose }) {
       setError("Attended must be between 0 and total");
       return;
     }
-    const raw = (attended / total) * 100;
+    if (tcbrValue < 0) {
+      setError("Tcbr must be 0 or greater");
+      return;
+    }
+    const adjustedAttended = attended + (tcbrValue > 0 ? tcbrValue : 0);
+    const raw = (adjustedAttended / total) * 100;
     const result = raw.toFixed(2);
     setPercentage(result);
   };
@@ -170,28 +253,61 @@ export default function CalculatorModal({ isOpen, onClose }) {
   };
 
   const clear = () => {
+    // Clear Percentage/Bunk states
     setAttendedClasses("");
     setTotalClasses("");
+    setTcbr("");
     setPercentage(null);
     setError("");
     setRequiredPercentage("");
     setBunkResult(null);
-    setComponentsData(initialComponents.map((comp) => ({ ...comp, value: "" })));
+    // Clear Components states
+    setComponentsData(
+      initialComponents.map((comp) => ({ ...comp, attended: "", conducted: "", tcbr: "" }))
+    );
     setWeightedAverage(null);
     setCompError("");
+    // Keep all components open on clear
+    setIsComponentOpen(initialOpenState);
   };
 
   if (!isOpen) return null;
 
+  // Inline CSS Variables for Dark/Light Mode compatibility
+  const getStyleVars = () => {
+    let isDarkMode = false;
+    try {
+      const themeAttr = document.documentElement.getAttribute('data-theme');
+      if (themeAttr) {
+        isDarkMode = themeAttr.toLowerCase() === 'dark';
+      } else if (window.matchMedia) {
+        isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+    } catch (_) {}
+    return {
+      '--primary-color': '#007bff',
+      '--text-primary': isDarkMode ? '#f8f9fa' : '#212529',
+      '--text-secondary': isDarkMode ? '#adb5bd' : '#6c757d',
+      '--card-bg': isDarkMode ? '#1f1f1f' : '#ffffff',
+      '--bg-secondary': isDarkMode ? '#2a2a2a' : '#f8f9fa',
+      '--border-color': isDarkMode ? '#3a3a3a' : '#dee2e6',
+      '--border-light': isDarkMode ? '#444' : '#e9ecef',
+      '--input-bg': isDarkMode ? '#151515' : '#ffffff',
+      '--input-border': isDarkMode ? '#555' : '#ced4da',
+      '--overlay-bg': isDarkMode ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.5)'
+    };
+  };
+
   return (
     <div
       style={{
+        ...getStyleVars(),
         position: "fixed",
         top: 0,
         left: 0,
         width: "100vw",
         height: "100vh",
-        background: "rgba(0,0,0,0.5)",
+        background: "var(--overlay-bg)",
         backdropFilter: "blur(5px)",
         display: "flex",
         justifyContent: "center",
@@ -210,6 +326,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
           minWidth: "280px",
           maxWidth: "340px",
           margin: "20px",
+          fontFamily: 'Inter, ui-sans-serif, system-ui'
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -266,6 +383,58 @@ export default function CalculatorModal({ isOpen, onClose }) {
             </div>
           </div>
         </div>
+
+         {/* Reusable Input Style */}
+        <style jsx="true">{`
+          .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+             background-color: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 16px;
+            transition: border-color 0.2s;
+          }
+          .form-group input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+          }
+          button.primary {
+            flex: 1;
+            padding: 10px 15px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+             border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.1s;
+          }
+          button.primary:hover {
+            background-color: #0056b3;
+          }
+          button.primary:active {
+            transform: scale(0.98);
+          }
+          button.secondary {
+            flex: 1;
+            padding: 10px 15px;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+             border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.1s;
+          }
+          button.secondary:hover {
+            background-color: var(--border-light);
+          }
+          button.secondary:active {
+            transform: scale(0.98);
+          }
+        `}</style>
 
         {activeTab === "percentage" && (
           <div className="calculator-body">
@@ -379,6 +548,24 @@ export default function CalculatorModal({ isOpen, onClose }) {
               />
             </div>
 
+            <div className="form-group" style={{ marginBottom: "12px" }}>
+              <label htmlFor="tcbr" style={{ display: "block", marginBottom: "6px" }}>
+                Tcbr (optional)
+              </label>
+              <input
+                id="tcbr"
+                type="number"
+                inputMode="numeric"
+                step="1"
+                min="0"
+                placeholder="e.g., 1"
+                value={tcbr}
+                onChange={(e) =>
+                  setTcbr(e.target.value.replace(/[^0-9]/g, ""))
+                }
+              />
+            </div>
+
             {isBunkCalculator && (
               <div className="form-group" style={{ marginBottom: "12px" }}>
                 <label
@@ -461,6 +648,10 @@ export default function CalculatorModal({ isOpen, onClose }) {
                 }}
               >
                 Percentage: {percentage}%
+                {(() => {
+                  const tcbrValue = parseInt(tcbr.trim() || "0", 10);
+                  return tcbrValue > 0 ? ` (tcbr=${tcbrValue})` : "";
+                })()}
               </div>
             )}
           </div>
@@ -472,31 +663,95 @@ export default function CalculatorModal({ isOpen, onClose }) {
               <div
                 key={i}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr",
-                  gap: "8px",
-                  alignItems: "end",
-                  marginBottom: "12px",
+                  marginBottom: "16px",
+                  padding: "10px",
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-light)',
+                  background: 'var(--bg-secondary)'
                 }}
               >
-                <div>
-                  <label style={{ display: "block", marginBottom: "6px" }}>
-                    {comp.label}
-                  </label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    max="100"
-                    step="any"
-                    value={comp.value}
-                    onChange={(e) => updateComponentValue(i, e.target.value)}
-                    placeholder="Enter percentage"
-                  />
+                {/* Collapsible Header */}
+                <div 
+                    style={{ 
+                        display: "flex", 
+                        justifyContent: "space-between", 
+                        alignItems: "center", 
+                        cursor: "pointer",
+                        minHeight: '20px' // Ensure clickable area
+                    }}
+                    onClick={() => toggleOpen(comp.type)}
+                >
+                    <label style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {comp.label}
+                    </label>
+                    
+                    {/* Toggle Icon (Chevron-down) */}
+                    <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        width="20" 
+                        height="20" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="var(--text-primary)" 
+                        strokeWidth="2.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        style={{ 
+                            transition: 'transform 0.2s',
+                            transform: isComponentOpen[comp.type] ? 'rotate(0deg)' : 'rotate(-90deg)' // Down vs Right
+                        }}
+                    >
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
                 </div>
+
+                {/* Inputs - Conditionally Rendered */}
+                {isComponentOpen[comp.type] && (
+                    <div style={{ paddingTop: '10px', marginTop: '5px', borderTop: '1px solid var(--border-light)' }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+                            <div className="form-group">
+                                <label style={{ display: "block", marginBottom: "4px", fontSize: '0.85rem' }}>Attended</label>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min="0"
+                                  step="1"
+                                  value={comp.attended}
+                                  onChange={(e) => updateComponentValue(i, 'attended', e.target.value)}
+                                  placeholder="e.g., 17"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label style={{ display: "block", marginBottom: "4px", fontSize: '0.85rem' }}>Conducted</label>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min="0"
+                                  step="1"
+                                  value={comp.conducted}
+                                  onChange={(e) => updateComponentValue(i, 'conducted', e.target.value)}
+                                  placeholder="e.g., 20"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label style={{ display: "block", marginBottom: "4px", fontSize: '0.85rem' }}>Tcbr</label>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min="0"
+                                  step="1"
+                                  value={comp.tcbr}
+                                  onChange={(e) => updateComponentValue(i, 'tcbr', e.target.value)}
+                                  placeholder="e.g., 0"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
               </div>
             ))}
 
+            {/* Clear Button */}
             <div
               style={{
                 display: "flex",
@@ -506,38 +761,42 @@ export default function CalculatorModal({ isOpen, onClose }) {
                 justifyContent: "center",
               }}
             >
-              <button type="button" className="secondary" onClick={clear}>
+              <button type="button" className="secondary" onClick={clear} style={{ flex: 1 }}>
                 Clear All
               </button>
             </div>
 
+            {/* Error Message */}
             {compError && (
               <div
                 style={{
                   color: "#dc3545",
                   fontSize: "14px",
                   marginBottom: "12px",
+                  marginTop: "8px",
+                  textAlign: "center"
                 }}
               >
                 {compError}
               </div>
             )}
 
+            {/* Result */}
             {weightedAverage !== null && (
               <div
                 style={{
-                  marginTop: "8px",
-                  background: "var(--bg-secondary)",
-                  border: "1px solid var(--border-light)",
+                  marginTop: "16px",
+                  background: "var(--primary-color)",
+                  color: "white",
                   borderRadius: "8px",
                   padding: "12px",
                   textAlign: "center",
-                  color: "var(--text-primary)",
                   fontWeight: 600,
-                  fontSize: "18px",
+                  fontSize: "1.1rem",
+                  boxShadow: '0 4px 10px rgba(0, 123, 255, 0.3)'
                 }}
               >
-                Overall Average: {weightedAverage}%
+                Weighted Average: {weightedAverage}%
               </div>
             )}
           </div>
