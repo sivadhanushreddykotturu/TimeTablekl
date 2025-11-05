@@ -136,7 +136,7 @@ const FeedbackButton = () => {
                   ></textarea>
                 </div>
                 <div className="form-group">
-                <label htmlFor="contact">Contact (email or phone, optional)</label>
+                <label htmlFor="contact">Contact</label>
 <input
   type="text"
   id="contact"
