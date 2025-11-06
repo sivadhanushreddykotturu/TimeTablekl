@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import { getCredentials } from "../../utils/storage.js";
 import { useTheme } from "../contexts/ThemeContext";
-import { Helmet } from "react-helmet-async";
+import { Title, Meta, Link } from "react-head";
 
 export default function Calculator() {
   const navigate = useNavigate();
@@ -276,19 +276,17 @@ export default function Calculator() {
 
   return (
     <>
-      <Helmet>
-        <title>KL Calculator | KL Attendance & Timetable Calculator 2025</title>
-        <meta
-          name="description"
-          content="Calculate attendance and timetable instantly using the updated KL Calculator for KL University students. Accurate results based on latest ERP updates, with weighted and sick days support."
-        />
-        <meta
-          name="keywords"
-          content="KL Calculator, KL University attendance calculator, timetable calculator, attendance percentage, KL ERP, weighted average calculator"
-        />
-        <link rel="canonical" href="https://timetable.vercel.app/kl-calculator" />
-        <meta name="robots" content="index, follow" />
-      </Helmet>
+      <Title>KL Calculator | KL Attendance & Timetable Calculator 2025</Title>
+      <Meta
+        name="description"
+        content="Calculate attendance and timetable instantly using the updated KL Calculator for KL University students. Accurate results based on latest ERP updates, with weighted and sick days support."
+      />
+      <Meta
+        name="keywords"
+        content="KL Calculator, KL University attendance calculator, timetable calculator, attendance percentage, KL ERP, weighted average calculator"
+      />
+      <Link rel="canonical" href="https://timetable.vercel.app/kl-calculator" />
+      <Meta name="robots" content="index, follow" />
       {isLoggedIn ? (
         <Header onRefresh={() => {}} />
       ) : (

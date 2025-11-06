@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from "react";
-import { HelmetProvider } from "react-helmet-async";
+import { HeadProvider } from "react-head";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import AuthGuard from "./components/AuthGuard.jsx";
@@ -22,38 +22,38 @@ const Analytics = lazy(() => import("@vercel/analytics/react").then(module => ({
 
 function App() {
   return (
-    <ThemeProvider>
-      <HelmetProvider>
-      <PerformanceMonitor />
-      <Router>
-        <GoogleAnalytics />
-        <div className="app-wrapper">
-          <Suspense fallback={<div className="loading-container">Loading...</div>}>
-          <Routes>
-            <Route path="/" element={
-              <AuthGuard>
-                <LoginPage />
-              </AuthGuard>
-            } />
-            <Route path="/home" element={<HomePage />} />
-            <Route path="/timetable" element={<TimetablePage />} />
-            <Route path="/subjects" element={<SubjectsPage />} />
-            <Route path="/maddys" element={<MaddysPage />} />
-            <Route path="/maddys/:id/class" element={<MaddyClassInfo />} />
-            <Route path="/maddys/:id/timetable" element={<MaddyTimetable />} />
-            <Route path="/attendance" element={<AttendancePage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/kl-calculator" element={<CalculatorPage />} />
-          </Routes>
-          </Suspense>
-          <Footer />
-        </div>
-      </Router>
-      <Suspense fallback={null}>
-        <Analytics />
-      </Suspense>
-      </HelmetProvider>
-    </ThemeProvider>
+    <HeadProvider>
+      <ThemeProvider>
+        <PerformanceMonitor />
+        <Router>
+          <GoogleAnalytics />
+          <div className="app-wrapper">
+            <Suspense fallback={<div className="loading-container">Loading...</div>}>
+            <Routes>
+              <Route path="/" element={
+                <AuthGuard>
+                  <LoginPage />
+                </AuthGuard>
+              } />
+              <Route path="/home" element={<HomePage />} />
+              <Route path="/timetable" element={<TimetablePage />} />
+              <Route path="/subjects" element={<SubjectsPage />} />
+              <Route path="/maddys" element={<MaddysPage />} />
+              <Route path="/maddys/:id/class" element={<MaddyClassInfo />} />
+              <Route path="/maddys/:id/timetable" element={<MaddyTimetable />} />
+              <Route path="/attendance" element={<AttendancePage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/kl-calculator" element={<CalculatorPage />} />
+            </Routes>
+            </Suspense>
+            <Footer />
+          </div>
+        </Router>
+        <Suspense fallback={null}>
+          <Analytics />
+        </Suspense>
+      </ThemeProvider>
+    </HeadProvider>
   );
 }
 
