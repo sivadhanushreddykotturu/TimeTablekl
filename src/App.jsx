@@ -1,4 +1,5 @@
 import React, { lazy, Suspense } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import AuthGuard from "./components/AuthGuard.jsx";
@@ -14,6 +15,7 @@ import MaddyClassInfo from "./pages/MaddyClassInfo.jsx";
 import MaddyTimetable from "./pages/MaddyTimetable.jsx";
 import AttendancePage from "./pages/Attendance.jsx";
 import RegisterPage from "./pages/Register.jsx";
+const CalculatorPage = lazy(() => import("./pages/Calculator.jsx"));
 
 // Lazy load analytics to reduce initial bundle size
 const Analytics = lazy(() => import("@vercel/analytics/react").then(module => ({ default: module.Analytics })));
@@ -21,10 +23,12 @@ const Analytics = lazy(() => import("@vercel/analytics/react").then(module => ({
 function App() {
   return (
     <ThemeProvider>
+      <HelmetProvider>
       <PerformanceMonitor />
       <Router>
         <GoogleAnalytics />
         <div className="app-wrapper">
+          <Suspense fallback={<div className="loading-container">Loading...</div>}>
           <Routes>
             <Route path="/" element={
               <AuthGuard>
@@ -39,13 +43,16 @@ function App() {
             <Route path="/maddys/:id/timetable" element={<MaddyTimetable />} />
             <Route path="/attendance" element={<AttendancePage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/kl-calculator" element={<CalculatorPage />} />
           </Routes>
+          </Suspense>
           <Footer />
         </div>
       </Router>
       <Suspense fallback={null}>
         <Analytics />
       </Suspense>
+      </HelmetProvider>
     </ThemeProvider>
   );
 }
