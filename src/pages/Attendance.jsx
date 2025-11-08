@@ -3,18 +3,21 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import AttendanceModal from "../components/AttendanceModal";
 import CalculatorModal from "../components/CalculatorModal";
+import ShowCalculation from "../components/ShowCalculation";
 import Toast from "../components/Toast";
 import { trackEvent } from "../utils/analytics";
 
 export default function Attendance() {
   const location = useLocation();
-  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
-  const [showCalculatorModal, setShowCalculatorModal] = useState(false);
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [selectedRegisterData, setSelectedRegisterData] = useState(null);
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
-  const navigate = useNavigate();
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [showCalculatorModal, setShowCalculatorModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [selectedRegisterData, setSelectedRegisterData] = useState(null);
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [showCalculationModal, setShowCalculationModal] = useState(false);
+  const [selectedCourseData, setSelectedCourseData] = useState(null);
+  const navigate = useNavigate();
     
   const friendCredentials = location.state?.friendCredentials || null;
   const [targetPercentage, setTargetPercentage] = useState(() => {
@@ -229,25 +232,67 @@ export default function Attendance() {
                 </div>
 
                 
-                <div className="total-attendance-box">
-                  <div className="total-info">
-                    <span className="total-badge">TOTAL</span>
-                    <span className="total-label">Overall Attendance</span>
-                  </div>
-                  <div className="total-stats">
-                    <div
-                      className="total-percentage"
-                      style={{ color: getPercentageColor(course.overallPercentage) }}
-                    >
-                      {course.overallPercentage}%
-                    </div>
-                    <div className="total-details">
-                      {course.averageType || 'Weighted Average'} from{" "}
-                      {course.sections.length} component
-                      {course.sections.length !== 1 ? "s" : ""}
-                    </div>
-                  </div>
-                </div>
+                <div className="total-attendance-box">
+                  <div className="total-info">
+                    <span className="total-badge">TOTAL</span>
+                    <span className="total-label">Overall Attendance</span>
+                  </div>
+                  <div className="total-stats">
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div
+                        className="total-percentage"
+                        style={{ color: getPercentageColor(course.overallPercentage) }}
+                      >
+                        {course.overallPercentage}%
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedCourseData(course);
+                          setShowCalculationModal(true);
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: "4px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "var(--text-secondary)",
+                          transition: "color 0.2s, transform 0.1s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.color = "var(--text-primary)";
+                          e.target.style.transform = "scale(1.1)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.color = "var(--text-secondary)";
+                          e.target.style.transform = "scale(1)";
+                        }}
+                        title="Show calculation breakdown"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="total-details">
+                      {course.averageType || 'Weighted Average'} from{" "}
+                      {course.sections.length} component
+                      {course.sections.length !== 1 ? "s" : ""}
+                    </div>
+                  </div>
+                </div>
 
                 
                 <div className="sections-container">
@@ -413,10 +458,19 @@ export default function Attendance() {
         friendCredentials={friendCredentials}
       />
 
-      <CalculatorModal
-        isOpen={showCalculatorModal}
-        onClose={() => setShowCalculatorModal(false)}
-      />
+      <CalculatorModal
+        isOpen={showCalculatorModal}
+        onClose={() => setShowCalculatorModal(false)}
+      />
+
+      <ShowCalculation
+        isOpen={showCalculationModal}
+        onClose={() => {
+          setShowCalculationModal(false);
+          setSelectedCourseData(null);
+        }}
+        courseData={selectedCourseData}
+      />
 
       <button
         className="calculator-icon-btn"
