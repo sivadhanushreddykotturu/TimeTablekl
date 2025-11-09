@@ -82,7 +82,7 @@ The Python backend is deployed using **Render** and handles:
 
 ## ❓ FAQ
 
-**Q:** **Q:** Why does it ask for CAPTCHA on refresh?
+**Q:** Why does it ask for CAPTCHA on refresh?
 **A:** KL ERP always requires CAPTCHA. But password is not asked again.
 
 **Q:** Does it store my password online?
