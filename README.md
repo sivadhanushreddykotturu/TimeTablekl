@@ -3,11 +3,11 @@
 # 📅 KL Timetable PWA
 #vibecoded
 
-A minimal Progressive Web App (PWA) for KL University B.Tech students to view their personalized timetable with ease. It scrapes data from the ERP system (using your credentials + CAPTCHA), stores it locally, and shows:
+A minimal Progressive Web App (PWA) for KL University B.Tech students to view their personalized timetable with ease. It fetches data from the ERP system (using your credentials and CAPTCHA), stores it locally, and displays:
 
 - ✅ **Weekly timetable** — clean week view of your classes  
 - 🕒 **Current & Next class** — what’s happening now and next in your day  
-- 📊 **Attendance** — view your attendance summary by course & overall percentage  
+- 📊 **Attendance** — view your attendance summary by course and overall percentage  
 - 👥 **Friends** — add friends to see their timetable & attendance (opt-in only)  
 - 🔁 **Refresh** — manual refresh flow that requires completing the CAPTCHA (to respect ERP limits)  
 - 🔐 **Local-first credentials** — credentials are stored locally for offline use; nothing is sent to external servers  
@@ -75,14 +75,14 @@ The Python backend is deployed using **Render** and handles:
 
 * Login and CAPTCHA
 * Timetable scraping
-* Attendence scraping
+* Attendance scraping
 * JSON formatting
 
 ---
 
 ## ❓ FAQ
 
-**Q:** Why does it ask CAPTCHA on refresh?
+**Q:** Why does it ask for CAPTCHA on refresh?
 **A:** KL ERP always requires CAPTCHA. But password is not asked again.
 
 **Q:** Does it store my password online?
@@ -93,7 +93,7 @@ The Python backend is deployed using **Render** and handles:
 
 ## ⚠️ Disclaimer
 
-This tool is unofficial and not affiliated with KL University. Use it responsibly. Your credentials are only used to fetch data on your device and are not stored anywhere else.
+This tool is unofficial and not affiliated with KL University. Use it responsibly. Your credentials are used only to fetch data on your device and are never stored externally.
 
 ---
 
