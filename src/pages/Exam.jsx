@@ -202,7 +202,7 @@ export default function Exam() {
               fontWeight: 500,
             }}
           >
-            No exams found. If there are any exams scheduled, consider ReSyncing to check for updates.
+            If there are any exams scheduled, consider ReSyncing (top-right) to check for updates.
           </div>
         )}
       </div>
