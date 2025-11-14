@@ -10,10 +10,15 @@ export default function AuthGuard({ children }) {
     // Check if user has credentials and timetable data
     const credentials = getCredentials();
     const timetable = localStorage.getItem("timetable");
+    const examMode = localStorage.getItem("examMode") === "true";
     
     if (credentials && timetable) {
-      // User is logged in, redirect to home
-      navigate("/home", { replace: true });
+      // User is logged in, check if exam mode is active
+      if (examMode) {
+        navigate("/exam", { replace: true });
+      } else {
+        navigate("/home", { replace: true });
+      }
     } else {
       // User is not logged in, stay on current page (login)
       setIsLoading(false);

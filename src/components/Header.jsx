@@ -10,18 +10,31 @@ export default function Header({ onRefresh }) {
   // Don't show on login page
   if (location.pathname === "/") return null;
 
+  const isExamPage = location.pathname === "/exam";
+
   const handleLogout = () => {
     clearCredentials();
     localStorage.removeItem("timetable");
     navigate("/");
   };
 
+  const handleBackFromExam = () => {
+    localStorage.removeItem("examMode");
+    navigate("/home");
+  };
+
   return (
     <div className="app-header">
       <div className="header-left">
-        <button onClick={handleLogout} className="secondary">
-          Logout
-        </button>
+        {isExamPage ? (
+          <button onClick={handleBackFromExam} className="secondary">
+            Back
+          </button>
+        ) : (
+          <button onClick={handleLogout} className="secondary">
+            Logout
+          </button>
+        )}
       </div>
       <div className="header-right">
         <ThemeToggle />
