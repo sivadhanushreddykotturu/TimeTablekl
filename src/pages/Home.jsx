@@ -276,6 +276,17 @@ export default function Home() {
           >
             Attendance
           </button>
+
+          <button 
+            onClick={() => {
+              localStorage.setItem("examMode", "true");
+              navigate("/exam");
+            }} 
+            className="secondary full-width-mobile"
+            style={{ marginTop: "20px" }}
+          >
+            Exam Mode
+          </button>
         </div>
 
         <FeedbackButton />

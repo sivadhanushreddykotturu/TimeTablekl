@@ -11,6 +11,9 @@ export const API_CONFIG = {
   
   // Attendance fetch endpoint
   ATTENDANCE_URL: import.meta.env.VITE_ATTENDANCE_URL ,
+  
+  // Seating plan fetch endpoint
+  SEATING_URL: import.meta.env.VITE_SEATING ,
 };
 
 // Semester mapping
@@ -52,4 +55,14 @@ export const getCurrentAcademicYearOptions = () => {
   options.push(`${currentYear}-${(currentYear+1).toString().slice(-2)}`);
   
   return options;
+};
+
+// Helper function to get form data for seating plan (no semester/academic year needed)
+export const getSeatingFormData = (username, password, captcha, sessionId) => {
+  const form = new FormData();
+  form.append("username", username);
+  form.append("password", password);
+  form.append("captcha", captcha);
+  form.append("session_id", sessionId || "");
+  return form;
 };
