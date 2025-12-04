@@ -1,4 +1,4 @@
-//k API Configuration
+//KL API Configuration
 // These URLs are used throughout the application
 // In production, these should be moved to environment variables
 
@@ -14,6 +14,9 @@ export const API_CONFIG = {
   
   // Seating plan fetch endpoint
   SEATING_URL: import.meta.env.VITE_SEATING ,
+  
+  // Handouts fetch endpoint
+  HANDOUTS_URL: import.meta.env.VITE_HANDOUTS_URL ,
 };
 
 // Semester mapping
@@ -39,7 +42,7 @@ export const getFormData = (username, password, captcha, semester, academicYear,
   form.append("username", username);
   form.append("password", password);
   form.append("captcha", captcha);
-  form.append("session_id", sessionId || ""); // Always send session_id, even if empty
+  form.append("session_id", sessionId || "");
   form.append("academic_year_code", getAcademicYearCode(academicYear));
   form.append("semester_id", SEMESTER_MAP[semester]);
   return form;
@@ -64,5 +67,17 @@ export const getSeatingFormData = (username, password, captcha, sessionId) => {
   form.append("password", password);
   form.append("captcha", captcha);
   form.append("session_id", sessionId || "");
+  return form;
+};
+
+// Helper function to get form data for handouts
+export const getHandoutsFormData = (username, password, captcha, semester, academicYear, sessionId) => {
+  const form = new FormData();
+  form.append("username", username);
+  form.append("password", password);
+  form.append("captcha", captcha);
+  form.append("session_id", sessionId || "");
+  form.append("academic_year_code", getAcademicYearCode(academicYear));
+  form.append("semester_id", SEMESTER_MAP[semester]);
   return form;
 };
