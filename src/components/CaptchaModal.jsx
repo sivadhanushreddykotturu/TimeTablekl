@@ -84,7 +84,11 @@ export default function CaptchaModal({ isOpen, onClose, onSuccess, friendCredent
       const res = await axios.post(API_CONFIG.FETCH_URL, form);
       
       if (res.data.success) {
-        localStorage.setItem("timetable", JSON.stringify(res.data.timetable));
+        // Only save to localStorage if it's NOT a friend's timetable
+        // Friend timetables are handled by the parent component (e.g., Maddys.jsx)
+        if (!friendCredentials) {
+          localStorage.setItem("timetable", JSON.stringify(res.data.timetable));
+        }
         onSuccess(res.data.timetable);
         onClose();
       } else {
