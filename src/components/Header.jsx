@@ -93,7 +93,7 @@ export default function Header({ onRefresh }) {
       <div className="header-right">
         <ThemeToggle />
         {showResync && (
-          isAttendancePage ? (
+          (isAttendancePage || isExamPage) ? (
             <button className="resync-btn" onClick={onRefresh}>
               ReSync
             </button>
