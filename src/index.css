@@ -460,12 +460,74 @@ button.secondary:hover {
   align-items: center;
   box-shadow: var(--header-shadow);
   transition: all 0.3s ease;
+  position: relative;
+  z-index: 20;
 }
 
 .header-left, .header-right {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.resync-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.resync-select {
+  padding: 8px 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  min-width: 140px;
+  cursor: pointer;
+}
+
+.resync-wrapper {
+  position: relative;
+}
+
+.resync-dropdown {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  padding: 12px;
+  min-width: 220px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.resync-dropdown label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.resync-dropdown-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.resync-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.resync-actions .primary {
+  padding: 8px 12px;
 }
 
 /* Login Header */
@@ -710,11 +772,29 @@ button.secondary:hover {
     gap: 4px;
     display: flex;
     align-items: center;
+    
   }
   .resync-btn{
     display: flex;
     align-items: center;
     margin: 0px;
+  }
+  .resync-wrapper {
+    width: 100%;
+  }
+  .resync-dropdown {
+    right: 0;
+    left: auto;
+    min-width: 100%;
+  }
+  .resync-controls {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .resync-select {
+    min-width: 130px;
+    flex: 1;
   }
   .form-row {
     flex-direction: column;

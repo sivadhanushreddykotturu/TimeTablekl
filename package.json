@@ -19,6 +19,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-head": "^3.4.2",
+    "react-icons": "^5.5.0",
     "react-router-dom": "^7.7.1",
     "vite-plugin-pwa": "^1.0.2"
   },
