@@ -123,7 +123,10 @@ export default function Maddys() {
   const [maddys, setMaddys] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCaptchaModal, setShowCaptchaModal] = useState(false);
+  const [showResyncOptions, setShowResyncOptions] = useState(false);
   const [selectedMaddy, setSelectedMaddy] = useState(null);
+  const [resyncSemester, setResyncSemester] = useState("odd");
+  const [resyncAcademicYear, setResyncAcademicYear] = useState("");
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   
   // Add friend states
@@ -138,6 +141,8 @@ export default function Maddys() {
   const [friendName, setFriendName] = useState("");
   const [showNameModal, setShowNameModal] = useState(false);
   const [tempFriendData, setTempFriendData] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [isAddingFriend, setIsAddingFriend] = useState(false);
 
   useEffect(() => {
@@ -324,9 +329,52 @@ export default function Maddys() {
     });
   };
 
+  const openDeleteConfirm = (maddy) => {
+    setDeleteTarget(maddy);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    handleDeleteMaddy(deleteTarget.id);
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
+
   const handleRefreshMaddy = (maddy) => {
+    const options = getCurrentAcademicYearOptions();
+    const defaultYear = options[1] || options[0];
     setSelectedMaddy(maddy);
+    setResyncSemester(maddy.semester || "odd");
+    setResyncAcademicYear(maddy.academicYear || defaultYear || "");
+    setShowResyncOptions(true);
+  };
+
+  const confirmResyncOptions = () => {
+    if (!selectedMaddy) return;
+
+    const updatedMaddys = maddys.map((maddy) =>
+      maddy.id === selectedMaddy.id
+        ? { ...maddy, semester: resyncSemester, academicYear: resyncAcademicYear }
+        : maddy
+    );
+
+    saveMaddys(updatedMaddys);
+
+    const updatedSelected = updatedMaddys.find(m => m.id === selectedMaddy.id) || null;
+    setSelectedMaddy(updatedSelected);
+    setShowResyncOptions(false);
     setShowCaptchaModal(true);
+  };
+
+  const closeResyncOptions = () => {
+    setShowResyncOptions(false);
+    setSelectedMaddy(null);
   };
 
   const handleCaptchaSuccess = (newTimetable) => {
@@ -458,7 +506,7 @@ export default function Maddys() {
                       📊
                     </button>
                     <button 
-                      onClick={() => handleDeleteMaddy(maddy.id)}
+                      onClick={() => openDeleteConfirm(maddy)}
                       className="action-btn delete"
                       title="Delete"
                     >
@@ -611,6 +659,28 @@ export default function Maddys() {
         </div>
       )}
 
+      {/* Delete confirmation */}
+      {showDeleteConfirm && deleteTarget && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Remove {deleteTarget.name}?</h2>
+            </div>
+            <div className="modal-body">
+              <p className="mb-16">This will remove the friend and their saved timetable. Continue?</p>
+              <div className="modal-actions">
+                <button onClick={cancelDelete} className="secondary">
+                  Cancel
+                </button>
+                <button onClick={confirmDelete} className="danger">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Name Modal */}
       {showNameModal && (
         <div className="modal-overlay">
@@ -668,6 +738,60 @@ export default function Maddys() {
         isVisible={toast.show}
         onClose={closeToast}
       />
+
+      {/* Resync options for a friend before CAPTCHA */}
+      {showResyncOptions && selectedMaddy && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>ReSync {selectedMaddy.name}'s Timetable</h2>
+            </div>
+
+            <div className="modal-body">
+              <p className="mb-16">Choose semester and academic year before syncing.</p>
+
+              <div className="form-row" style={{ marginBottom: 0 }}>
+                <div className="form-group">
+                  <label>Semester</label>
+                  <select
+                    value={resyncSemester}
+                    onChange={(e) => setResyncSemester(e.target.value)}
+                    className="form-select"
+                  >
+                    <option value="odd">Odd Semester</option>
+                    <option value="even">Even Semester</option>
+                    <option value="summer">Summer Semester</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Academic Year</label>
+                  <select
+                    value={resyncAcademicYear}
+                    onChange={(e) => setResyncAcademicYear(e.target.value)}
+                    className="form-select"
+                  >
+                    {Array.from(new Set([resyncAcademicYear, ...getCurrentAcademicYearOptions()])).map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button onClick={closeResyncOptions} className="secondary">
+                  Cancel
+                </button>
+                <button onClick={confirmResyncOptions} className="primary">
+                  Continue to CAPTCHA
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
