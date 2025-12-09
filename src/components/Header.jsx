@@ -57,6 +57,7 @@ export default function Header({ onRefresh }) {
   const toggleDropdown = () => setShowDropdown((prev) => !prev);
   const isMaddySection = location.pathname.startsWith("/maddys");
   const isMaddyAttendance = isMaddySection && location.pathname.includes("attendance");
+  const isAttendancePage = location.pathname === "/attendance";
   const showResync = !isMaddySection || isMaddyAttendance;
 
   // Close when clicking outside
@@ -92,6 +93,11 @@ export default function Header({ onRefresh }) {
       <div className="header-right">
         <ThemeToggle />
         {showResync && (
+          isAttendancePage ? (
+            <button className="resync-btn" onClick={onRefresh}>
+              ReSync
+            </button>
+          ) : (
           <div className="resync-wrapper" ref={dropdownRef}>
             <button className="resync-btn" onClick={toggleDropdown}>
               ReSync ▾
@@ -135,6 +141,7 @@ export default function Header({ onRefresh }) {
               </div>
             )}
           </div>
+          )
         )}
       </div>
     </div>
