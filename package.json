@@ -16,6 +16,7 @@
     "@vercel/analytics": "^1.5.0",
     "axios": "^1.11.0",
     "gtag": "^1.0.1",
+    "html2canvas": "^1.4.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-head": "^3.4.2",

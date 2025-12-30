@@ -19,7 +19,7 @@ export default defineConfig({
               cacheName: 'google-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+                maxAgeSeconds: 60 * 60 * 24 * 365
               }
             }
           },
@@ -30,7 +30,7 @@ export default defineConfig({
               cacheName: 'gstatic-fonts-cache',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+                maxAgeSeconds: 60 * 60 * 24 * 365
               }
             }
           }
@@ -67,62 +67,50 @@ export default defineConfig({
       }
     })
   ],
+
+  // 🔴 FIX IS HERE
   server: {
     port: 5173,
+    host: true,
+    allowedHosts: [
+      '.trycloudflare.com'
+    ]
+    // OR simply: allowedHosts: 'all'
   },
+
   build: {
     outDir: 'dist',
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          // More aggressive code splitting
+        manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'vendor-react';
-            }
-            if (id.includes('react-router')) {
-              return 'vendor-router';
-            }
-            if (id.includes('axios')) {
-              return 'vendor-axios';
-            }
-            if (id.includes('@vercel/analytics')) {
-              return 'vendor-analytics';
-            }
-            return 'vendor';
+            if (id.includes('react') || id.includes('react-dom')) return 'vendor-react'
+            if (id.includes('react-router')) return 'vendor-router'
+            if (id.includes('axios')) return 'vendor-axios'
+            if (id.includes('@vercel/analytics')) return 'vendor-analytics'
+            return 'vendor'
           }
-          if (id.includes('src/components/')) {
-            return 'components';
-          }
-          if (id.includes('src/pages/')) {
-            return 'pages';
-          }
-          if (id.includes('src/contexts/')) {
-            return 'contexts';
-          }
-          if (id.includes('src/utils/')) {
-            return 'utils';
-          }
-          if (id.includes('src/config/')) {
-            return 'config';
-          }
+          if (id.includes('src/components/')) return 'components'
+          if (id.includes('src/pages/')) return 'pages'
+          if (id.includes('src/contexts/')) return 'contexts'
+          if (id.includes('src/utils/')) return 'utils'
+          if (id.includes('src/config/')) return 'config'
         },
-        assetFileNames: (assetInfo) => {
-          const info = assetInfo.name.split('.');
-          const ext = info[info.length - 1];
+        assetFileNames(assetInfo) {
+          const ext = assetInfo.name.split('.').pop()
           if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
-            return `assets/images/[name]-[hash][extname]`;
+            return 'assets/images/[name]-[hash][extname]'
           }
           if (/woff2?|eot|ttf|otf/i.test(ext)) {
-            return `assets/fonts/[name]-[hash][extname]`;
+            return 'assets/fonts/[name]-[hash][extname]'
           }
-          return `assets/[name]-[hash][extname]`;
+          return 'assets/[name]-[hash][extname]'
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
-        entryFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js'
       }
     },
-    chunkSizeWarningLimit: 300, // Even lower warning limit
+    chunkSizeWarningLimit: 300,
     minify: 'terser',
     terserOptions: {
       compress: {
@@ -144,14 +132,16 @@ export default defineConfig({
       }
     },
     target: 'es2015',
-    assetsInlineLimit: 1024, // Reduce to 1kb
+    assetsInlineLimit: 1024,
     cssCodeSplit: true,
     sourcemap: false
   },
+
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],
     exclude: ['@vercel/analytics']
   },
+
   esbuild: {
     drop: ['console', 'debugger'],
     pure: ['console.log', 'console.info', 'console.debug', 'console.warn']
