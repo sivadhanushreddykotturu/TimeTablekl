@@ -641,15 +641,6 @@ export default function Maddys() {
               </div>
 
               <div className="modal-actions">
-                <button 
-                  onClick={() => {
-                    setShowAddModal(false);
-                    resetAddForm();
-                  }}
-                  className="secondary"
-                >
-                  Cancel
-                </button>
                 <button onClick={handleAddFriend} className="primary" disabled={isAddingFriend}>
                   {isAddingFriend ? "Adding..." : "Add Friend"}
                 </button>
@@ -700,16 +691,6 @@ export default function Maddys() {
               />
 
               <div className="modal-actions">
-                <button 
-                  onClick={() => {
-                    setShowNameModal(false);
-                    setTempFriendData(null);
-                    setFriendName("");
-                  }}
-                  className="secondary"
-                >
-                  Cancel
-                </button>
                 <button onClick={handleSaveFriend} className="primary">
                   Save
                 </button>
