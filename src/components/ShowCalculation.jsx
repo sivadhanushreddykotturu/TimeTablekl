@@ -34,6 +34,11 @@ export default function ShowCalculation({ isOpen, onClose, courseData }) {
         weightedAttendedSum += weightedAttended;
         weightedConductedSum += weightedConducted;
 
+        // Calculate individual percentage with ceiling
+        const individualPercentage = safeConducted > 0 
+          ? Math.ceil((adjustedAttended / safeConducted) * 100)
+          : 0;
+
         steps.push({
           componentType,
           section: section.section,
@@ -44,6 +49,7 @@ export default function ShowCalculation({ isOpen, onClose, courseData }) {
           weight,
           weightedAttended,
           weightedConducted,
+          individualPercentage,
         });
       }
     });
@@ -194,7 +200,7 @@ export default function ShowCalculation({ isOpen, onClose, courseData }) {
               </span>
             </div>
             <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-              {step.adjustedAttended}/{step.conducted} × {step.weight} = {step.weightedAttended} / {step.weightedConducted}
+              {step.adjustedAttended}/{step.conducted} × {step.weight} = {step.weightedAttended} / {step.weightedConducted} = {step.individualPercentage}%
             </div>
           </div>
         ))}
