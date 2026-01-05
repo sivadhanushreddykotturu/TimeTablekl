@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { FiShare2 } from "react-icons/fi";
 import Header from "../components/Header";
 import AttendanceModal from "../components/AttendanceModal";
 import CalculatorModal from "../components/CalculatorModal";
@@ -17,6 +18,8 @@ export default function Attendance() {
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [showCalculationModal, setShowCalculationModal] = useState(false);
   const [selectedCourseData, setSelectedCourseData] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const attendanceRef = useRef(null);
   const navigate = useNavigate();
     
   const friendCredentials = location.state?.friendCredentials || null;
@@ -182,6 +185,240 @@ export default function Attendance() {
     return Object.values(grouped);
   };
 
+  const generateHighQualityCanvas = useCallback(() => {
+    if (!attendanceData || attendanceData.length === 0) return null;
+
+    const groupedCourses = groupAttendanceByCourse(attendanceData);
+    if (groupedCourses.length === 0) return null;
+
+    const scale = 2;
+    const padding = 40;
+    const cardPadding = 16;
+    const cardSpacing = 20;
+    const headerHeight = 50;
+    const componentRowHeight = 40;
+    const componentIndent = 20;
+    const maxWidth = 700;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Calculate dimensions
+    let totalHeight = padding * 2 + 60; // Title + padding
+    
+    groupedCourses.forEach(course => {
+      totalHeight += headerHeight; // Course header
+      // Add height for each component (L, T, P, S)
+      const components = ['L', 'T', 'P', 'S'];
+      let componentCount = 0;
+      components.forEach(comp => {
+        const section = course.sections.find(s => s.ltps.charAt(0).toUpperCase() === comp);
+        if (section) {
+          componentCount++;
+        }
+      });
+      totalHeight += componentCount * componentRowHeight;
+      totalHeight += cardSpacing;
+    });
+    
+    totalHeight += 40; // Watermark space
+    
+    canvas.width = maxWidth * scale;
+    canvas.height = totalHeight * scale;
+    ctx.scale(scale, scale);
+    
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, maxWidth, totalHeight);
+    
+    // Title
+    ctx.fillStyle = '#1a1a1a';
+    ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    const titleText = friendCredentials ? `${friendCredentials.name}'s Attendance` : 'Attendance';
+    ctx.fillText(titleText, maxWidth / 2, 35);
+    
+    let yPos = padding + 60;
+    
+    // Draw each course as a card
+    groupedCourses.forEach((course, courseIndex) => {
+      const cardX = padding;
+      const cardWidth = maxWidth - (padding * 2);
+      
+      // Calculate card height
+      const components = ['L', 'T', 'P', 'S'];
+      let componentCount = 0;
+      components.forEach(comp => {
+        const section = course.sections.find(s => s.ltps.charAt(0).toUpperCase() === comp);
+        if (section) componentCount++;
+      });
+      const cardHeight = headerHeight + (componentCount * componentRowHeight);
+      
+      // Draw card background with border
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(cardX, yPos, cardWidth, cardHeight);
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cardX, yPos, cardWidth, cardHeight);
+      
+      // Draw course header with purple background
+      ctx.fillStyle = '#667eea';
+      ctx.fillRect(cardX, yPos, cardWidth, headerHeight);
+      ctx.strokeStyle = '#5568d3';
+      ctx.strokeRect(cardX, yPos, cardWidth, headerHeight);
+      
+      // Course name
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      const courseName = course.courseName.length > 45 
+        ? course.courseName.substring(0, 42) + '...' 
+        : course.courseName;
+      ctx.fillText(courseName, cardX + cardPadding, yPos + headerHeight / 2 + 6);
+      
+      // Overall percentage
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${course.overallPercentage}%`, cardX + cardWidth - cardPadding, yPos + headerHeight / 2 + 6);
+      
+      let componentY = yPos + headerHeight;
+      
+      // Draw L, T, P, S components (only if they exist)
+      components.forEach((comp, compIndex) => {
+        const section = course.sections.find(s => s.ltps.charAt(0).toUpperCase() === comp);
+        if (section) {
+          const attended = parseInt(section.totalAttended);
+          const conducted = parseInt(section.totalConducted);
+          const tcbr = parseInt(section.tcbr || "0");
+          const adjustedAttended = (Number.isFinite(attended) ? attended : 0) + (tcbr > 0 ? tcbr : 0);
+          const safeConducted = Number.isFinite(conducted) ? conducted : 0;
+          
+          let individualPercentage = 0;
+          if (safeConducted > 0) {
+            individualPercentage = Math.ceil((adjustedAttended / safeConducted) * 100);
+          }
+          
+          // Alternate row background
+          ctx.fillStyle = compIndex % 2 === 0 ? '#ffffff' : '#f8f9fa';
+          ctx.fillRect(cardX, componentY, cardWidth, componentRowHeight);
+          
+          // Component badge
+          ctx.fillStyle = '#667eea';
+          ctx.fillRect(cardX + cardPadding, componentY + 8, 32, 24);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(comp, cardX + cardPadding + 16, componentY + 24);
+          
+          // Component percentage
+          ctx.fillStyle = '#1a1a1a';
+          ctx.font = '600 14px system-ui, -apple-system, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(`${individualPercentage}%`, cardX + cardPadding + componentIndent + 32, componentY + componentRowHeight / 2 + 5);
+          
+          // Border between components
+          if (compIndex < componentCount - 1) {
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.beginPath();
+            ctx.moveTo(cardX + cardPadding, componentY + componentRowHeight);
+            ctx.lineTo(cardX + cardWidth - cardPadding, componentY + componentRowHeight);
+            ctx.stroke();
+          }
+          
+          componentY += componentRowHeight;
+        }
+      });
+      
+      // Card border
+      ctx.strokeStyle = '#e0e0e0';
+      ctx.strokeRect(cardX, yPos, cardWidth, cardHeight);
+      
+      yPos += cardHeight + cardSpacing;
+    });
+    
+    // Add watermark
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#999999';
+    ctx.font = 'italic 14px system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('Attendance', maxWidth - 20, totalHeight - 15);
+    ctx.restore();
+    
+    return canvas;
+  }, [attendanceData, friendCredentials]);
+
+  const exportAsImage = useCallback(async () => {
+    if (!attendanceData || attendanceData.length === 0) return;
+    setExporting(true);
+    
+    try {
+      const canvas = generateHighQualityCanvas();
+      if (!canvas) {
+        alert('Failed to generate image');
+        setExporting(false);
+        return;
+      }
+      
+      const fileName = friendCredentials 
+        ? `${friendCredentials.name}_Attendance_${new Date().toISOString().split('T')[0]}.png`
+        : `Attendance_${new Date().toISOString().split('T')[0]}.png`;
+      
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          alert('Failed to generate image');
+          setExporting(false);
+          return;
+        }
+        
+        // Try to use Web Share API if available
+        if (navigator.share && navigator.canShare) {
+          try {
+            const file = new File([blob], fileName, { type: 'image/png' });
+            const shareData = {
+              files: [file],
+              title: friendCredentials ? `${friendCredentials.name}'s Attendance` : 'My Attendance',
+              text: friendCredentials ? `Check out ${friendCredentials.name}'s attendance!` : 'Check out my attendance!'
+            };
+            
+            // Check if we can share files
+            if (navigator.canShare(shareData)) {
+              await navigator.share(shareData);
+              setExporting(false);
+              return;
+            }
+          } catch (shareError) {
+            // If sharing fails or is cancelled, fall back to download
+            if (shareError.name !== 'AbortError') {
+              console.log('Share failed, falling back to download:', shareError);
+            }
+          }
+        }
+        
+        // Fallback: download if Web Share API is not available or failed
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up after a short delay
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        
+        setExporting(false);
+      }, 'image/png', 1.0);
+      
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Export failed. Please try again.');
+      setExporting(false);
+    }
+  }, [attendanceData, generateHighQualityCanvas, friendCredentials]);
+
   
   useEffect(() => {
     trackEvent('attendance_page_viewed', {
@@ -222,9 +459,9 @@ export default function Attendance() {
               Click "ReSync" to fetch {friendCredentials ? `${friendCredentials.name}'s` : 'your attendance and wait min 5 seconds becasue it also fetches register' } 
             </p>
           </div>
-        ) : (
-          <div className="attendance-container">
-            {groupAttendanceByCourse(attendanceData).map((course, index) => (
+        ) : (
+          <div ref={attendanceRef} className="attendance-container">
+            {groupAttendanceByCourse(attendanceData).map((course, index) => (
               <div key={index} className="attendance-card">
                 <div className="course-header">
                   <h3 className="course-name">{course.courseName}</h3>
@@ -472,15 +709,31 @@ export default function Attendance() {
         courseData={selectedCourseData}
       />
 
-      <button
-        className="calculator-icon-btn"
-        onClick={() => setShowCalculatorModal(true)}
-        title="Open Calculator"
-      >
-        🧮
-      </button>
+      {attendanceData.length > 0 && (
+        <button
+          className="export-icon-btn"
+          onClick={exportAsImage}
+          disabled={exporting}
+          title="Share Attendance"
+        >
+          {exporting ? (
+            <span style={{ fontSize: '20px' }}>⏳</span>
+          ) : (
+            <FiShare2 size={24} />
+          )}
+        </button>
+      )}
 
-      <Toast
+      <button
+        className="calculator-icon-btn"
+        onClick={() => setShowCalculatorModal(true)}
+        title="Open Calculator"
+        style={{ bottom: attendanceData.length > 0 ? '90px' : '20px' }}
+      >
+        🧮
+      </button>
+
+      <Toast
         message={toast.message}
         type={toast.type}
         isVisible={toast.show}
