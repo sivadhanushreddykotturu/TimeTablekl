@@ -195,7 +195,7 @@ export default function CalculatorModal({ isOpen, onClose }) {
       if (!Number.isFinite(attendanceNeeded) || attendanceNeeded < 0) {
         outputLine2 = `❌ Attend Required: Goal Unrealistic`;
       } else {
-        outputLine2 = `⬆️ Attend Required: ${attendanceNeeded}`;
+        outputLine2 = `⬆️ Attend Required: ${attendanceNeeded} (50 mins class each)`;
       }
 
       if (tcbrValue > 0) {
