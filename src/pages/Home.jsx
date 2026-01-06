@@ -20,13 +20,16 @@ const slotTimes = {
   9: { start: "14:50", end: "15:40" },
   10: { start: "15:50", end: "16:40" },
   11: { start: "16:40", end: "17:30" },
+  12: { start: "17:30", end: "18:20" },
+  13: { start: "18:20", end: "19:10" },
+  14: { start: "19:10", end: "20:00" },
 };
 
 function getCurrentSlotNumber() {
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-  for (let slot = 1; slot <= 11; slot++) {
+  for (let slot = 1; slot <= 14; slot++) {
     const [sh, sm] = slotTimes[slot].start.split(":").map(Number);
     const [eh, em] = slotTimes[slot].end.split(":").map(Number);
     const startM = sh * 60 + sm;
@@ -48,7 +51,7 @@ function findCurrentAndNextClass(timetable) {
 
   // Convert slots to entries and filter valid slots
   const entries = Object.entries(slots)
-    .filter(([slot]) => parseInt(slot) <= 11)
+    .filter(([slot]) => parseInt(slot) <= 14)
     .map(([slot, value]) => [parseInt(slot), value]);
 
   // Find the current class block
