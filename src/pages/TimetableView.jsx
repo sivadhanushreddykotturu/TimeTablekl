@@ -21,6 +21,9 @@ const slotTimes = {
   9: { start: "14:50", end: "15:40" },
   10: { start: "15:50", end: "16:40" },
   11: { start: "16:40", end: "17:30" },
+  12: { start: "17:30", end: "18:20" },
+  13: { start: "18:20", end: "19:10" },
+  14: { start: "19:10", end: "20:00" },
 };
 
 export default function TimetableView() {
@@ -105,7 +108,7 @@ export default function TimetableView() {
     
     if (orderedDays.length === 0) return null;
 
-    const numSlots = 11;
+    const numSlots = 14;
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
@@ -294,7 +297,7 @@ export default function TimetableView() {
 
   const renderDay = (day, slots) => {
     const entries = Object.entries(slots)
-      .filter(([slot]) => parseInt(slot) <= 11)
+      .filter(([slot]) => parseInt(slot) <= 14)
       .map(([slot, value]) => [parseInt(slot), value]);
 
     const merged = [];
