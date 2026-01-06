@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiLayers } from "react-icons/fi";
+import { MdCompare } from "react-icons/md";
 import Header from "../components/Header";
 import CaptchaModal from "../components/CaptchaModal";
 import Toast from "../components/Toast";
-import { getTodaySubjects, getSubjectName } from "../utils/subjectMapper";
 import { getCurrentAcademicYearOptions, API_CONFIG, getFormData } from "../config/api.js";
 import { trackEvent } from "../utils/analytics";
 
@@ -25,102 +24,7 @@ const slotTimes = {
   14: { start: "19:10", end: "20:00" },
 };
 
-function getCurrentSlotNumber() {
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-  for (let slot = 1; slot <= 14; slot++) {
-    const [sh, sm] = slotTimes[slot].start.split(":").map(Number);
-    const [eh, em] = slotTimes[slot].end.split(":").map(Number);
-    const startM = sh * 60 + sm;
-    const endM = eh * 60 + em;
-
-    if (currentMinutes >= startM && currentMinutes < endM) return slot;
-  }
-  return null;
-}
-
-function findCurrentAndNextClass(timetable) {
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const today = days[new Date().getDay()];
-  const slots = timetable?.[today] || {};
-
-  const currentSlot = getCurrentSlotNumber();
-  let currentClass = "No ongoing class";
-  let nextClass = "No upcoming class";
-
-  const entries = Object.entries(slots)
-    .filter(([slot]) => parseInt(slot) <= 14)
-    .map(([slot, value]) => [parseInt(slot), value]);
-
-  let currentBlock = null;
-  let nextBlock = null;
-
-  const merged = [];
-  let i = 0;
-
-  while (i < entries.length) {
-    const [startSlot, value] = entries[i];
-    if (value === "-") {
-      i++;
-      continue;
-    }
-
-    let endSlot = startSlot;
-    while (
-      i + 1 < entries.length &&
-      entries[i + 1][1] === value &&
-      entries[i + 1][0] === endSlot + 1
-    ) {
-      endSlot++;
-      i++;
-    }
-
-    merged.push({ content: value, startSlot, endSlot });
-    i++;
-  }
-
-  if (currentSlot) {
-    for (const block of merged) {
-      if (currentSlot >= block.startSlot && currentSlot <= block.endSlot) {
-        currentBlock = block;
-        break;
-      }
-    }
-  }
-
-  if (currentSlot) {
-    for (const block of merged) {
-      if (block.startSlot > currentSlot) {
-        nextBlock = block;
-        break;
-      }
-    }
-  } else {
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    
-    for (const block of merged) {
-      const [sh, sm] = slotTimes[block.startSlot].start.split(":").map(Number);
-      const startMinutes = sh * 60 + sm;
-      
-      if (startMinutes > currentMinutes) {
-        nextBlock = block;
-        break;
-      }
-    }
-  }
-
-  if (currentBlock) {
-    currentClass = `${currentBlock.content} (${slotTimes[currentBlock.startSlot].start} - ${slotTimes[currentBlock.endSlot].end})`;
-  }
-
-  if (nextBlock) {
-    nextClass = `${nextBlock.content} (${slotTimes[nextBlock.startSlot].start} - ${slotTimes[nextBlock.endSlot].end})`;
-  }
-
-  return { currentClass, nextClass };
-}
 
 export default function Maddys() {
   const navigate = useNavigate();
@@ -150,6 +54,11 @@ export default function Maddys() {
   const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [selectedMaddyForCompare, setSelectedMaddyForCompare] = useState(null);
+  const [selectedLeftSide, setSelectedLeftSide] = useState("you"); // "you" or maddy id
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return days[new Date().getDay()];
+  });
 
   useEffect(() => {
     const savedMaddys = JSON.parse(localStorage.getItem("maddys") || "[]");
@@ -413,25 +322,34 @@ export default function Maddys() {
     }
   };
 
-  // Function to replace course code with custom subject name
-  const replaceCourseCodeWithCustomName = (content) => {
+  // Function to format class name for compare view: "24GMI3101HF-P - S-2 -RoomNo-C018" -> "24GMI3101HF-P - C018"
+  const formatClassNameForCompare = (content) => {
     if (!content || content === "-") return content;
     
-    const match = content.match(/^([A-Za-z0-9]+)/);
-    if (!match) return content;
+    // Extract course code (first part before first " - ")
+    const parts = content.split(" - ");
+    if (parts.length === 0) return content;
     
-    const courseCode = match[1];
-    const customName = getSubjectName(courseCode);
+    const courseCode = parts[0];
     
-    if (customName !== courseCode) {
-      return content.replace(courseCode, customName);
+    // Extract room number (look for RoomNo- or just find C followed by numbers)
+    const roomMatch = content.match(/RoomNo-([A-Z0-9]+)|-([A-Z]\d+)(?:\s|$)/);
+    const roomNumber = roomMatch ? (roomMatch[1] || roomMatch[2]) : null;
+    
+    if (roomNumber) {
+      return `${courseCode} - ${roomNumber}`;
     }
     
-    return content;
+    return courseCode;
   };
 
-  // Render timetable day for main timetable
-  const renderMainTimetableDay = (day, slots) => {
+
+  // Render single day timetable for compare view
+  const renderCompareDay = (slots) => {
+    if (!slots || Object.keys(slots).length === 0) {
+      return <p className="text-center" style={{ color: 'var(--text-muted)', padding: '20px' }}>No classes</p>;
+    }
+
     const entries = Object.entries(slots)
       .filter(([slot]) => parseInt(slot) <= 14)
       .map(([slot, value]) => [parseInt(slot), value]);
@@ -460,65 +378,23 @@ export default function Maddys() {
       i++;
     }
 
+    if (merged.length === 0) {
+      return <p className="text-center" style={{ color: 'var(--text-muted)', padding: '20px' }}>No classes</p>;
+    }
+
     return (
-      <div key={day} className="timetable-day">
-        <h3>{day}</h3>
+      <div className="compare-day-timetable">
         {merged.map((block, idx) => {
-          const displayContent = replaceCourseCodeWithCustomName(block.content);
+          const displayContent = formatClassNameForCompare(block.content);
           return (
-            <div key={idx} className="class-block">
-              <div className="class-name">{displayContent}</div>
-              <div className="class-time">
-                {slotTimes[block.startSlot].start} – {slotTimes[block.endSlot].end}
+            <div key={idx} className="compare-class-block">
+              <div className="compare-class-time">
+                {slotTimes[block.startSlot].start} - {slotTimes[block.endSlot].end}
               </div>
+              <div className="compare-class-name">{displayContent}</div>
             </div>
           );
         })}
-      </div>
-    );
-  };
-
-  // Render timetable day for maddy timetable
-  const renderMaddyTimetableDay = (day, slots) => {
-    const entries = Object.entries(slots)
-      .filter(([slot]) => parseInt(slot) <= 14)
-      .map(([slot, value]) => [parseInt(slot), value]);
-
-    const merged = [];
-    let i = 0;
-
-    while (i < entries.length) {
-      const [startSlot, value] = entries[i];
-      if (value === "-") {
-        i++;
-        continue;
-      }
-
-      let endSlot = startSlot;
-      while (
-        i + 1 < entries.length &&
-        entries[i + 1][1] === value &&
-        entries[i + 1][0] === endSlot + 1
-      ) {
-        endSlot++;
-        i++;
-      }
-
-      merged.push({ content: value, startSlot, endSlot });
-      i++;
-    }
-
-    return (
-      <div key={day} className="timetable-day">
-        <h3>{day}</h3>
-        {merged.map((block, idx) => (
-          <div key={idx} className="class-block">
-            <div className="class-name">{block.content}</div>
-            <div className="class-time">
-              {slotTimes[block.startSlot].start} - {slotTimes[block.endSlot].end}
-            </div>
-          </div>
-        ))}
       </div>
     );
   };
@@ -535,6 +411,7 @@ export default function Maddys() {
     // Always auto-select first maddy when opening
     if (maddys.length > 0) {
       setSelectedMaddyForCompare(maddys[0]);
+      setSelectedLeftSide("you");
     }
     setShowCompareModal(true);
   };
@@ -863,7 +740,15 @@ export default function Maddys() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="compare-modal-header">
-              <h2>Compare Timetables</h2>
+              <select
+                value={selectedDay}
+                onChange={(e) => setSelectedDay(e.target.value)}
+                className="compare-day-select"
+              >
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
+                  <option key={day} value={day}>{day}</option>
+                ))}
+              </select>
               <button 
                 className="close-btn"
                 onClick={() => setShowCompareModal(false)}
@@ -873,50 +758,76 @@ export default function Maddys() {
             </div>
             
             <div className="compare-timetables-container">
-              {/* Left side - Main Timetable */}
+              {/* Left side - You or Friend */}
               <div className="compare-timetable-panel">
-                <div className="compare-panel-header">
-                  <h3>Your Timetable</h3>
+                <div className="compare-panel-label">
+                  {maddys.length > 1 ? (
+                    <select
+                      value={selectedLeftSide}
+                      onChange={(e) => setSelectedLeftSide(e.target.value)}
+                      className="compare-maddy-select"
+                    >
+                      <option value="you">You</option>
+                      {maddys.map((maddy) => (
+                        <option key={maddy.id} value={maddy.id} disabled={selectedMaddyForCompare?.id === maddy.id}>
+                          {maddy.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    "You"
+                  )}
                 </div>
                 <div className="compare-timetable-content">
-                  {(() => {
-                    const mainTimetable = JSON.parse(localStorage.getItem("timetable") || "{}");
-                    if (Object.keys(mainTimetable).length === 0) {
-                      return <p className="text-center">No timetable loaded</p>;
-                    }
-                    return Object.entries(mainTimetable).map(([day, slots]) =>
-                      renderMainTimetableDay(day, slots)
-                    );
-                  })()}
+                  {selectedLeftSide === "you" ? (
+                    (() => {
+                      const mainTimetable = JSON.parse(localStorage.getItem("timetable") || "{}");
+                      return renderCompareDay(mainTimetable[selectedDay]);
+                    })()
+                  ) : (
+                    (() => {
+                      const leftMaddy = maddys.find(m => m.id === parseInt(selectedLeftSide));
+                      return leftMaddy && leftMaddy.timetable ? (
+                        renderCompareDay(leftMaddy.timetable[selectedDay])
+                      ) : (
+                        <p className="text-center" style={{ color: 'var(--text-muted)', padding: '20px' }}>No timetable</p>
+                      );
+                    })()
+                  )}
                 </div>
               </div>
 
               {/* Right side - Maddy Timetable */}
               <div className="compare-timetable-panel">
-                <div className="compare-panel-header">
-                  <select
-                    value={selectedMaddyForCompare?.id || ""}
-                    onChange={(e) => {
-                      const maddy = maddys.find(m => m.id === parseInt(e.target.value));
-                      setSelectedMaddyForCompare(maddy);
-                    }}
-                    className="compare-maddy-select"
-                  >
-                    <option value="">Select a friend...</option>
-                    {maddys.map((maddy) => (
-                      <option key={maddy.id} value={maddy.id}>
-                        {maddy.name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="compare-panel-label">
+                  {maddys.length > 1 ? (
+                    <select
+                      value={selectedMaddyForCompare?.id || ""}
+                      onChange={(e) => {
+                        const maddy = maddys.find(m => m.id === parseInt(e.target.value));
+                        setSelectedMaddyForCompare(maddy);
+                      }}
+                      className="compare-maddy-select"
+                    >
+                      {maddys.map((maddy) => (
+                        <option 
+                          key={maddy.id} 
+                          value={maddy.id}
+                          disabled={selectedLeftSide === maddy.id.toString()}
+                        >
+                          {maddy.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    selectedMaddyForCompare?.name || "Friend"
+                  )}
                 </div>
                 <div className="compare-timetable-content">
                   {selectedMaddyForCompare && selectedMaddyForCompare.timetable ? (
-                    Object.entries(selectedMaddyForCompare.timetable).map(([day, slots]) =>
-                      renderMaddyTimetableDay(day, slots)
-                    )
+                    renderCompareDay(selectedMaddyForCompare.timetable[selectedDay])
                   ) : (
-                    <p className="text-center">Select a friend to compare</p>
+                    <p className="text-center" style={{ color: 'var(--text-muted)', padding: '20px' }}>Select a friend</p>
                   )}
                 </div>
               </div>
@@ -932,7 +843,7 @@ export default function Maddys() {
           onClick={handleOpenCompare}
           title="Compare Timetables"
         >
-          <FiLayers size={24} />
+          <MdCompare size={24} />
         </button>
       )}
 
