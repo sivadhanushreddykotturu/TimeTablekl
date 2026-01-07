@@ -2,29 +2,15 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/Header";
 import Toast from "../components/Toast";
+import { getSlotTimes, getMaxSlots } from "../utils/slotTimes";
 
-const slotTimes = {
-  1: { start: "07:10", end: "08:00" },
-  2: { start: "08:00", end: "08:50" },
-  3: { start: "09:20", end: "10:10" },
-  4: { start: "10:10", end: "11:00" },
-  5: { start: "11:10", end: "12:00" },
-  6: { start: "12:00", end: "12:50" },
-  7: { start: "13:00", end: "13:50" },
-  8: { start: "13:50", end: "14:40" },
-  9: { start: "14:50", end: "15:40" },
-  10: { start: "15:50", end: "16:40" },
-  11: { start: "16:40", end: "17:30" },
-  12: { start: "17:30", end: "18:20" },
-  13: { start: "18:20", end: "19:10" },
-  14: { start: "19:10", end: "20:00" },
-};
-
-function getCurrentSlotNumber() {
+function getCurrentSlotNumber(username) {
+  const slotTimes = getSlotTimes(username);
+  const maxSlots = getMaxSlots(username);
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-  for (let slot = 1; slot <= 14; slot++) {
+  for (let slot = 1; slot <= maxSlots; slot++) {
     const [sh, sm] = slotTimes[slot].start.split(":").map(Number);
     const [eh, em] = slotTimes[slot].end.split(":").map(Number);
     const startM = sh * 60 + sm;
@@ -35,17 +21,19 @@ function getCurrentSlotNumber() {
   return null;
 }
 
-function findCurrentAndNextClass(timetable) {
+function findCurrentAndNextClass(timetable, username) {
+  const slotTimes = getSlotTimes(username);
+  const maxSlots = getMaxSlots(username);
   const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const today = days[new Date().getDay()];
   const slots = timetable?.[today] || {};
 
-  const currentSlot = getCurrentSlotNumber();
+  const currentSlot = getCurrentSlotNumber(username);
   let currentClass = "No ongoing class";
   let nextClass = "No upcoming class";
 
   const entries = Object.entries(slots)
-    .filter(([slot]) => parseInt(slot) <= 14)
+    .filter(([slot]) => parseInt(slot) <= maxSlots)
     .map(([slot, value]) => [parseInt(slot), value]);
 
   let currentBlock = null;
@@ -140,7 +128,7 @@ export default function MaddyClassInfo() {
     }
 
     setMaddy(foundMaddy);
-    const { currentClass, nextClass } = findCurrentAndNextClass(foundMaddy.timetable);
+    const { currentClass, nextClass } = findCurrentAndNextClass(foundMaddy.timetable, foundMaddy.username);
     setCurrent(currentClass);
     setNext(nextClass);
   }, [id, navigate]);

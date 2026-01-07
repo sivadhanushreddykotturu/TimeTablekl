@@ -3,25 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FiShare2 } from "react-icons/fi";
 import Header from "../components/Header";
 import Toast from "../components/Toast";
-
-const slotTimes = {
-  1: { start: "07:10", end: "08:00" },
-  2: { start: "08:00", end: "08:50" },
-  3: { start: "09:20", end: "10:10" },
-  4: { start: "10:10", end: "11:00" },
-  5: { start: "11:10", end: "12:00" },
-  6: { start: "12:00", end: "12:50" },
-  7: { start: "13:00", end: "13:50" },
-  8: { start: "13:50", end: "14:40" },
-  9: { start: "14:50", end: "15:40" },
-  10: { start: "15:50", end: "16:40" },
-  11: { start: "16:40", end: "17:30" },
-  12: { start: "17:30", end: "18:20" },
-  13: { start: "18:20", end: "19:10" },
-  14: { start: "19:10", end: "20:00" },
-};
-
-const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { getSlotTimes, getMaxSlots } from "../utils/slotTimes";
 
 export default function MaddyTimetable() {
   const navigate = useNavigate();
@@ -64,6 +46,10 @@ export default function MaddyTimetable() {
   const generateHighQualityCanvas = useCallback(() => {
     if (!maddy || !maddy.timetable || Object.keys(maddy.timetable).length === 0) return null;
 
+    // Get slot times based on friend's campus (use their username)
+    const slotTimes = getSlotTimes(maddy.username);
+    const maxSlots = getMaxSlots(maddy.username);
+
     const scale = 2;
     const padding = 40;
     const cellPadding = 12;
@@ -77,7 +63,7 @@ export default function MaddyTimetable() {
     
     if (orderedDays.length === 0) return null;
 
-    const numSlots = 14;
+    const numSlots = maxSlots;
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
@@ -263,8 +249,12 @@ export default function MaddyTimetable() {
   }, [maddy, generateHighQualityCanvas]);
 
   const renderTimetableDay = (day, slots) => {
+    // Get slot times based on friend's campus
+    const slotTimes = getSlotTimes(maddy?.username);
+    const maxSlots = getMaxSlots(maddy?.username);
+
     const entries = Object.entries(slots)
-      .filter(([slot]) => parseInt(slot) <= 14)
+      .filter(([slot]) => parseInt(slot) <= maxSlots)
       .map(([slot, value]) => [parseInt(slot), value]);
 
     const merged = [];
