@@ -6,23 +6,7 @@ import CaptchaModal from "../components/CaptchaModal";
 import Toast from "../components/Toast";
 import { getCurrentAcademicYearOptions, API_CONFIG, getFormData } from "../config/api.js";
 import { trackEvent } from "../utils/analytics";
-
-const slotTimes = {
-  1: { start: "07:10", end: "08:00" },
-  2: { start: "08:00", end: "08:50" },
-  3: { start: "09:20", end: "10:10" },
-  4: { start: "10:10", end: "11:00" },
-  5: { start: "11:10", end: "12:00" },
-  6: { start: "12:00", end: "12:50" },
-  7: { start: "13:00", end: "13:50" },
-  8: { start: "13:50", end: "14:40" },
-  9: { start: "14:50", end: "15:40" },
-  10: { start: "15:50", end: "16:40" },
-  11: { start: "16:40", end: "17:30" },
-  12: { start: "17:30", end: "18:20" },
-  13: { start: "18:20", end: "19:10" },
-  14: { start: "19:10", end: "20:00" },
-};
+import { getSlotTimes, getMaxSlots } from "../utils/slotTimes";
 
 
 
@@ -345,13 +329,17 @@ export default function Maddys() {
 
 
   // Render single day timetable for compare view
-  const renderCompareDay = (slots) => {
+  const renderCompareDay = (slots, username = null) => {
     if (!slots || Object.keys(slots).length === 0) {
       return <p className="text-center" style={{ color: 'var(--text-muted)', padding: '20px' }}>No classes</p>;
     }
 
+    // Get slot times based on username (null = current user)
+    const slotTimes = getSlotTimes(username);
+    const maxSlots = getMaxSlots(username);
+
     const entries = Object.entries(slots)
-      .filter(([slot]) => parseInt(slot) <= 14)
+      .filter(([slot]) => parseInt(slot) <= maxSlots)
       .map(([slot, value]) => [parseInt(slot), value]);
 
     const merged = [];
@@ -782,13 +770,14 @@ export default function Maddys() {
                   {selectedLeftSide === "you" ? (
                     (() => {
                       const mainTimetable = JSON.parse(localStorage.getItem("timetable") || "{}");
-                      return renderCompareDay(mainTimetable[selectedDay]);
+                      // Use current user's username (null = current user)
+                      return renderCompareDay(mainTimetable[selectedDay], null);
                     })()
                   ) : (
                     (() => {
                       const leftMaddy = maddys.find(m => m.id === parseInt(selectedLeftSide));
                       return leftMaddy && leftMaddy.timetable ? (
-                        renderCompareDay(leftMaddy.timetable[selectedDay])
+                        renderCompareDay(leftMaddy.timetable[selectedDay], leftMaddy.username)
                       ) : (
                         <p className="text-center" style={{ color: 'var(--text-muted)', padding: '20px' }}>No timetable</p>
                       );
@@ -825,7 +814,7 @@ export default function Maddys() {
                 </div>
                 <div className="compare-timetable-content">
                   {selectedMaddyForCompare && selectedMaddyForCompare.timetable ? (
-                    renderCompareDay(selectedMaddyForCompare.timetable[selectedDay])
+                    renderCompareDay(selectedMaddyForCompare.timetable[selectedDay], selectedMaddyForCompare.username)
                   ) : (
                     <p className="text-center" style={{ color: 'var(--text-muted)', padding: '20px' }}>Select a friend</p>
                   )}
