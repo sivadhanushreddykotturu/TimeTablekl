@@ -11,9 +11,9 @@ const minutes = (hours, mins) => hours * 60 + mins;
 const SLOT_DETAILS = {
   inSemester: {
     MN: { label: "07:30 AM - 09:00 AM", endMinutes: minutes(9, 0) },
-    AM: { label: "09:45 AM - 11:15 AM", endMinutes: minutes(11, 15) },
+    AM: { label: "09:30 AM - 11:00 AM", endMinutes: minutes(11, 15) },
     FN: { label: "11:30 AM - 01:00 PM", endMinutes: minutes(13, 0) },
-    PM: { label: "01:30 PM - 03:00 PM", endMinutes: minutes(15, 0) },
+    PM: { label: "01:45 PM - 03:15 PM", endMinutes: minutes(15, 0) },
     EN: { label: "03:30 PM - 05:00 PM", endMinutes: minutes(17, 0) },
   },
 };
