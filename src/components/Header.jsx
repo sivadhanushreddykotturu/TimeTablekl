@@ -4,6 +4,7 @@ import { clearCredentials } from "../../utils/storage.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 import { getCurrentAcademicYearOptions } from "../config/api.js";
 import { BiLogOut } from "react-icons/bi";
+import LogoutModal from "./LogoutModal.jsx";
 
 export default function Header({ onRefresh }) {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export default function Header({ onRefresh }) {
   const [academicYear, setAcademicYear] = useState("");
   const [academicYearOptions, setAcademicYearOptions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const dropdownRef = useRef(null);
 
   // Don't show on login page
@@ -19,7 +21,11 @@ export default function Header({ onRefresh }) {
 
   const isExamPage = location.pathname === "/exam";
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
     clearCredentials();
     localStorage.removeItem("timetable");
     navigate("/");
@@ -85,7 +91,7 @@ export default function Header({ onRefresh }) {
             Back
           </button>
         ) : (
-          <button onClick={handleLogout} className="secondary" aria-label="Logout" title="Logout">
+          <button onClick={handleLogoutClick} className="secondary" aria-label="Logout" title="Logout">
             <BiLogOut size={20} />
           </button>
         )}
@@ -98,52 +104,57 @@ export default function Header({ onRefresh }) {
               ReSync
             </button>
           ) : (
-          <div className="resync-wrapper" ref={dropdownRef}>
-            <button className="resync-btn" onClick={toggleDropdown}>
-              ReSync ▾
-            </button>
+            <div className="resync-wrapper" ref={dropdownRef}>
+              <button className="resync-btn" onClick={toggleDropdown}>
+                ReSync ▾
+              </button>
 
-            {showDropdown && (
-              <div className="resync-dropdown">
-                <div className="resync-dropdown-group">
-                  <label>Semester</label>
-                  <select
-                    value={semester}
-                    onChange={(e) => handleSemesterChange(e.target.value)}
-                    className="resync-select"
-                  >
-                    <option value="odd">Odd Semester</option>
-                    <option value="even">Even Semester</option>
-                    <option value="summer">Summer Semester</option>
-                  </select>
-                </div>
+              {showDropdown && (
+                <div className="resync-dropdown">
+                  <div className="resync-dropdown-group">
+                    <label>Semester</label>
+                    <select
+                      value={semester}
+                      onChange={(e) => handleSemesterChange(e.target.value)}
+                      className="resync-select"
+                    >
+                      <option value="odd">Odd Semester</option>
+                      <option value="even">Even Semester</option>
+                      <option value="summer">Summer Semester</option>
+                    </select>
+                  </div>
 
-                <div className="resync-dropdown-group">
-                  <label>Academic Year</label>
-                  <select
-                    value={academicYear}
-                    onChange={(e) => handleAcademicYearChange(e.target.value)}
-                    className="resync-select"
-                  >
-                    {academicYearOptions.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="resync-dropdown-group">
+                    <label>Academic Year</label>
+                    <select
+                      value={academicYear}
+                      onChange={(e) => handleAcademicYearChange(e.target.value)}
+                      className="resync-select"
+                    >
+                      {academicYearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div className="resync-actions">
-                  <button className="primary" onClick={() => { setShowDropdown(false); onRefresh(); }}>
-                    Sync now
-                  </button>
+                  <div className="resync-actions">
+                    <button className="primary" onClick={() => { setShowDropdown(false); onRefresh(); }}>
+                      Sync now
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
           )
         )}
       </div>
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={confirmLogout}
+      />
     </div>
   );
 }
