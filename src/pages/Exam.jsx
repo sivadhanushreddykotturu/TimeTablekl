@@ -2,23 +2,15 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import SeatingPlanModal from "../components/SeatingPlanModal";
+import EditSlotModal from "../components/EditSlotModal";
 import Toast from "../components/Toast";
 import { getCredentials } from "../../utils/storage.js";
 import { getSubjectName } from "../utils/subjectMapper";
+import { getSlotDetails } from "../utils/examSlots";
 
 const minutes = (hours, mins) => hours * 60 + mins;
 
-const SLOT_DETAILS = {
-  inSemester: {
-    MN: { label: "07:30 AM - 09:00 AM", endMinutes: minutes(9, 0) },
-    AM: { label: "09:30 AM - 11:00 AM", endMinutes: minutes(11, 15) },
-    FN: { label: "11:30 AM - 01:00 PM", endMinutes: minutes(13, 0) },
-    PM: { label: "01:45 PM - 03:15 PM", endMinutes: minutes(15, 0) },
-    EN: { label: "03:30 PM - 05:00 PM", endMinutes: minutes(17, 0) },
-  },
-};
-
-const getSlotInfo = (examType = "", slot = "") => {
+const getSlotInfo = (examType = "", slot = "", slotDetails) => {
   const normalizedSlot = slot.toUpperCase();
   const isEndSemester = examType.toLowerCase().includes("end");
 
@@ -30,21 +22,21 @@ const getSlotInfo = (examType = "", slot = "") => {
   }
 
   return (
-    SLOT_DETAILS.inSemester[normalizedSlot] || {
+    slotDetails.inSemester[normalizedSlot] || {
       label: slot || "N/A",
       endMinutes: null,
     }
   );
 };
 
-function findTodayAndNextExam(seatingPlan) {
+function findTodayAndNextExam(seatingPlan, slotDetails) {
   if (!seatingPlan || seatingPlan.length === 0) {
     return { todayExam: null, nextExam: null };
   }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const now = new Date();
   const currentTime = now.getHours() * 60 + now.getMinutes();
 
@@ -68,9 +60,9 @@ function findTodayAndNextExam(seatingPlan) {
   for (const exam of sortedPlan) {
     const examDate = new Date(exam.date);
     examDate.setHours(0, 0, 0, 0);
-    
+
     if (examDate.getTime() === today.getTime()) {
-      const slotInfo = getSlotInfo(exam.exam_type, exam.time_slot);
+      const slotInfo = getSlotInfo(exam.exam_type, exam.time_slot, slotDetails);
       const slotEnd = slotInfo.endMinutes ?? minutes(23, 59);
 
       if (currentTime < slotEnd) {
@@ -84,12 +76,12 @@ function findTodayAndNextExam(seatingPlan) {
   for (const exam of sortedPlan) {
     const examDate = new Date(exam.date);
     examDate.setHours(0, 0, 0, 0);
-    
+
     if (examDate.getTime() > today.getTime()) {
       nextExam = exam;
       break;
     } else if (examDate.getTime() === today.getTime() && exam !== todayExam) {
-      const slotInfo = getSlotInfo(exam.exam_type, exam.time_slot);
+      const slotInfo = getSlotInfo(exam.exam_type, exam.time_slot, slotDetails);
       const slotEnd = slotInfo.endMinutes ?? minutes(23, 59);
 
       if (currentTime < slotEnd) {
@@ -102,14 +94,21 @@ function findTodayAndNextExam(seatingPlan) {
   // Format exam display
   const formatExam = (exam) => {
     if (!exam) return null;
-    
+
     const subjectName = getSubjectName(exam.course_code);
     const displayName = subjectName !== exam.course_code ? subjectName : exam.course_code;
-    const slotInfo = getSlotInfo(exam.exam_type, exam.time_slot);
-    const timeSlot = slotInfo.label || exam.time_slot;
+    const slotInfo = getSlotInfo(exam.exam_type, exam.time_slot, slotDetails);
+
+    let timeSlot;
+    if (slotDetails.isCustom) {
+      timeSlot = slotInfo.label || exam.time_slot;
+    } else {
+      timeSlot = (exam.time_slot || "").toUpperCase();
+    }
+
     const date = new Date(exam.date);
     const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    
+
     return `${displayName} - ${exam.room_no} (${dateStr}, ${timeSlot})`;
   };
 
@@ -124,27 +123,31 @@ export default function Exam() {
   const [seatingPlan, setSeatingPlan] = useState(
     JSON.parse(localStorage.getItem("seatingPlan") || "[]")
   );
+
+  const [slotDetails, setSlotDetails] = useState(getSlotDetails());
+
   const [todayExam, setTodayExam] = useState(null);
   const [nextExam, setNextExam] = useState(null);
   const [showSeatingModal, setShowSeatingModal] = useState(false);
+  const [showEditSlotsModal, setShowEditSlotsModal] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   useEffect(() => {
     localStorage.setItem("examMode", "true");
-    
+
     const credentials = getCredentials();
     const timetable = localStorage.getItem("timetable");
-    
+
     if (!credentials || !timetable) {
       navigate("/", { replace: true });
     }
   }, [navigate]);
 
   useEffect(() => {
-    const { todayExam: today, nextExam: next } = findTodayAndNextExam(seatingPlan);
+    const { todayExam: today, nextExam: next } = findTodayAndNextExam(seatingPlan, slotDetails);
     setTodayExam(today);
     setNextExam(next);
-  }, [seatingPlan]);
+  }, [seatingPlan, slotDetails]);
 
   const handleRefresh = () => {
     setShowSeatingModal(true);
@@ -159,6 +162,15 @@ export default function Exam() {
     });
   };
 
+  const handleSlotSave = (newDetails) => {
+    setSlotDetails(newDetails);
+    setToast({
+      show: true,
+      message: "Slot timings updated!",
+      type: "success"
+    });
+  };
+
   const closeToast = () => {
     setToast(prev => ({ ...prev, show: false }));
   };
@@ -167,8 +179,23 @@ export default function Exam() {
     <>
       <Header onRefresh={handleRefresh} />
       <div className="container">
-        <div className="page-header">
+        <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h1 className="page-title">Exam Mode</h1>
+          <button
+            onClick={() => setShowEditSlotsModal(true)}
+            style={{
+              padding: "6px 12px",
+              fontSize: "14px",
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border-color)",
+              color: "var(--text-primary)",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontWeight: 500,
+            }}
+          >
+            Edit Slot Timings
+          </button>
         </div>
 
         {todayExam && (
@@ -213,6 +240,12 @@ export default function Exam() {
         onSuccess={handleSeatingSuccess}
       />
 
+      <EditSlotModal
+        isOpen={showEditSlotsModal}
+        onClose={() => setShowEditSlotsModal(false)}
+        onSave={handleSlotSave}
+      />
+
       <Toast
         message={toast.message}
         type={toast.type}
@@ -222,4 +255,3 @@ export default function Exam() {
     </>
   );
 }
-
