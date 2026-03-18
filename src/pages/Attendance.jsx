@@ -59,6 +59,51 @@ export default function Attendance() {
       friend_name: friendCredentials?.name || null
     });
     
+    // Auto-map empty subject names upon attendance fetch
+    try {
+      if (!friendCredentials) { // Only map for the current user's attendance
+        const savedMappings = JSON.parse(localStorage.getItem("subjectMappings") || "{}");
+        let madeChanges = false;
+        
+        attendance.forEach(item => {
+          if (item.Coursecode && item.Coursedesc) {
+            const match = item.Coursecode.match(/^[A-Za-z0-9]+/);
+            const mainCode = match ? match[0] : item.Coursecode;
+            
+            // Only set if not already set, preserving user's manual edits
+            if (!savedMappings[mainCode]) {
+              const words = item.Coursedesc.trim().split(/\s+/);
+              let acronym = "";
+              if (words.length === 1) {
+                acronym = words[0].substring(0, 5).toUpperCase();
+              } else {
+                words.forEach(word => {
+                  if (
+                    word.length > 0 &&
+                    !["AND", "OF", "THE", "IN", "FOR", "TO"].includes(word.toUpperCase()) &&
+                    !word.match(/^[0-9]+$/)
+                  ) {
+                    acronym += word[0].toUpperCase();
+                  }
+                });
+                acronym = acronym.substring(0, 5);
+              }
+              if (acronym) {
+                savedMappings[mainCode] = acronym;
+                madeChanges = true;
+              }
+            }
+          }
+        });
+        
+        if (madeChanges) {
+          localStorage.setItem("subjectMappings", JSON.stringify(savedMappings));
+        }
+      }
+    } catch (err) {
+      console.error("Error auto-mapping subjects:", err);
+    }
+    
     setAttendanceData(attendance);
     setToast({
       show: true,
