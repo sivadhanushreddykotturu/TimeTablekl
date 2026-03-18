@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-export default function CalculatorModal({ isOpen, onClose }) {
+export default function CalculatorModal({ isOpen, onClose, initialCourseData }) {
   // State for Percentage/Bunk Tab
   const [activeTab, setActiveTab] = useState("percentage");
   const [attendedClasses, setAttendedClasses] = useState("");
@@ -40,6 +40,57 @@ export default function CalculatorModal({ isOpen, onClose }) {
     S: false,
   };
   const [isComponentOpen, setIsComponentOpen] = useState(initialOpenState);
+
+  useEffect(() => {
+    if (isOpen && initialCourseData && initialCourseData.length > 0) {
+      setActiveTab("components");
+      
+      const newComponentsData = [
+        { label: "Lecture (L)", type: "L", attended: "", conducted: "", tcbr: "" },
+        { label: "Tutorial (T)", type: "T", attended: "", conducted: "", tcbr: "" },
+        { label: "Practical (P)", type: "P", attended: "", conducted: "", tcbr: "" },
+        { label: "Skilling (S)", type: "S", attended: "", conducted: "", tcbr: "" },
+      ];
+      const newOpenState = { L: false, T: false, P: false, S: false };
+      
+      initialCourseData.forEach(item => {
+        const type = item.type;
+        const idx = newComponentsData.findIndex(c => c.type === type);
+        if (idx !== -1) {
+          newComponentsData[idx] = {
+            ...newComponentsData[idx],
+            attended: (item.attended || 0).toString(),
+            conducted: (item.conducted || 0).toString(),
+            tcbr: (item.tcbr || 0).toString()
+          };
+          newOpenState[type] = true;
+        }
+      });
+      
+      setComponentsData(newComponentsData);
+      setIsComponentOpen(newOpenState);
+      
+      // Compute weighted average
+      let weightedAttendedSum = 0;
+      let weightedConductedSum = 0;
+      newComponentsData.forEach((comp) => {
+        const attended = parseInt(comp.attended || "0", 10);
+        const conducted = parseInt(comp.conducted || "0", 10);
+        const tcbrValue = parseInt(comp.tcbr || "0", 10);
+        if (conducted <= 0 || !Number.isFinite(attended) || attended < 0 || tcbrValue < 0) return;
+        const componentType = comp.type.charAt(0).toUpperCase();
+        const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
+        const adjustedAttended = attended + tcbrValue;
+        weightedAttendedSum += adjustedAttended * weight;
+        weightedConductedSum += conducted * weight;
+      });
+      if (weightedConductedSum > 0) {
+        setWeightedAverage(Math.ceil(Math.max(0, Math.min(100, (weightedAttendedSum / weightedConductedSum) * 100))));
+      } else {
+        setWeightedAverage(null);
+      }
+    }
+  }, [isOpen, initialCourseData]);
 
   /**
    * Toggles the open/collapsed state of a specific component block.
