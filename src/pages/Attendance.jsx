@@ -12,6 +12,7 @@ export default function Attendance() {
   const location = useLocation();
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [showCalculatorModal, setShowCalculatorModal] = useState(false);
+  const [calculatorInitialCourse, setCalculatorInitialCourse] = useState(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [selectedRegisterData, setSelectedRegisterData] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
@@ -472,7 +473,44 @@ export default function Attendance() {
                 <div className="total-attendance-box">
                   <div className="total-info">
                     <span className="total-badge">TOTAL</span>
-                    <span className="total-label">Overall Attendance</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="total-label">Overall Attendance</span>
+                      <button
+                        onClick={() => {
+                          const initData = course.sections.map(section => {
+                            const type = section.ltps.charAt(0).toUpperCase();
+                            return {
+                              type,
+                              attended: section.totalAttended,
+                              conducted: section.totalConducted,
+                              tcbr: section.tcbr || "0"
+                            };
+                          }).filter(item => ['L', 'T', 'P', 'S'].includes(item.type));
+                          setCalculatorInitialCourse(initData);
+                          setShowCalculatorModal(true);
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: "2px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "1.2rem",
+                          transition: "transform 0.1s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.transform = "scale(1.2)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = "scale(1)";
+                        }}
+                        title="Open Calculator with components"
+                      >
+                        🧮
+                      </button>
+                    </div>
                   </div>
                   <div className="total-stats">
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -697,7 +735,11 @@ export default function Attendance() {
 
       <CalculatorModal
         isOpen={showCalculatorModal}
-        onClose={() => setShowCalculatorModal(false)}
+        onClose={() => {
+          setShowCalculatorModal(false);
+          setCalculatorInitialCourse(null);
+        }}
+        initialCourseData={calculatorInitialCourse}
       />
 
       <ShowCalculation
@@ -726,7 +768,10 @@ export default function Attendance() {
 
       <button
         className="calculator-icon-btn"
-        onClick={() => setShowCalculatorModal(true)}
+        onClick={() => {
+          setCalculatorInitialCourse(null);
+          setShowCalculatorModal(true);
+        }}
         title="Open Calculator"
         style={{ bottom: attendanceData.length > 0 ? '90px' : '20px' }}
       >
