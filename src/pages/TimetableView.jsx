@@ -5,7 +5,7 @@ import { FiShare2 } from "react-icons/fi";
 import Header from "../components/Header";
 import CaptchaModal from "../components/CaptchaModal";
 import Toast from "../components/Toast";
-import { getSubjectName } from "../utils/subjectMapper";
+import { getSubjectName, replaceCourseCodeWithCustomName } from "../utils/subjectMapper";
 import { trackEvent } from "../utils/analytics";
 import { getSlotTimes, getMaxSlots } from "../utils/slotTimes";
 
@@ -56,29 +56,6 @@ export default function TimetableView() {
   const closeToast = () => {
     setToast(prev => ({ ...prev, show: false }));
   };
-
-  // Function to replace course code with custom subject name in timetable entry
-  const replaceCourseCodeWithCustomName = useCallback((content) => {
-    if (!content || content === "-") return content;
-    
-    // Extract course code (alphanumeric part at the start)
-    // Format: "24MT2012-L - S-205 -RoomNo-S914"
-    // Match course code at the beginning
-    const match = content.match(/^([A-Za-z0-9]+)/);
-    if (!match) return content;
-    
-    const courseCode = match[1];
-    
-    // Get custom name from localStorage
-    const customName = getSubjectName(courseCode);
-    
-    // If custom name exists and is different, replace the course code in the content
-    if (customName !== courseCode) {
-      return content.replace(courseCode, customName);
-    }
-    
-    return content;
-  }, []);
 
   const generateHighQualityCanvas = useCallback(() => {
     if (!timetable || Object.keys(timetable).length === 0) return null;
@@ -213,7 +190,7 @@ export default function TimetableView() {
     ctx.restore();
     
     return canvas;
-  }, [timetable, replaceCourseCodeWithCustomName, slotTimes]);
+  }, [timetable, slotTimes]);
 
   const exportAsImage = useCallback(async () => {
     if (!timetable || Object.keys(timetable).length === 0) return;

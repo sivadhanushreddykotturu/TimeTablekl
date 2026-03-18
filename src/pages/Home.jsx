@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import CaptchaModal from "../components/CaptchaModal";
 import Toast from "../components/Toast";
-import { getTodaySubjects } from "../utils/subjectMapper";
+import { getTodaySubjects, replaceCourseCodeWithCustomName } from "../utils/subjectMapper";
 import FeedbackButton from '../components/FeedbackButton';
 import RecentContributors from '../components/RecentContributors.jsx';
 import { trackEvent } from "../utils/analytics";
@@ -108,12 +108,14 @@ function findCurrentAndNextClass(timetable) {
 
   // Set current class
   if (currentBlock) {
-    currentClass = `${currentBlock.content} (${slotTimes[currentBlock.startSlot].start} - ${slotTimes[currentBlock.endSlot].end})`;
+    const mappedContent = replaceCourseCodeWithCustomName(currentBlock.content);
+    currentClass = `${mappedContent} (${slotTimes[currentBlock.startSlot].start} - ${slotTimes[currentBlock.endSlot].end})`;
   }
 
   // Set next class
   if (nextBlock) {
-    nextClass = `${nextBlock.content} (${slotTimes[nextBlock.startSlot].start} - ${slotTimes[nextBlock.endSlot].end})`;
+    const mappedContent = replaceCourseCodeWithCustomName(nextBlock.content);
+    nextClass = `${mappedContent} (${slotTimes[nextBlock.startSlot].start} - ${slotTimes[nextBlock.endSlot].end})`;
   }
 
   return { currentClass, nextClass };
@@ -246,11 +248,11 @@ export default function Home() {
           </button>
 
           <button 
-            onClick={() => navigate("/subjects")} 
+            onClick={() => navigate("/attendance")} 
             className="secondary full-width-mobile"
             style={{ marginTop: "20px" }}
           >
-            Manage Subject Names
+            Attendance
           </button>
 
           <button 
@@ -262,11 +264,11 @@ export default function Home() {
           </button>
 
           <button 
-            onClick={() => navigate("/attendance")} 
+            onClick={() => navigate("/subjects")} 
             className="secondary full-width-mobile"
             style={{ marginTop: "20px" }}
           >
-            Attendance
+            Manage Subject Names
           </button>
 
           <button 

@@ -31,4 +31,22 @@ export const getTodaySubjects = () => {
     code: mainCode,
     displayName: getSubjectName(mainCode)
   }));
-}; 
+};
+
+// Function to replace course code with custom subject name in timetable entry
+export const replaceCourseCodeWithCustomName = (content) => {
+  if (!content || content === "-") return content;
+  
+  // Extract course code (alphanumeric part at the start)
+  const match = content.match(/^([A-Za-z0-9]+)/);
+  if (!match) return content;
+  
+  const courseCode = match[1];
+  const customName = getSubjectName(courseCode);
+  
+  if (customName !== courseCode) {
+    return content.replace(courseCode, customName);
+  }
+  
+  return content;
+};
