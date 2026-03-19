@@ -94,11 +94,11 @@ function findCurrentAndNextClass(timetable) {
     // If we're not in an active slot (break time), find the next upcoming class
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    
+
     for (const block of merged) {
       const [sh, sm] = slotTimes[block.startSlot].start.split(":").map(Number);
       const startMinutes = sh * 60 + sm;
-      
+
       if (startMinutes > currentMinutes) {
         nextBlock = block;
         break;
@@ -139,13 +139,13 @@ export default function Home() {
     const { currentClass, nextClass } = findCurrentAndNextClass(timetable);
     setCurrent(currentClass);
     setNext(nextClass);
-    
+
     // Get stored semester and academic year
     const storedSemester = localStorage.getItem("semester") || "odd";
     const storedAcademicYear = localStorage.getItem("academicYear") || "2024-25";
     setSemester(storedSemester);
     setAcademicYear(storedAcademicYear);
-    
+
     // Get today's subjects
     setTodaySubjects(getTodaySubjects());
   }, [timetable]);
@@ -172,7 +172,7 @@ export default function Home() {
       day_count: dayCount,
       sync_method: 'captcha'
     });
-    
+
     setTimetable(newTimetable);
     setTodaySubjects(getTodaySubjects());
     setToast({
@@ -187,7 +187,7 @@ export default function Home() {
   };
 
   const getSemesterDisplayName = (sem) => {
-    switch(sem) {
+    switch (sem) {
       case 'odd': return 'Odd Semester';
       case 'even': return 'Even Semester';
       case 'summer': return 'Summer Semester';
@@ -240,42 +240,42 @@ export default function Home() {
         )}
 
         <div className="button-container">
-          <button 
-            onClick={() => navigate("/timetable")} 
+          <button
+            onClick={() => navigate("/timetable")}
             className="primary full-width-mobile"
           >
             View Full Timetable
           </button>
 
-          <button 
-            onClick={() => navigate("/attendance")} 
+          <button
+            onClick={() => navigate("/attendance")}
             className="secondary full-width-mobile"
             style={{ marginTop: "20px" }}
           >
             Attendance
           </button>
 
-          <button 
-            onClick={() => navigate("/maddys")} 
+          <button
+            onClick={() => navigate("/maddys")}
             className="secondary full-width-mobile"
             style={{ marginTop: "20px" }}
           >
             Where's Maddy? 👥
           </button>
 
-          <button 
-            onClick={() => navigate("/subjects")} 
+          <button
+            onClick={() => navigate("/subjects")}
             className="secondary full-width-mobile"
             style={{ marginTop: "20px" }}
           >
             Manage Subject Names
           </button>
 
-          <button 
+          <button
             onClick={() => {
               localStorage.setItem("examMode", "true");
               navigate("/exam");
-            }} 
+            }}
             className="secondary full-width-mobile"
             style={{ marginTop: "20px" }}
           >

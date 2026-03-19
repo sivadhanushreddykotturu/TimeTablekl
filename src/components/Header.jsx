@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { clearCredentials } from "../../utils/storage.js";
+import { clearCredentials, getCredentials, saveCredentials } from "../../utils/storage.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 import { getCurrentAcademicYearOptions } from "../config/api.js";
 import { BiLogOut } from "react-icons/bi";
@@ -14,7 +14,24 @@ export default function Header({ onRefresh }) {
   const [academicYearOptions, setAcademicYearOptions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [avatarSeed, setAvatarSeed] = useState(() => localStorage.getItem("avatarSeed") || Math.random().toString(36).substring(7));
   const dropdownRef = useRef(null);
+  const profileDropdownRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem("avatarSeed", avatarSeed);
+  }, [avatarSeed]);
+
+  useEffect(() => {
+    const creds = getCredentials();
+    if (creds) {
+      setUsername(creds.username || "");
+      setPassword(creds.password || "");
+    }
+  }, []);
 
   // Don't show on login page
   if (location.pathname === "/") return null;
@@ -34,6 +51,13 @@ export default function Header({ onRefresh }) {
   const handleBackFromExam = () => {
     localStorage.removeItem("examMode");
     navigate("/home");
+  };
+
+  const handleRandomizeAvatar = () => {
+    if (!navigator.onLine) {
+      return;
+    }
+    setAvatarSeed(Math.random().toString(36).substring(7));
   };
 
   useEffect(() => {
@@ -74,14 +98,29 @@ export default function Header({ onRefresh }) {
       }
     };
 
+    const handleClickOutsideProfile = (event) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setShowProfileDropdown(false);
+      }
+    };
+
     if (showDropdown) {
       document.addEventListener("mousedown", handleClickOutside);
     } else {
       document.removeEventListener("mousedown", handleClickOutside);
     }
 
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showDropdown]);
+    if (showProfileDropdown) {
+      document.addEventListener("mousedown", handleClickOutsideProfile);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutsideProfile);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutsideProfile);
+    };
+  }, [showDropdown, showProfileDropdown]);
 
   return (
     <div className="app-header">
@@ -91,13 +130,95 @@ export default function Header({ onRefresh }) {
             Back
           </button>
         ) : (
-          <button onClick={handleLogoutClick} className="secondary" aria-label="Logout" title="Logout">
-            <BiLogOut size={20} />
-          </button>
+          <div className="resync-wrapper" ref={profileDropdownRef}>
+            <button
+              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+              aria-label="Profile"
+              title="Profile"
+            >
+              <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${avatarSeed}&backgroundColor=transparent`} alt="Profile" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-tertiary)' }} />
+            </button>
+
+            {showProfileDropdown && (
+              <div className="resync-dropdown" style={{ left: 0, right: 'auto', minWidth: '200px' }}>
+                <div className="resync-dropdown-group">
+                  <label>Username</label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      color: 'var(--text-color)',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div className="resync-dropdown-group">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      color: 'var(--text-color)',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div className="resync-dropdown-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                  <label style={{ margin: 0 }}>Theme</label>
+                  <ThemeToggle />
+                </div>
+
+                <div className="resync-dropdown-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                  <label style={{ margin: 0 }}>Avatar</label>
+                  <button 
+                    onClick={handleRandomizeAvatar}
+                    style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-primary)', minHeight: 'auto', width: 'auto' }}
+                  >
+                    🎲 Randomize
+                  </button>
+                </div>
+
+                <div className="resync-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    className="primary"
+                    onClick={() => {
+                      saveCredentials({ username, password });
+                      setShowProfileDropdown(false);
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setShowProfileDropdown(false);
+                      handleLogoutClick();
+                    }}
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
       <div className="header-right">
-        <ThemeToggle />
         {showResync && (
           (isAttendancePage || isExamPage) ? (
             <button className="resync-btn" onClick={onRefresh}>
