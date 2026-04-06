@@ -170,6 +170,7 @@ export default function Login() {
                   <option value="odd">Odd Semester</option>
                   <option value="even">Even Semester</option>
                   <option value="summer">Summer Semester</option>
+                  <option value="term3">Term3</option>
                 </select>
               </div>
 

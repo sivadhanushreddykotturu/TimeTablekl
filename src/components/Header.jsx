@@ -62,11 +62,13 @@ export default function Header({ onRefresh }) {
 
   useEffect(() => {
     const storedSemester = localStorage.getItem("semester") || "odd";
+    const validSemesters = new Set(["odd", "even", "summer", "term3"]);
+    const cleanedSemester = validSemesters.has(storedSemester) ? storedSemester : "odd";
     const currentYear = new Date().getFullYear();
     const defaultAcademicYear = `${currentYear}-${(currentYear + 1).toString().slice(-2)}`;
     const storedAcademicYear = localStorage.getItem("academicYear") || defaultAcademicYear;
 
-    setSemester(storedSemester);
+    setSemester(cleanedSemester);
     setAcademicYear(storedAcademicYear);
 
     const options = getCurrentAcademicYearOptions();
@@ -242,6 +244,7 @@ export default function Header({ onRefresh }) {
                       <option value="odd">Odd Semester</option>
                       <option value="even">Even Semester</option>
                       <option value="summer">Summer Semester</option>
+                      <option value="term3">Term3</option>
                     </select>
                   </div>
 

@@ -39,6 +39,7 @@ export default function MaddyTimetable() {
       case 'odd': return 'Odd Semester';
       case 'even': return 'Even Semester';
       case 'summer': return 'Summer Semester';
+      case 'term3': return 'Term3';
       default: return sem;
     }
   };
