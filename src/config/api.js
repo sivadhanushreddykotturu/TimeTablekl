@@ -20,7 +20,9 @@ export const API_CONFIG = {
 export const SEMESTER_MAP = {
   'odd': '1',
   'even': '2', 
-  'summer': '3'
+  'summer': '3',
+  // - Term3 uses semester_id=4
+  'term3': '4',
 };
 
 export const getAcademicYearCode = (academicYear) => {
@@ -41,7 +43,8 @@ export const getFormData = (username, password, captcha, semester, academicYear,
   form.append("captcha", captcha);
   form.append("session_id", sessionId || ""); // Always send session_id, even if empty
   form.append("academic_year_code", getAcademicYearCode(academicYear));
-  form.append("semester_id", SEMESTER_MAP[semester]);
+  // Fallback for legacy/invalid semester keys (e.g., removed options)
+  form.append("semester_id", SEMESTER_MAP[semester] || SEMESTER_MAP["even"]);
   return form;
 };
 

@@ -142,8 +142,10 @@ export default function Home() {
 
     // Get stored semester and academic year
     const storedSemester = localStorage.getItem("semester") || "odd";
+    const validSemesters = new Set(["odd", "even", "summer", "term3"]);
+    const cleanedSemester = validSemesters.has(storedSemester) ? storedSemester : "odd";
     const storedAcademicYear = localStorage.getItem("academicYear") || "2024-25";
-    setSemester(storedSemester);
+    setSemester(cleanedSemester);
     setAcademicYear(storedAcademicYear);
 
     // Get today's subjects
@@ -191,6 +193,7 @@ export default function Home() {
       case 'odd': return 'Odd Semester';
       case 'even': return 'Even Semester';
       case 'summer': return 'Summer Semester';
+      case 'term3': return 'Term3';
       default: return sem;
     }
   };

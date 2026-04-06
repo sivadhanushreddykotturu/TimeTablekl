@@ -249,7 +249,8 @@ export default function Maddys() {
     const options = getCurrentAcademicYearOptions();
     const defaultYear = options[1] || options[0];
     setSelectedMaddy(maddy);
-    setResyncSemester(maddy.semester || "odd");
+    const validSemesters = new Set(["odd", "even", "summer", "term3"]);
+    setResyncSemester(validSemesters.has(maddy.semester) ? maddy.semester : "odd");
     setResyncAcademicYear(maddy.academicYear || defaultYear || "");
     setShowResyncOptions(true);
   };
@@ -302,6 +303,7 @@ export default function Maddys() {
       case 'odd': return 'Odd Semester';
       case 'even': return 'Even Semester';
       case 'summer': return 'Summer Semester';
+      case 'term3': return 'Term3';
       default: return sem;
     }
   };
@@ -858,6 +860,7 @@ export default function Maddys() {
                     <option value="odd">Odd Semester</option>
                     <option value="even">Even Semester</option>
                     <option value="summer">Summer Semester</option>
+                    <option value="term3">Term3</option>
                   </select>
                 </div>
 
