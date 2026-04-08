@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import CaptchaModal from "../components/CaptchaModal";
@@ -121,6 +121,34 @@ function findCurrentAndNextClass(timetable) {
   return { currentClass, nextClass };
 }
 
+function getTimetableChanges(oldTimetable = {}, newTimetable = {}) {
+  const changes = [];
+  const allDays = Array.from(new Set([
+    ...Object.keys(oldTimetable || {}),
+    ...Object.keys(newTimetable || {})
+  ]));
+
+  allDays.forEach((day) => {
+    const oldSlots = oldTimetable?.[day] || {};
+    const newSlots = newTimetable?.[day] || {};
+    const allSlots = Array.from(new Set([
+      ...Object.keys(oldSlots),
+      ...Object.keys(newSlots)
+    ])).sort((a, b) => Number(a) - Number(b));
+
+    allSlots.forEach((slot) => {
+      const oldClass = oldSlots[slot] || "-";
+      const newClass = newSlots[slot] || "-";
+
+      if (oldClass !== newClass) {
+        changes.push({ day, slot, oldClass, newClass });
+      }
+    });
+  });
+
+  return changes;
+}
+
 
 export default function Home() {
   const navigate = useNavigate();
@@ -134,6 +162,9 @@ export default function Home() {
   const [semester, setSemester] = useState("");
   const [academicYear, setAcademicYear] = useState("");
   const [todaySubjects, setTodaySubjects] = useState([]);
+  const [showChangesPopup, setShowChangesPopup] = useState(false);
+  const [resyncChanges, setResyncChanges] = useState([]);
+  const previousTimetableRef = useRef(null);
 
   useEffect(() => {
     const { currentClass, nextClass } = findCurrentAndNextClass(timetable);
@@ -163,6 +194,8 @@ export default function Home() {
   }, []); // Track only once on mount
 
   const handleRefresh = () => {
+    // Snapshot current timetable before opening CAPTCHA ReSync flow.
+    previousTimetableRef.current = timetable;
     setShowCaptchaModal(true);
   };
 
@@ -175,8 +208,23 @@ export default function Home() {
       sync_method: 'captcha'
     });
 
+    // Compare old vs new timetable and show a changes popup if needed.
+    const oldTimetableSnapshot = previousTimetableRef.current || timetable || {};
+    const changes = getTimetableChanges(oldTimetableSnapshot, newTimetable);
+
     setTimetable(newTimetable);
     setTodaySubjects(getTodaySubjects());
+    if (changes.length > 0) {
+      setResyncChanges(changes);
+      setShowChangesPopup(true);
+    } else {
+      setResyncChanges([]);
+      setShowChangesPopup(false);
+    }
+
+    // Clear temporary snapshot once comparison is done.
+    previousTimetableRef.current = null;
+
     setToast({
       show: true,
       message: "Timetable synced successfully!",
@@ -295,6 +343,44 @@ export default function Home() {
         onClose={() => setShowCaptchaModal(false)}
         onSuccess={handleCaptchaSuccess}
       />
+
+      {showChangesPopup && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Timetable Changes Found</h2>
+            </div>
+            <div className="modal-body">
+              <p className="mb-16">Compared with your previous timetable snapshot.</p>
+              <p className="mb-16">These class slots changed after ReSync:</p>
+              <div style={{ maxHeight: "260px", overflowY: "auto", marginBottom: "16px" }}>
+                {resyncChanges.map((change, index) => (
+                  <div key={`${change.day}-${change.slot}-${index}`} className="class-card" style={{ marginBottom: "10px" }}>
+                    <div style={{ fontWeight: 600, marginBottom: "6px" }}>
+                      {change.day} - Slot {change.slot}
+                    </div>
+                    <div style={{ fontSize: "14px" }}>
+                      <div><strong>Old:</strong> {change.oldClass}</div>
+                      <div><strong>New:</strong> {change.newClass}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="modal-actions">
+                <button
+                  className="primary"
+                  onClick={() => {
+                    setShowChangesPopup(false);
+                    setResyncChanges([]);
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Toast
         message={toast.message}

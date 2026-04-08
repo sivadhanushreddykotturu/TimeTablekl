@@ -43,6 +43,9 @@ export default function Maddys() {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     return days[new Date().getDay()];
   });
+  const [showResyncChangesPopup, setShowResyncChangesPopup] = useState(false);
+  const [resyncChanges, setResyncChanges] = useState([]);
+  const [resyncTargetName, setResyncTargetName] = useState("");
 
   useEffect(() => {
     const savedMaddys = JSON.parse(localStorage.getItem("maddys") || "[]");
@@ -277,14 +280,51 @@ export default function Maddys() {
     setSelectedMaddy(null);
   };
 
+  const getTimetableChanges = (oldTimetable = {}, newTimetable = {}) => {
+    const changes = [];
+    const allDays = Array.from(new Set([
+      ...Object.keys(oldTimetable || {}),
+      ...Object.keys(newTimetable || {})
+    ]));
+
+    allDays.forEach((day) => {
+      const oldSlots = oldTimetable?.[day] || {};
+      const newSlots = newTimetable?.[day] || {};
+      const allSlots = Array.from(new Set([
+        ...Object.keys(oldSlots),
+        ...Object.keys(newSlots)
+      ])).sort((a, b) => Number(a) - Number(b));
+
+      allSlots.forEach((slot) => {
+        const oldClass = oldSlots[slot] || "-";
+        const newClass = newSlots[slot] || "-";
+        if (oldClass !== newClass) {
+          changes.push({ day, slot, oldClass, newClass });
+        }
+      });
+    });
+
+    return changes;
+  };
+
   const handleCaptchaSuccess = (newTimetable) => {
     if (selectedMaddy) {
+      const oldTimetableSnapshot = selectedMaddy.timetable || {};
+      const changes = getTimetableChanges(oldTimetableSnapshot, newTimetable);
       const updatedMaddys = maddys.map(maddy => 
         maddy.id === selectedMaddy.id 
           ? { ...maddy, timetable: newTimetable }
           : maddy
       );
       saveMaddys(updatedMaddys);
+      if (changes.length > 0) {
+        setResyncChanges(changes);
+        setResyncTargetName(selectedMaddy.name || "Friend");
+        setShowResyncChangesPopup(true);
+      } else {
+        setResyncChanges([]);
+        setShowResyncChangesPopup(false);
+      }
       setToast({
         show: true,
         message: `${selectedMaddy.name}'s timetable synced successfully!`,
@@ -719,6 +759,45 @@ export default function Maddys() {
         isVisible={toast.show}
         onClose={closeToast}
       />
+
+      {showResyncChangesPopup && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>{resyncTargetName}'s Timetable Changes</h2>
+            </div>
+            <div className="modal-body">
+              <p className="mb-16">Compared with the previous timetable.</p>
+              <p className="mb-16">These slots changed after ReSync:</p>
+              <div style={{ maxHeight: "260px", overflowY: "auto", marginBottom: "16px" }}>
+                {resyncChanges.map((change, index) => (
+                  <div key={`${change.day}-${change.slot}-${index}`} className="class-card" style={{ marginBottom: "10px" }}>
+                    <div style={{ fontWeight: 600, marginBottom: "6px" }}>
+                      {change.day} - Slot {change.slot}
+                    </div>
+                    <div style={{ fontSize: "14px" }}>
+                      <div><strong>Old:</strong> {change.oldClass}</div>
+                      <div><strong>New:</strong> {change.newClass}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="modal-actions">
+                <button
+                  className="primary"
+                  onClick={() => {
+                    setShowResyncChangesPopup(false);
+                    setResyncChanges([]);
+                    setResyncTargetName("");
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Compare Modal */}
       {showCompareModal && (
