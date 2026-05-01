@@ -2,15 +2,18 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FiShare2 } from "react-icons/fi";
 import Header from "../components/Header";
-import AttendanceModal from "../components/AttendanceModal";
 import CalculatorModal from "../components/CalculatorModal";
 import ShowCalculation from "../components/ShowCalculation";
 import Toast from "../components/Toast";
 import { trackEvent } from "../utils/analytics";
+import axios from "axios";
+import { getCredentials } from "../utils/storage.js";
+import { getFormData, API_CONFIG } from "../config/api.js";
 
 export default function Attendance() {
   const location = useLocation();
-  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const [showCalculatorModal, setShowCalculatorModal] = useState(false);
   const [calculatorInitialCourse, setCalculatorInitialCourse] = useState(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -40,8 +43,43 @@ export default function Attendance() {
     }
   }, [showTargetModal]);
 
+  const fetchAttendanceData = async () => {
+    setIsLoading(true);
+    setError("");
+
+    const creds = friendCredentials || getCredentials();
+    if (!creds) {
+      setError("Session expired. Please log in again.");
+      setIsLoading(false);
+      return;
+    }
+
+    const semester = friendCredentials ? friendCredentials.semester : (localStorage.getItem("semester") || "odd");
+    const academicYear = friendCredentials ? friendCredentials.academicYear : (localStorage.getItem("academicYear") || "2024-25");
+
+    try {
+      const form = getFormData(creds.username, creds.password, "", semester, academicYear, "");
+      const res = await axios.post(API_CONFIG.ATTENDANCE_URL, form);
+      
+      if (res.data.success) {
+        handleAttendanceSuccess(res.data.attendance);
+      } else {
+        setError(res.data.message || "Failed to fetch attendance. Please try again.");
+      }
+    } catch (error) {
+      setError(error.response?.data?.message || "Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAttendanceData();
+    // eslint-disable-next-line
+  }, []);
+
   const handleFetchAttendance = () => {
-    setShowAttendanceModal(true);
+    fetchAttendanceData();
   };
 
   const handleAttendanceSuccess = (attendance) => {
@@ -499,10 +537,25 @@ export default function Attendance() {
           </div>
         </div>
 
-        {attendanceData.length === 0 ? (
+        {isLoading ? (
+          <div className="card">
+            <p className="text-center">
+              Fetching {friendCredentials ? `${friendCredentials.name}'s` : 'your'} attendance...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="card">
+            <p className="text-center" style={{ color: "#dc3545", marginBottom: "15px" }}>
+              {error}
+            </p>
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <button onClick={fetchAttendanceData} className="primary">Retry</button>
+            </div>
+          </div>
+        ) : attendanceData.length === 0 ? (
           <div className="card">
             <p className="text-center">
-              Click "ReSync" to fetch {friendCredentials ? `${friendCredentials.name}'s` : 'your attendance and wait min 5 seconds becasue it also fetches register' } 
+              No attendance data found.
             </p>
           </div>
         ) : (
@@ -771,12 +824,7 @@ export default function Attendance() {
         )}
       </div>
 
-      <AttendanceModal
-        isOpen={showAttendanceModal}
-        onClose={() => setShowAttendanceModal(false)}
-        onSuccess={handleAttendanceSuccess}
-        friendCredentials={friendCredentials}
-      />
+
 
       <CalculatorModal
         isOpen={showCalculatorModal}
