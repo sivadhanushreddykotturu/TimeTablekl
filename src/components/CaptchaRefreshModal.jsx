@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { getCredentials } from "../utils/storage";
+import { getCredentials } from "../../utils/storage";
 import { getFormData, API_CONFIG } from "../config/api.js";
 
 export default function CaptchaRefreshModal({ onClose, onSuccess }) {

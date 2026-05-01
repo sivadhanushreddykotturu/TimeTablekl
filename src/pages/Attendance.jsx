@@ -7,7 +7,7 @@ import ShowCalculation from "../components/ShowCalculation";
 import Toast from "../components/Toast";
 import { trackEvent } from "../utils/analytics";
 import axios from "axios";
-import { getCredentials } from "../utils/storage.js";
+import { getCredentials } from "../../utils/storage.js";
 import { getFormData, API_CONFIG } from "../config/api.js";
 
 export default function Attendance() {
