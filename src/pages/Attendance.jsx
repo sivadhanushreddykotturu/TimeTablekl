@@ -78,9 +78,7 @@ export default function Attendance() {
     // eslint-disable-next-line
   }, []);
 
-  const handleFetchAttendance = () => {
-    fetchAttendanceData();
-  };
+
 
   const handleAttendanceSuccess = (attendance) => {
     const grouped = groupAttendanceByCourse(attendance);
@@ -514,7 +512,7 @@ export default function Attendance() {
 
   return (
     <>
-      <Header onRefresh={handleFetchAttendance} />
+      <Header />
 
       <div style={{ marginTop: "16px", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
         <button onClick={() => navigate("/home")} className="secondary">
@@ -540,7 +538,7 @@ export default function Attendance() {
         {isLoading ? (
           <div className="card">
             <p className="text-center">
-              Fetching {friendCredentials ? `${friendCredentials.name}'s` : 'your'} attendance...
+              <strong>Fetching {friendCredentials ? `${friendCredentials.name}'s` : 'your'} attendance...</strong>
             </p>
           </div>
         ) : error ? (
