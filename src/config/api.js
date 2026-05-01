@@ -3,9 +3,6 @@
 // In production, these should be moved to environment variables
 
 export const API_CONFIG = {
-  // CAPTCHA endpoint
-  CAPTCHA_URL: import.meta.env.VITE_CAPTCHA_URL ,
-  
   // Login/Data fetch endpoint
   FETCH_URL: import.meta.env.VITE_FETCH_URL ,
   
@@ -30,18 +27,11 @@ export const getAcademicYearCode = (academicYear) => {
   return (16 + (firstYear - 2024) * 3).toString();
 };
 
-// Helper function to generate captcha URL with timestamp
-export const getCaptchaUrl = () => {
-  return `${API_CONFIG.CAPTCHA_URL}?ts=${Date.now()}`;
-};
-
 // Helper function to get form data with common fields (updated for session-based system)
 export const getFormData = (username, password, captcha, semester, academicYear, sessionId) => {
   const form = new FormData();
   form.append("username", username);
   form.append("password", password);
-  form.append("captcha", captcha);
-  form.append("session_id", sessionId || ""); // Always send session_id, even if empty
   form.append("academic_year_code", getAcademicYearCode(academicYear));
   // Fallback for legacy/invalid semester keys (e.g., removed options)
   form.append("semester_id", SEMESTER_MAP[semester] || SEMESTER_MAP["even"]);
@@ -65,7 +55,5 @@ export const getSeatingFormData = (username, password, captcha, sessionId) => {
   const form = new FormData();
   form.append("username", username);
   form.append("password", password);
-  form.append("captcha", captcha);
-  form.append("session_id", sessionId || "");
   return form;
 };
