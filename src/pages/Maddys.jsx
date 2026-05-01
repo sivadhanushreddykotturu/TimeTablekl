@@ -24,10 +24,6 @@ export default function Maddys() {
   // Add friend states
   const [friendUsername, setFriendUsername] = useState("");
   const [friendPassword, setFriendPassword] = useState("");
-  const [friendCaptcha, setFriendCaptcha] = useState("");
-  const [friendCaptchaUrl, setFriendCaptchaUrl] = useState("");
-  const [friendSessionId, setFriendSessionId] = useState("");
-  const [friendCaptchaLoading, setFriendCaptchaLoading] = useState(true);
   const [friendSemester, setFriendSemester] = useState("odd");
   const [friendAcademicYear, setFriendAcademicYear] = useState("");
   const [friendName, setFriendName] = useState("");
@@ -59,7 +55,6 @@ export default function Maddys() {
 
   useEffect(() => {
     if (showAddModal) {
-      refreshFriendCaptcha();
       const options = getCurrentAcademicYearOptions();
       setFriendAcademicYear(options[1]); // Use current year as default
     }
@@ -70,56 +65,10 @@ export default function Maddys() {
     setMaddys(newMaddys);
   };
 
-  const refreshFriendCaptcha = async () => {
-    setFriendCaptchaLoading(true);
-    setFriendCaptcha("");
-    setFriendSessionId(""); // Reset session ID
-    
-    try {
-      const response = await fetch(API_CONFIG.CAPTCHA_URL);
-      
-      console.log("Response headers:", response.headers);
-      
-      // Get session ID from response headers (try different cases)
-      const sessionIdFromHeader = response.headers.get('x-session-id') || 
-                                 response.headers.get('X-Session-ID') || 
-                                 response.headers.get('X-SESSION-ID');
-      
-      console.log("Session ID from header:", sessionIdFromHeader);
-      
-      if (sessionIdFromHeader) {
-        setFriendSessionId(sessionIdFromHeader);
-        console.log("Session ID set:", sessionIdFromHeader);
-      } else {
-        console.log("No session ID found in headers, using fallback");
-        // Fallback: use timestamp as session ID for new backend compatibility
-        const fallbackSessionId = `session_${Date.now()}`;
-        setFriendSessionId(fallbackSessionId);
-        console.log("Using fallback session ID:", fallbackSessionId);
-      }
-      
-      const blob = await response.blob();
-      const imageUrl = URL.createObjectURL(blob);
-      setFriendCaptchaUrl(imageUrl);
-      console.log("Image URL created:", imageUrl);
-      
-    } catch (error) {
-      console.error("Error loading CAPTCHA:", error);
-      setToast({
-        show: true,
-        message: "Failed to load CAPTCHA",
-        type: "error"
-      });
-    } finally {
-      setFriendCaptchaLoading(false);
-    }
-  };
+
 
   const handleAddFriend = async () => {
-    console.log("Add friend attempt - sessionId:", friendSessionId);
-    console.log("All fields:", { friendUsername, friendPassword, friendCaptcha, friendSemester, friendAcademicYear, friendSessionId });
-    
-    if (!friendUsername || !friendPassword || !friendCaptcha || !friendSemester || !friendAcademicYear) {
+    if (!friendUsername || !friendPassword || !friendSemester || !friendAcademicYear) {
       setToast({
         show: true,
         message: "Please fill all fields.",
@@ -130,7 +79,7 @@ export default function Maddys() {
 
     try {
       setIsAddingFriend(true);
-      const form = getFormData(friendUsername, friendPassword, friendCaptcha, friendSemester, friendAcademicYear, friendSessionId);
+      const form = getFormData(friendUsername, friendPassword, "", friendSemester, friendAcademicYear, "");
 
       const response = await fetch(API_CONFIG.FETCH_URL, {
         method: 'POST',
@@ -150,13 +99,11 @@ export default function Maddys() {
         setShowNameModal(true);
         setShowAddModal(false);
         resetAddForm();
-      } else {
         setToast({
           show: true,
           message: data.message || "Login failed.",
           type: "error"
         });
-        refreshFriendCaptcha();
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -165,7 +112,6 @@ export default function Maddys() {
         message: "Something went wrong.",
         type: "error"
       });
-      refreshFriendCaptcha();
     } finally {
       setIsAddingFriend(false);
     }
@@ -212,10 +158,6 @@ export default function Maddys() {
   const resetAddForm = () => {
     setFriendUsername("");
     setFriendPassword("");
-    setFriendCaptcha("");
-    setFriendCaptchaUrl("");
-    setFriendSessionId("");
-    setFriendCaptchaLoading(true);
     setFriendSemester("odd");
     const options = getCurrentAcademicYearOptions();
     setFriendAcademicYear(options[1]); // Use current year as default
@@ -638,46 +580,6 @@ export default function Maddys() {
                     ))}
                   </select>
                 </div>
-              </div>
-
-              <div className="captcha-container">
-                <p className="mb-16">CAPTCHA takes 5–6 seconds to load. Please wait...</p>
-
-                <div className="captcha-image-container">
-                  {friendCaptchaUrl ? (
-                    <img
-                      src={friendCaptchaUrl}
-                      alt="CAPTCHA"
-                      className="captcha-image"
-                      style={{ 
-                        maxWidth: "100%", 
-                        maxHeight: "100%", 
-                        display: friendCaptchaLoading ? "none" : "block",
-                        objectFit: "contain"
-                      }}
-                      onLoad={() => setFriendCaptchaLoading(false)}
-                      onError={() => setFriendCaptchaLoading(false)}
-                    />
-                  ) : (
-                    <span>No image URL</span>
-                  )}
-                  {friendCaptchaLoading && <span>Loading CAPTCHA...</span>}
-                </div>
-
-                <button
-                  onClick={refreshFriendCaptcha}
-                  className="mb-16"
-                  style={{ fontSize: "14px", padding: "8px 16px" }}
-                >
-                  Reload CAPTCHA
-                </button>
-
-                <input
-                  placeholder="Enter CAPTCHA"
-                  value={friendCaptcha}
-                  onChange={(e) => setFriendCaptcha(e.target.value)}
-                  className="captcha-input"
-                />
               </div>
 
               <div className="modal-actions">
