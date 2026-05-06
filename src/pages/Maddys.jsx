@@ -99,9 +99,10 @@ export default function Maddys() {
         setShowNameModal(true);
         setShowAddModal(false);
         resetAddForm();
+      } else {
         setToast({
           show: true,
-          message: data.message || "Login failed.",
+          message: data.message || "Login failed. Please check credentials.",
           type: "error"
         });
       }

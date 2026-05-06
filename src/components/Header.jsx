@@ -90,7 +90,7 @@ export default function Header({ onRefresh }) {
   const isMaddySection = location.pathname.startsWith("/maddys");
   const isMaddyAttendance = isMaddySection && location.pathname.includes("attendance");
   const isAttendancePage = location.pathname === "/attendance";
-  const showResync = !isMaddySection || isMaddyAttendance;
+  const showResync = (!isMaddySection || isMaddyAttendance) && !isAttendancePage;
 
   // Close when clicking outside
   useEffect(() => {
