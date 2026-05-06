@@ -5,7 +5,6 @@ import CaptchaModal from "../components/CaptchaModal";
 import Toast from "../components/Toast";
 import { getTodaySubjects, replaceCourseCodeWithCustomName } from "../utils/subjectMapper";
 import FeedbackButton from '../components/FeedbackButton';
-import RecentContributors from '../components/RecentContributors.jsx';
 import { trackEvent } from "../utils/analytics";
 import { getSlotTimes, getMaxSlots } from "../utils/slotTimes";
 
@@ -335,7 +334,6 @@ export default function Home() {
         </div>
 
         <FeedbackButton />
-        <RecentContributors />
       </div>
 
       <CaptchaModal
