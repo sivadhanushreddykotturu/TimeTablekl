@@ -1,7 +1,7 @@
 
 
 # 📅 KL Timetable PWA
-#vibecoded
+
 
 A minimal Progressive Web App (PWA) for KL University B.Tech students to view their personalized timetable with ease. It fetches data from the ERP system (using your credentials and CAPTCHA), stores it locally, and displays:
 
@@ -19,7 +19,6 @@ A minimal Progressive Web App (PWA) for KL University B.Tech students to view th
 
 * **Clean UI** — Fast, simple, and mobile-friendly interface.
 * **No re-login** — Stored credentials (securely) in browser.
-* **CAPTCHA-based refresh** — Only CAPTCHA input needed after first login.
 * **Fully offline** — Works even when offline (after first load), except for attendance feature.
 
 ---
@@ -35,7 +34,7 @@ A minimal Progressive Web App (PWA) for KL University B.Tech students to view th
 
 ## 🔐 How It Works
 
-1. User enters **username, password, and CAPTCHA**.
+1. User enters **username, password**.
 2. App sends data to backend API.
 3. On success:
 
@@ -43,7 +42,7 @@ A minimal Progressive Web App (PWA) for KL University B.Tech students to view th
    * Credentials are saved for reuse.
 4. From now on:
 
-   * You can refresh with just CAPTCHA (no password needed).
+   * You can refresh with just REFRESH.
    * You can view current & next class instantly.
 
 ---
@@ -52,7 +51,7 @@ A minimal Progressive Web App (PWA) for KL University B.Tech students to view th
 
 1. Open the app on your browser.
 2. Tap **“Add to Home Screen”** to install it as an app (optional).
-3. Log in once using credentials + CAPTCHA.
+3. Log in once using credentials .
 4. Browse your timetable or see your **Current** / **Next class**.
 
 ---
@@ -73,7 +72,7 @@ npm run dev
 
 The Python backend is deployed using **Render** and handles:
 
-* Login and CAPTCHA
+* Login and CREDENTIALS
 * Timetable scraping
 * Attendance scraping
 * JSON formatting
@@ -82,8 +81,6 @@ The Python backend is deployed using **Render** and handles:
 
 ## ❓ FAQ
 
-**Q:** Why does it ask for CAPTCHA on refresh?
-**A:** KL ERP always requires CAPTCHA. But password is not asked again.
 
 **Q:** Does it store my password online?
 **A:** No. Password is stored **only in your browser’s localStorage** .
