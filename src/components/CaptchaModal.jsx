@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+<<<<<<< HEAD
 import { getCredentials, handleSessionRefresh } from "../../utils/storage.js";
+=======
+import { getCredentials } from "../../utils/storage.js";
+>>>>>>> 2e67d435195917f5f68b07fb70be48f54bd6a902
 import { getFormData, API_CONFIG } from "../config/api.js";
 
 export default function CaptchaModal({ isOpen, onClose, onSuccess, friendCredentials = null }) {
@@ -24,10 +28,16 @@ export default function CaptchaModal({ isOpen, onClose, onSuccess, friendCredent
     try {
       const form = getFormData(creds.username, creds.password, "", semester, academicYear, "");
       const res = await axios.post(API_CONFIG.FETCH_URL, form);
+<<<<<<< HEAD
 
       if (res.data.success) {
         if (!friendCredentials) {
           handleSessionRefresh(res.data);
+=======
+      
+      if (res.data.success) {
+        if (!friendCredentials) {
+>>>>>>> 2e67d435195917f5f68b07fb70be48f54bd6a902
           localStorage.setItem("timetable", JSON.stringify(res.data.timetable));
         }
         onSuccess(res.data.timetable);
