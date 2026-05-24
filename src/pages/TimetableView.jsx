@@ -5,7 +5,7 @@ import { FiShare2 } from "react-icons/fi";
 import Header from "../components/Header";
 import { syncTimetable } from "../../utils/syncTimetable.js";
 import Toast from "../components/Toast";
-import { getSubjectName, replaceCourseCodeWithCustomName } from "../utils/subjectMapper";
+import { replaceCourseCodeWithCustomName } from "../utils/subjectMapper";
 import { trackEvent } from "../utils/analytics";
 import { getSlotTimes, getMaxSlots } from "../utils/slotTimes";
 

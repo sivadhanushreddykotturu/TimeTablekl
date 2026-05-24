@@ -332,11 +332,7 @@ export default function MaddyTimetable() {
             className="secondary"
             style={{ marginTop: "16px" }}
           >
-<<<<<<< HEAD
             ← Back to docs
-=======
-            ← Back to Maddys
->>>>>>> 2e67d435195917f5f68b07fb70be48f54bd6a902
           </button>
         </div>
 

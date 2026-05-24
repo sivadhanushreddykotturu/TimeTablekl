@@ -12,7 +12,7 @@ export const getCredentials = () => {
   try {
     const raw = localStorage.getItem("erp_creds");
     return raw ? JSON.parse(raw) : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -54,7 +54,7 @@ export const getStoredCookies = () => {
   try {
     const raw = localStorage.getItem(COOKIE_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
