@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- White background -->
+  <rect width="512" height="512" rx="128" fill="#ffffff"/>
+  
+  <!-- Blue border -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="#3b82f6" stroke="#1e40af" stroke-width="8"/>
+  
+  <!-- Calendar Icon (centered and scaled) -->
+  <g transform="translate(128, 128) scale(0.5)">
+    <!-- Calendar base -->
+    <rect x="32" y="80" width="448" height="384" rx="16" fill="#ffffff"/>
+    
+    <!-- Calendar header -->
+    <rect x="32" y="80" width="448" height="64" rx="16" fill="#3b82f6"/>
+    
+    <!-- Calendar grid lines -->
+    <rect x="32" y="144" width="448" height="2" fill="#e5e7eb"/>
+    <rect x="32" y="192" width="448" height="2" fill="#e5e7eb"/>
+    <rect x="32" y="240" width="448" height="2" fill="#e5e7eb"/>
+    <rect x="32" y="288" width="448" height="2" fill="#e5e7eb"/>
+    <rect x="32" y="336" width="448" height="2" fill="#e5e7eb"/>
+    <rect x="32" y="384" width="448" height="2" fill="#e5e7eb"/>
+    
+    <!-- Vertical lines -->
+    <rect x="96" y="144" width="2" height="272" fill="#e5e7eb"/>
+    <rect x="160" y="144" width="2" height="272" fill="#e5e7eb"/>
+    <rect x="224" y="144" width="2" height="272" fill="#e5e7eb"/>
+    <rect x="288" y="144" width="2" height="272" fill="#e5e7eb"/>
+    <rect x="352" y="144" width="2" height="272" fill="#e5e7eb"/>
+    <rect x="416" y="144" width="2" height="272" fill="#e5e7eb"/>
+    
+    <!-- Calendar dots (time slots) -->
+    <circle cx="64" cy="112" r="4" fill="#ffffff"/>
+    <circle cx="128" cy="112" r="4" fill="#ffffff"/>
+    <circle cx="192" cy="112" r="4" fill="#ffffff"/>
+    <circle cx="256" cy="112" r="4" fill="#ffffff"/>
+    <circle cx="320" cy="112" r="4" fill="#ffffff"/>
+    <circle cx="384" cy="112" r="4" fill="#ffffff"/>
+    <circle cx="448" cy="112" r="4" fill="#ffffff"/>
+    
+    <!-- Time slot indicators -->
+    <rect x="48" y="168" width="32" height="16" rx="8" fill="#3b82f6"/>
+    <rect x="112" y="168" width="32" height="16" rx="8" fill="#3b82f6"/>
+    <rect x="176" y="168" width="32" height="16" rx="8" fill="#3b82f6"/>
+    <rect x="240" y="168" width="32" height="16" rx="8" fill="#3b82f6"/>
+    <rect x="304" y="168" width="32" height="16" rx="8" fill="#3b82f6"/>
+    <rect x="368" y="168" width="32" height="16" rx="8" fill="#3b82f6"/>
+    <rect x="432" y="168" width="32" height="16" rx="8" fill="#3b82f6"/>
+    
+    <!-- Calendar hanger -->
+    <rect x="224" y="48" width="64" height="32" rx="16" fill="#3b82f6"/>
+    <rect x="240" y="40" width="32" height="16" rx="8" fill="#3b82f6"/>
+  </g>
+</svg>
