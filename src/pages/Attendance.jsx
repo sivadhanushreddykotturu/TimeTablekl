@@ -59,7 +59,15 @@ export default function Attendance() {
     const academicYear = friendCredentials ? friendCredentials.academicYear : (localStorage.getItem("academicYear") || "2024-25");
 
     try {
-      const form = getFormData(creds.username, creds.password, "", semester, academicYear, "");
+      const form = getFormData(
+        creds.username,
+        creds.password,
+        "",
+        semester,
+        academicYear,
+        "",
+        { useStoredCookies: !friendCredentials }
+      );
       const res = await axios.post(API_CONFIG.ATTENDANCE_URL, form);
 
       if (res.data.success) {
@@ -750,7 +758,8 @@ export default function Attendance() {
                                 const form = getRegisterDetailFormData(
                                   creds.username,
                                   creds.password,
-                                  attendanceItem.register_href
+                                  attendanceItem.register_href,
+                                  { useStoredCookies: !friendCredentials }
                                 );
                                 const res = await axios.post(API_CONFIG.REGISTER_DETAIL_URL, form);
 

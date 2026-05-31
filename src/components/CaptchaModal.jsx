@@ -22,7 +22,15 @@ export default function CaptchaModal({ isOpen, onClose, onSuccess, friendCredent
     const academicYear = friendCredentials ? friendCredentials.academicYear : (localStorage.getItem("academicYear") || "2024-25");
 
     try {
-      const form = getFormData(creds.username, creds.password, "", semester, academicYear, "");
+      const form = getFormData(
+        creds.username,
+        creds.password,
+        "",
+        semester,
+        academicYear,
+        "",
+        { useStoredCookies: !friendCredentials }
+      );
       const res = await axios.post(API_CONFIG.FETCH_URL, form);
       if (res.data.success) {
         if (!friendCredentials) {
