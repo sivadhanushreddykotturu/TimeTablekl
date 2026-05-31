@@ -14,6 +14,12 @@ export const API_CONFIG = {
 
   // Register detail (lazy-load on click) endpoint
   REGISTER_DETAIL_URL: import.meta.env.VITE_REGISTER_DETAIL_URL,
+
+  // CGPA summary (all graded courses)
+  CGPA_URL: import.meta.env.VITE_CGPA_URL,
+
+  // Per-course marks scorecard (lazy-load via target_href)
+  MARKS_DETAIL_URL: import.meta.env.VITE_MARKS_DETAIL_URL,
 };
 
 // Semester mapping
@@ -43,23 +49,41 @@ const _getStoredCookies = () => {
   };
 };
 
-
-// Helper function to get form data with common fields
-// Now includes username, password AND cookie fields for self-healing backend
-export const getFormData = (username, password, captcha, semester, academicYear, sessionId) => {
-  const form = new FormData();
-  form.append("username", username);
-  form.append("password", password);
-  form.append("academic_year_code", getAcademicYearCode(academicYear));
-  // Fallback for legacy/invalid semester keys (e.g., removed options)
-  form.append("semester_id", SEMESTER_MAP[semester] || SEMESTER_MAP["even"]);
-
-  // Append cookie fields for self-healing routes
+/** @param {FormData} form @param {{ useStoredCookies?: boolean }} options */
+const _appendSessionCookies = (form, { useStoredCookies = true } = {}) => {
+  if (!useStoredCookies) {
+    form.append("php_sess_id", "");
+    form.append("csrf_cookie", "");
+    form.append("device_id", "");
+    form.append("server_id", "erp3");
+    return;
+  }
   const stored = _getStoredCookies();
   form.append("php_sess_id", stored.php_sess_id);
   form.append("csrf_cookie", stored.csrf_cookie);
   form.append("device_id", stored.device_id);
   form.append("server_id", stored.server_id);
+};
+
+// Helper function to get form data with common fields
+// Now includes username, password AND cookie fields for self-healing backend
+// Pass { useStoredCookies: false } for friend/other-account requests (cold login).
+export const getFormData = (
+  username,
+  password,
+  captcha,
+  semester,
+  academicYear,
+  sessionId,
+  options = {}
+) => {
+  const form = new FormData();
+  form.append("username", username);
+  form.append("password", password);
+  form.append("academic_year_code", getAcademicYearCode(academicYear));
+  form.append("semester_id", SEMESTER_MAP[semester] || SEMESTER_MAP["even"]);
+
+  _appendSessionCookies(form, options);
 
   return form;
 };
@@ -78,34 +102,36 @@ export const getCurrentAcademicYearOptions = () => {
 
 // Helper function to get form data for seating plan
 // Now includes cookie fields for self-healing backend
-export const getSeatingFormData = (username, password, captcha, sessionId) => {
+export const getSeatingFormData = (username, password, captcha, sessionId, options = {}) => {
   const form = new FormData();
   form.append("username", username);
   form.append("password", password);
 
-  // Append cookie fields for self-healing routes
-  const stored = _getStoredCookies();
-  form.append("php_sess_id", stored.php_sess_id);
-  form.append("csrf_cookie", stored.csrf_cookie);
-  form.append("device_id", stored.device_id);
-  form.append("server_id", stored.server_id);
+  _appendSessionCookies(form, options);
 
   return form;
 };
 
 // Helper function to get form data for register detail (lazy fetch)
-export const getRegisterDetailFormData = (username, password, registerHref) => {
+export const getRegisterDetailFormData = (username, password, registerHref, options = {}) => {
   const form = new FormData();
   form.append("username", username);
   form.append("password", password);
   form.append("register_href", registerHref);
 
-  // Append cookie fields for self-healing routes
-  const stored = _getStoredCookies();
-  form.append("php_sess_id", stored.php_sess_id);
-  form.append("csrf_cookie", stored.csrf_cookie);
-  form.append("device_id", stored.device_id);
-  form.append("server_id", stored.server_id);
+  _appendSessionCookies(form, options);
+
+  return form;
+};
+
+// Helper function to get form data for marks detail (lazy fetch)
+export const getMarksDetailFormData = (username, password, targetHref, options = {}) => {
+  const form = new FormData();
+  form.append("username", username);
+  form.append("password", password);
+  form.append("target_href", targetHref);
+
+  _appendSessionCookies(form, options);
 
   return form;
 };

@@ -22,7 +22,15 @@ export default function AttendanceModal({ isOpen, onClose, onSuccess, friendCred
     const academicYear = friendCredentials ? friendCredentials.academicYear : (localStorage.getItem("academicYear") || "2024-25");
 
     try {
-      const form = getFormData(creds.username, creds.password, "", semester, academicYear, "");
+      const form = getFormData(
+        creds.username,
+        creds.password,
+        "",
+        semester,
+        academicYear,
+        "",
+        { useStoredCookies: friendCredentials ? false : true }
+      );
       const res = await axios.post(API_CONFIG.ATTENDANCE_URL, form);
       
       if (res.data.success) {

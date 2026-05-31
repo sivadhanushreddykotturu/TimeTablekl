@@ -306,6 +306,14 @@ export default function Home() {
           </button>
 
           <button
+            onClick={() => navigate("/grades")}
+            className="secondary full-width-mobile"
+            style={{ marginTop: "20px" }}
+          >
+            CGPA &amp; SGPA
+          </button>
+
+          <button
             onClick={() => navigate("/maddys")}
             className="secondary full-width-mobile"
             style={{ marginTop: "20px" }}

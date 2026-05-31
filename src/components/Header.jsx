@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { clearCredentials, getCredentials, saveCredentials } from "../../utils/storage.js";
+import {
+  clearCookies,
+  clearCredentials,
+  getCredentials,
+  saveCredentials,
+} from "../../utils/storage.js";
 import ThemeToggle from "./ThemeToggle.jsx";
 import { getCurrentAcademicYearOptions } from "../config/api.js";
 import { BiLogOut } from "react-icons/bi";
@@ -22,6 +27,7 @@ export default function Header({ onRefresh }) {
   const [syncStatus, setSyncStatus] = useState(null);
   const dropdownRef = useRef(null);
   const profileDropdownRef = useRef(null);
+  const profileCredsSnapshotRef = useRef({ username: "", password: "" });
 
   useEffect(() => {
     localStorage.setItem("avatarSeed", avatarSeed);
@@ -34,6 +40,15 @@ export default function Header({ onRefresh }) {
       setPassword(creds.password || "");
     }
   }, []);
+
+  useEffect(() => {
+    if (!showProfileDropdown) return;
+    const creds = getCredentials();
+    profileCredsSnapshotRef.current = {
+      username: creds?.username || "",
+      password: creds?.password || "",
+    };
+  }, [showProfileDropdown]);
 
   // Don't show on login page
   if (location.pathname === "/") return null;
@@ -110,7 +125,8 @@ export default function Header({ onRefresh }) {
   const isMaddySection = location.pathname.startsWith("/maddys");
   const isMaddyAttendance = isMaddySection && location.pathname.includes("attendance");
   const isAttendancePage = location.pathname === "/attendance";
-  const showResync = (!isMaddySection || isMaddyAttendance) && !isAttendancePage;
+  const isGradesPage = location.pathname === "/grades";
+  const showResync = (!isMaddySection || isMaddyAttendance) && !isAttendancePage && !isGradesPage;
 
   // Close when clicking outside
   useEffect(() => {
@@ -219,7 +235,23 @@ export default function Header({ onRefresh }) {
                   <button
                     className="primary"
                     onClick={() => {
-                      saveCredentials({ username, password });
+                      const snapshot = profileCredsSnapshotRef.current;
+                      const credsChanged =
+                        username.trim() !== snapshot.username ||
+                        password !== snapshot.password;
+
+                      if (credsChanged) {
+                        clearCookies();
+                      }
+
+                      saveCredentials({
+                        username: username.trim(),
+                        password,
+                      });
+                      profileCredsSnapshotRef.current = {
+                        username: username.trim(),
+                        password,
+                      };
                       setShowProfileDropdown(false);
                     }}
                   >

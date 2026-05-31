@@ -14,6 +14,7 @@ import MaddysPage from "./pages/Maddys.jsx";
 import MaddyClassInfo from "./pages/MaddyClassInfo.jsx";
 import MaddyTimetable from "./pages/MaddyTimetable.jsx";
 import AttendancePage from "./pages/Attendance.jsx";
+import GradesPage from "./pages/Grades.jsx";
 import RegisterPage from "./pages/Register.jsx";
 import ExamPage from "./pages/Exam.jsx";
 const CalculatorPage = lazy(() => import("./pages/Calculator.jsx"));
@@ -43,6 +44,7 @@ function App() {
               <Route path="/maddys/:id/class" element={<MaddyClassInfo />} />
               <Route path="/maddys/:id/timetable" element={<MaddyTimetable />} />
               <Route path="/attendance" element={<AttendancePage />} />
+              <Route path="/grades" element={<GradesPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/exam" element={<ExamPage />} />
               <Route path="/kl-calculator" element={<CalculatorPage />} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MdCompare } from "react-icons/md";
+import { MdCompare, MdGrade } from "react-icons/md";
 import Header from "../components/Header";
 import { syncTimetable } from "../../utils/syncTimetable.js";
 import Toast from "../components/Toast";
@@ -82,7 +82,15 @@ export default function Maddys() {
 
     try {
       setIsAddingFriend(true);
-      const form = getFormData(friendUsername, friendPassword, "", friendSemester, friendAcademicYear, "");
+      const form = getFormData(
+        friendUsername,
+        friendPassword,
+        "",
+        friendSemester,
+        friendAcademicYear,
+        "",
+        { useStoredCookies: false }
+      );
 
       const response = await fetch(API_CONFIG.FETCH_URL, {
         method: 'POST',
@@ -505,6 +513,30 @@ export default function Maddys() {
                       title="Attendance"
                     >
                       📊
+                    </button>
+                    <button
+                      onClick={() => {
+                        trackEvent("maddy_viewed", {
+                          maddy_id: maddy.id,
+                          maddy_name: maddy.name,
+                          view_type: "grades",
+                        });
+                        navigate("/grades", {
+                          state: {
+                            friendCredentials: {
+                              username: maddy.username,
+                              password: maddy.password,
+                              semester: maddy.semester,
+                              academicYear: maddy.academicYear,
+                              name: maddy.name,
+                            },
+                          },
+                        });
+                      }}
+                      className="action-btn"
+                      title="CGPA & SGPA"
+                    >
+                      <MdGrade size={22} />
                     </button>
                     <button 
                       onClick={() => openDeleteConfirm(maddy)}
