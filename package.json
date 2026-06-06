@@ -23,6 +23,7 @@
     "framer-motion": "^12.38.0",
     "gtag": "^1.0.1",
     "html2canvas": "^1.4.1",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.577.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

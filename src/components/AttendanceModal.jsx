@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { getCredentials } from "../../utils/storage.js";
 import { getFormData, API_CONFIG } from "../config/api.js";
+import Lottie from "lottie-react";
+import animationData from "../assets/animation.json";
 
 export default function AttendanceModal({ isOpen, onClose, onSuccess, friendCredentials = null }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -87,8 +89,11 @@ export default function AttendanceModal({ isOpen, onClose, onSuccess, friendCred
         </h3>
 
         {isLoading ? (
-          <div style={{ padding: "20px" }}>
-            <p>Fetching in background...</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div style={{ width: '100px', height: '100px' }}>
+              <Lottie animationData={animationData} loop={true} />
+            </div>
+            <p style={{ marginTop: '10px' }}>Fetching in background...</p>
           </div>
         ) : error ? (
           <div style={{ color: "#dc3545", marginBottom: "15px" }}>
