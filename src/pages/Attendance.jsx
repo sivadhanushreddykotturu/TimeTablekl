@@ -10,6 +10,9 @@ import axios from "axios";
 import { getCredentials, handleSessionRefresh } from "../../utils/storage.js";
 import { getFormData, getRegisterDetailFormData, API_CONFIG } from "../config/api.js";
 
+import Lottie from "lottie-react";
+import animationData from "../assets/animation.json";
+
 export default function Attendance() {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
@@ -565,8 +568,11 @@ export default function Attendance() {
         </div>
 
         {isLoading ? (
-          <div className="card">
-            <p className="text-center">
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+            <div style={{ width: '150px', height: '150px' }}>
+              <Lottie animationData={animationData} loop={true} />
+            </div>
+            <p className="text-center" style={{ marginTop: '1rem' }}>
               <strong>Fetching {friendCredentials ? `${friendCredentials.name}'s` : 'your'} attendance...</strong>
             </p>
           </div>
