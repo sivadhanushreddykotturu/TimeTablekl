@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from "react";
 import { HeadProvider } from "react-head";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import AuthGuard from "./components/AuthGuard.jsx";
 import Footer from "./components/Footer.jsx";
@@ -23,6 +23,25 @@ const CalculatorPage = lazy(() => import("./pages/Calculator.jsx"));
 // Lazy load analytics to reduce initial bundle size
 const Analytics = lazy(() => import("@vercel/analytics/react").then(module => ({ default: module.Analytics })));
 
+
+
+const GlobalAds = () => {
+  const location = useLocation();
+  if (location.pathname === '/' || location.pathname === '/register') {
+    return null;
+  }
+  return (
+    <div className="global-ads-container">
+      <div className="global-ad left-ad">
+        <AdsterraAd />
+      </div>
+      <div className="global-ad right-ad">
+        <AdsterraAd />
+      </div>
+    </div>
+  );
+};
+
 function App() {
   return (
     <HeadProvider>
@@ -31,14 +50,7 @@ function App() {
         <Router>
           <GoogleAnalytics />
           <div className="app-wrapper">
-            <div className="global-ads-container">
-              <div className="global-ad left-ad">
-                <AdsterraAd />
-              </div>
-              <div className="global-ad right-ad">
-                <AdsterraAd />
-              </div>
-            </div>
+            <GlobalAds />
             <Suspense fallback={<div className="loading-container">Loading...</div>}>
             <Routes>
               <Route path="/" element={
