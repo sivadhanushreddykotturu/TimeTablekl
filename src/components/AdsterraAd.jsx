@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 
 const adHTML = `
 <!DOCTYPE html>
@@ -24,12 +25,15 @@ const adHTML = `
 `;
 
 const AdsterraAd = () => {
+  const location = useLocation();
+
   return (
     <div className="ad-wrapper">
       <div className="ad-placeholder">
         <span>This space is for ads</span>
       </div>
       <iframe
+        key={location.pathname}
         srcDoc={adHTML}
         width="160"
         height="600"
