@@ -297,7 +297,7 @@ export default function Calculator() {
           <div className="header-right" />
         </div>
       )}
-      <div style={{ 
+      <div className="container" style={{ 
         position: "relative",
         marginTop: "16px",
         padding: "10px 12px", 

@@ -462,7 +462,7 @@ export default function Grades() {
     <>
       <Header />
 
-      <div className="grades-back-nav">
+      <div className="container grades-back-nav">
         <button
           type="button"
           onClick={() => navigate(friendCredentials ? "/maddys" : "/home")}

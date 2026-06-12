@@ -6,6 +6,7 @@ import AuthGuard from "./components/AuthGuard.jsx";
 import Footer from "./components/Footer.jsx";
 import PerformanceMonitor from "./components/PerformanceMonitor.jsx";
 import GoogleAnalytics from "./components/GoogleAnalytics.jsx";
+import AdsterraAd from "./components/AdsterraAd.jsx";
 import LoginPage from "./pages/Login.jsx";
 import HomePage from "./pages/Home.jsx";
 import TimetablePage from "./pages/TimetableView.jsx";
@@ -30,6 +31,14 @@ function App() {
         <Router>
           <GoogleAnalytics />
           <div className="app-wrapper">
+            <div className="global-ads-container">
+              <div className="global-ad left-ad">
+                <AdsterraAd />
+              </div>
+              <div className="global-ad right-ad">
+                <AdsterraAd />
+              </div>
+            </div>
             <Suspense fallback={<div className="loading-container">Loading...</div>}>
             <Routes>
               <Route path="/" element={

@@ -2439,3 +2439,74 @@ button.small {
     opacity: 0.6;
   }
 }
+
+/* Global Ads Layout */
+.global-ads-container {
+  display: none;
+  position: fixed;
+  top: 150px;
+  left: 50%;
+  width: 100%;
+  max-width: 600px;
+  transform: translateX(-50%);
+  z-index: 10;
+  pointer-events: none; /* Let clicks pass through to content behind the empty spaces */
+}
+
+@media (min-width: 1024px) {
+  .global-ads-container {
+    display: block; /* show on desktop */
+  }
+}
+
+.global-ad {
+  position: absolute;
+  width: 160px;
+  pointer-events: auto; /* Re-enable clicks on the ads themselves */
+}
+
+.global-ad.left-ad {
+  right: calc(100% + 20px);
+}
+
+.global-ad.right-ad {
+  left: calc(100% + 20px);
+}
+
+.ad-wrapper {
+  position: relative;
+  width: 160px;
+  height: 600px;
+  background-color: var(--card-bg, #f0f0f0);
+  border: 1px dashed var(--border-color, #ccc);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ad-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 10px;
+  z-index: 1;
+  color: var(--text-secondary, #666);
+  font-size: 0.9rem;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.ad-iframe {
+  position: relative;
+  z-index: 2;
+  border: none;
+  background: transparent;
+}

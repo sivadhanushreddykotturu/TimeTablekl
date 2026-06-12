@@ -546,7 +546,7 @@ export default function Attendance() {
     <>
       <Header />
 
-      <div style={{ marginTop: "16px", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div className="container" style={{ marginTop: "16px", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
         <button onClick={() => navigate("/home")} className="secondary">
           Back to Home
         </button>
