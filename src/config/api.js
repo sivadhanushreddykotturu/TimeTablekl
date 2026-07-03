@@ -32,6 +32,7 @@ export const SEMESTER_MAP = {
 };
 
 export const getAcademicYearCode = (academicYear) => {
+  if (academicYear == '2026-27') return '29';
   const firstYear = parseInt(academicYear.split('-')[0]);
   return (16 + (firstYear - 2024) * 3).toString();
 };
