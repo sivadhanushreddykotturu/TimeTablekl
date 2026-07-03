@@ -94,7 +94,8 @@ export default function Maddys() {
 
       const response = await fetch(API_CONFIG.FETCH_URL, {
         method: 'POST',
-        body: form
+        body: form,
+        credentials: 'omit'
       });
 
       const data = await response.json();
