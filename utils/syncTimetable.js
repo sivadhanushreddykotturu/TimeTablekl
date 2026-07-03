@@ -11,7 +11,15 @@ export const syncTimetable = async (friendCredentials = null) => {
   const semester = friendCredentials ? friendCredentials.semester : (localStorage.getItem("semester") || "odd");
   const academicYear = friendCredentials ? friendCredentials.academicYear : (localStorage.getItem("academicYear") || "2024-25");
 
-  const form = getFormData(creds.username, creds.password, "", semester, academicYear, "");
+  const form = getFormData(
+    creds.username, 
+    creds.password, 
+    "", 
+    semester, 
+    academicYear, 
+    "", 
+    { useStoredCookies: friendCredentials ? false : true }
+  );
   const res = await axios.post(API_CONFIG.FETCH_URL, form);
 
   if (res.data.success) {
