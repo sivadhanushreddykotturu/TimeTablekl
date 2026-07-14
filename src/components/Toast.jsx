@@ -1,64 +1,243 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Toaster as SonnerToaster,
+  toast as sonnerToast,
+} from 'sonner';
+import {
+  CheckCircle,
+  AlertCircle,
+  Info,
+  AlertTriangle,
+  X,
+} from 'lucide-react';
 
-export default function Toast({ message, type = 'success', isVisible, onClose }) {
-  useEffect(() => {
-    if (isVisible) {
-      const timer = setTimeout(() => {
-        onClose();
-      }, 3000); // Auto hide after 3 seconds
+/* ─── variant maps ─── */
 
-      return () => clearTimeout(timer);
-    }
-  }, [isVisible, onClose]);
+const variantStyles = {
+  success: {
+    border: '1px solid rgba(40, 167, 69, 0.5)',
+    iconColor: '#28a745',
+    titleColor: '#28a745',
+  },
+  error: {
+    border: '1px solid rgba(220, 53, 69, 0.5)',
+    iconColor: '#dc3545',
+    titleColor: '#dc3545',
+  },
+  info: {
+    border: '1px solid rgba(207, 255, 4, 0.35)',
+    iconColor: '#cfff04',
+    titleColor: '#cfff04',
+  },
+};
 
-  if (!isVisible) return null;
+const variantIcons = {
+  success: CheckCircle,
+  error: AlertCircle,
+  info: Info,
+};
 
-  const getIcon = () => {
-    switch (type) {
-      case 'success':
-        return (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22,4 12,14.01 9,11.01" />
-          </svg>
-        );
-      case 'error':
-        return (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="15" y1="9" x2="9" y2="15" />
-            <line x1="9" y1="9" x2="15" y2="15" />
-          </svg>
-        );
-      case 'info':
-        return (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="16" x2="12" y2="12" />
-            <line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
-        );
-      default:
-        return null;
-    }
-  };
+const toastAnimation = {
+  initial: { opacity: 0, y: 50, scale: 0.95 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: 50, scale: 0.95 },
+};
+
+/* ─── internal custom toast content ─── */
+
+function ToastContent({ toastId, message, variant, onDismiss }) {
+  const v = variantStyles[variant] || variantStyles.info;
+  const Icon = variantIcons[variant] || Info;
 
   return (
-    <div className={`toast toast-${type} ${isVisible ? 'toast-visible' : ''}`}>
-      <div className="toast-content">
-        <div className="toast-icon">
-          {getIcon()}
-        </div>
-        <div className="toast-message">
+    <motion.div
+      variants={toastAnimation}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        maxWidth: '340px',
+        padding: '12px 16px',
+        borderRadius: '0px',
+        border: v.border,
+        boxShadow: '0 4px 14px rgba(0,0,0,0.45)',
+        backgroundColor: 'var(--np-carbon, #131316)',
+        color: 'var(--np-cream, #f4f2ea)',
+        fontFamily: "var(--np-font-ui, 'Space Grotesk', 'Segoe UI', sans-serif)",
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+        <Icon
+          style={{
+            width: '18px',
+            height: '18px',
+            flexShrink: 0,
+            marginTop: '1px',
+            color: v.iconColor,
+          }}
+        />
+        <p
+          style={{
+            margin: 0,
+            fontSize: '13px',
+            fontWeight: 500,
+            lineHeight: 1.45,
+            color: 'var(--np-cream, #f4f2ea)',
+            fontFamily: "var(--np-font-ui, 'Space Grotesk', 'Segoe UI', sans-serif)",
+            wordBreak: 'break-word',
+          }}
+        >
           {message}
-        </div>
-        <button className="toast-close" onClick={onClose}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+        </p>
       </div>
-    </div>
+
+      <button
+        onClick={() => {
+          sonnerToast.dismiss(toastId);
+          onDismiss?.();
+        }}
+        aria-label="Dismiss notification"
+        style={{
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '24px',
+          height: '24px',
+          marginLeft: '10px',
+          padding: 0,
+          background: 'transparent',
+          border: 'none',
+          borderRadius: '0px',
+          color: 'var(--np-muted, #8b8b95)',
+          cursor: 'pointer',
+          transition: 'background 0.2s, color 0.2s',
+          minHeight: 'auto',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--np-well, #0e0e11)';
+          e.currentTarget.style.color = 'var(--np-cream, #f4f2ea)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.color = 'var(--np-muted, #8b8b95)';
+        }}
+      >
+        <X style={{ width: '14px', height: '14px' }} />
+      </button>
+    </motion.div>
   );
-} 
+}
+
+/* ─── singleton Sonner host – mount once in App ─── */
+
+let sonnerMounted = false;
+
+export function ToasterProvider() {
+  sonnerMounted = true;
+  return (
+    <SonnerToaster
+      position="bottom-right"
+      toastOptions={{
+        unstyled: true,
+        style: {
+          display: 'flex',
+          justifyContent: 'flex-end',
+        },
+      }}
+    />
+  );
+}
+
+/* ─── drop-in replacement for the old <Toast /> ─── */
+
+let activeToastId = null;
+
+export default function Toast({ message, type = 'success', isVisible, onClose }) {
+  const prevVisible = useRef(false);
+
+  useEffect(() => {
+    // Transition from hidden → visible: fire a sonner toast
+    if (isVisible && !prevVisible.current) {
+      // dismiss any prior toast so they don't stack
+      if (activeToastId !== null) {
+        sonnerToast.dismiss(activeToastId);
+      }
+
+      activeToastId = sonnerToast.custom(
+        (toastId) => (
+          <ToastContent
+            toastId={toastId}
+            message={message}
+            variant={type}
+            onDismiss={onClose}
+          />
+        ),
+        {
+          duration: 3000,
+          position: 'bottom-right',
+          onDismiss: () => {
+            activeToastId = null;
+            onClose?.();
+          },
+          onAutoClose: () => {
+            activeToastId = null;
+            onClose?.();
+          },
+        }
+      );
+    }
+
+    // Transition from visible → hidden: dismiss
+    if (!isVisible && prevVisible.current) {
+      if (activeToastId !== null) {
+        sonnerToast.dismiss(activeToastId);
+        activeToastId = null;
+      }
+    }
+
+    prevVisible.current = isVisible;
+  }, [isVisible, message, type, onClose]);
+
+  // The actual rendering is handled by the SonnerToaster host.
+  return null;
+}
+
+/* ─── imperative ref-based API (advanced usage) ─── */
+
+export const ToasterRef = forwardRef(({ defaultPosition = 'bottom-right' }, ref) => {
+  useImperativeHandle(ref, () => ({
+    show({ title, message, variant = 'info', duration = 4000, position = defaultPosition, onDismiss }) {
+      sonnerToast.custom(
+        (toastId) => (
+          <ToastContent
+            toastId={toastId}
+            message={title ? `${title} — ${message}` : message}
+            variant={variant}
+            onDismiss={onDismiss}
+          />
+        ),
+        { duration, position }
+      );
+    },
+  }));
+
+  return (
+    <SonnerToaster
+      position={defaultPosition}
+      toastOptions={{
+        unstyled: true,
+        style: {
+          display: 'flex',
+          justifyContent: 'flex-end',
+        },
+      }}
+    />
+  );
+});
