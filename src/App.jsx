@@ -1,48 +1,36 @@
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useEffect } from "react";
 import { HeadProvider } from "react-head";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import AuthGuard from "./components/AuthGuard.jsx";
-import Footer from "./components/Footer.jsx";
 import PerformanceMonitor from "./components/PerformanceMonitor.jsx";
 import GoogleAnalytics from "./components/GoogleAnalytics.jsx";
-import AdsterraAd from "./components/AdsterraAd.jsx";
-import LoginPage from "./pages/Login.jsx";
-import HomePage from "./pages/Home.jsx";
-import TimetablePage from "./pages/TimetableView.jsx";
-import SubjectsPage from "./pages/Subjects.jsx";
-import MaddysPage from "./pages/Maddys.jsx";
-import MaddyClassInfo from "./pages/MaddyClassInfo.jsx";
-import MaddyTimetable from "./pages/MaddyTimetable.jsx";
-import AttendancePage from "./pages/Attendance.jsx";
-import GradesPage from "./pages/Grades.jsx";
+import LoginPage from "./neo/Login.jsx";
+import HomePage from "./neo/pages/Home.jsx";
+import TimetablePage from "./neo/pages/Timetable.jsx";
+import SubjectsPage from "./neo/pages/Subjects.jsx";
+import MaddysPage from "./neo/pages/Maddys.jsx";
+import MaddyClassInfo from "./neo/pages/MaddyClassInfo.jsx";
+import MaddyTimetable from "./neo/pages/MaddyTimetable.jsx";
+import AttendancePage from "./neo/pages/Attendance.jsx";
+import GradesPage from "./neo/pages/Grades.jsx";
+import ProfilePage from "./neo/pages/Profile.jsx";
 import RegisterPage from "./pages/Register.jsx";
-import ExamPage from "./pages/Exam.jsx";
+import ExamPage from "./neo/pages/Exam.jsx";
+import { ToasterProvider } from "./components/Toast.jsx";
+import "./neo/neo.css";
 const CalculatorPage = lazy(() => import("./pages/Calculator.jsx"));
 
 // Lazy load analytics to reduce initial bundle size
 const Analytics = lazy(() => import("@vercel/analytics/react").then(module => ({ default: module.Analytics })));
 
-
-
-const GlobalAds = () => {
-  const location = useLocation();
-  if (location.pathname === '/' || location.pathname === '/register') {
-    return null;
-  }
-  return (
-    <div className="global-ads-container">
-      <div className="global-ad left-ad">
-        <AdsterraAd />
-      </div>
-      <div className="global-ad right-ad">
-        <AdsterraAd />
-      </div>
-    </div>
-  );
-};
-
 function App() {
+  // neoPOP full-bleed black canvas, app-wide
+  useEffect(() => {
+    document.body.classList.add("np-body");
+    return () => document.body.classList.remove("np-body");
+  }, []);
+
   return (
     <HeadProvider>
       <ThemeProvider>
@@ -50,7 +38,6 @@ function App() {
         <Router>
           <GoogleAnalytics />
           <div className="app-wrapper">
-            <GlobalAds />
             <Suspense fallback={<div className="loading-container">Loading...</div>}>
             <Routes>
               <Route path="/" element={
@@ -66,17 +53,18 @@ function App() {
               <Route path="/maddys/:id/timetable" element={<MaddyTimetable />} />
               <Route path="/attendance" element={<AttendancePage />} />
               <Route path="/grades" element={<GradesPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/exam" element={<ExamPage />} />
               <Route path="/kl-calculator" element={<CalculatorPage />} />
             </Routes>
             </Suspense>
-            <Footer />
           </div>
         </Router>
         <Suspense fallback={null}>
           <Analytics />
         </Suspense>
+        <ToasterProvider />
       </ThemeProvider>
     </HeadProvider>
   );
