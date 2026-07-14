@@ -83,7 +83,7 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) return 'vendor-react'
+            if (id.includes('react') || id.includes('react-dom') || id.includes('sonner') || id.includes('framer-motion')) return 'vendor-react'
             if (id.includes('react-router')) return 'vendor-router'
             if (id.includes('axios')) return 'vendor-axios'
             if (id.includes('@vercel/analytics')) return 'vendor-analytics'
