@@ -1029,6 +1029,86 @@ export default function Calculator() {
             percentage.
           </p>
 
+          <h2 style={{ color: "var(--text-primary)", fontSize: "1.1rem", margin: "28px 0 8px" }}>
+            Inside the TimeTable app
+          </h2>
+          <p>
+            One ERP sign-in turns into all of this — attendance, timetable,
+            grades, friends' schedules, and a break-time game with a daily
+            campus leaderboard.
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "10px",
+              marginTop: "12px",
+            }}
+          >
+            {[
+              {
+                src: "/images/photo_2026-07-28_03-29-27.jpg",
+                alt: "TimeTable PWA home screen for KL University students showing current and next class, break-time dino game and daily top-3 campus leaderboard",
+                cap: "home · your day + daily game",
+              },
+              {
+                src: "/images/photo_2026-07-28_03-29-29.jpg",
+                alt: "Weekly class timetable view for KL University with day tabs, slot times and room numbers, synced automatically from KL ERP",
+                cap: "week · full schedule",
+              },
+              {
+                src: "/images/photo_2026-07-28_03-29-30.jpg",
+                alt: "KL University attendance tracker with LTPS weighted percentage per course and exact safe bunk hours needed to stay above 75 percent",
+                cap: "attendance · safe bunks",
+              },
+              {
+                src: "/images/photo_2026-07-28_03-29-31.jpg",
+                alt: "KL University grades report in the TimeTable app showing CGPA 9.31 and per-course grade points fetched from KL ERP",
+                cap: "grades · cgpa & sgpa",
+              },
+              {
+                src: "/images/photo_2026-07-28_03-29-32.jpg",
+                alt: "Where's doc feature — add KL University friends to see their timetable, attendance and class location",
+                cap: "where's doc · friends",
+              },
+            ].map((img) => (
+              <figure key={img.src} style={{ margin: 0 }}>
+                <img
+                  src={img.src}
+                  alt={img.alt}
+                  loading="lazy"
+                  style={{
+                    width: "100%",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "8px",
+                    display: "block",
+                  }}
+                />
+                <figcaption
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "var(--text-secondary)",
+                    marginTop: 4,
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {img.cap}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+
+          <h2 style={{ color: "var(--text-primary)", fontSize: "1.1rem", margin: "24px 0 8px" }}>
+            How to check attendance in KL ERP
+          </h2>
+          <p>
+            Log in at the KL University ERP portal, open{" "}
+            <b>Attendance → Course-wise attendance</b>, and note the attended,
+            conducted and TCBR numbers for each LTPS component. Enter them above —
+            or skip all of it with the instant check, which reads these numbers for
+            you in one tap.
+          </p>
+
           <h2 style={{ color: "var(--text-primary)", fontSize: "1.1rem", margin: "24px 0 8px" }}>
             Frequently asked questions
           </h2>
@@ -1040,6 +1120,16 @@ export default function Calculator() {
             Attendance % = (attended + TCBR) ÷ conducted × 100. Your overall
             percentage is a weighted average across LTPS components, where Lecture
             and Tutorial hours weigh 100, Practical 50, and Skilling 25.
+          </p>
+
+          <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
+            What is the minimum attendance required in KL University?
+          </h3>
+          <p>
+            Most KL University courses require at least 75% attendance to be
+            eligible for semester-end exams. Exact rules and any condonation
+            provisions are in your academic regulations — when in doubt, keep a
+            buffer above 75%.
           </p>
 
           <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
@@ -1062,6 +1152,25 @@ export default function Calculator() {
           </p>
 
           <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
+            Is my ERP password safe on this site?
+          </h3>
+          <p>
+            Yes. Credentials are stored only in your own browser's local storage
+            and are sent only to the KL University ERP — never to any third-party
+            server. The entire codebase is open source, so you can verify this
+            yourself.
+          </p>
+
+          <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
+            Does this work for all KL University courses and campuses?
+          </h3>
+          <p>
+            Yes — the calculator mirrors the LTPS weighting used across KL
+            University programs, and the instant check works with any valid KL ERP
+            student account.
+          </p>
+
+          <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
             Is there an easier way than typing ERP numbers?
           </h3>
           <p>
@@ -1070,6 +1179,19 @@ export default function Calculator() {
             course automatically.{" "}
             <a href="/" style={{ color: "var(--primary-color)" }}>
               Open the app
+            </a>
+            .
+          </p>
+
+          <p style={{ fontSize: "0.8rem", marginTop: 28, color: "var(--text-secondary)" }}>
+            Last updated: July 2026 · Built & maintained by{" "}
+            <a
+              href="https://github.com/sivadhanushreddykotturu"
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: "var(--primary-color)" }}
+            >
+              Kotturu Siva Dhanush Reddy
             </a>
             .
           </p>
@@ -1090,6 +1212,14 @@ export default function Calculator() {
               },
               {
                 "@type": "Question",
+                name: "What is the minimum attendance required in KL University?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Most KL University courses require at least 75% attendance to be eligible for semester-end exams. Check your academic regulations for exact rules and condonation provisions.",
+                },
+              },
+              {
+                "@type": "Question",
                 name: "What is TCBR in KL ERP?",
                 acceptedAnswer: {
                   "@type": "Answer",
@@ -1102,6 +1232,22 @@ export default function Calculator() {
                 acceptedAnswer: {
                   "@type": "Answer",
                   text: "Enter attended, total and your target percentage (most KL courses require 75%) in the Sick Calculator to see exactly how many 50-minute classes you can skip or must attend to recover.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Is my ERP password safe on this site?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Yes. Credentials are stored only in your own browser's local storage and are sent only to the KL University ERP — never to any third-party server. The codebase is fully open source.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Does this work for all KL University courses and campuses?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Yes — the calculator mirrors the LTPS weighting used across KL University programs, and the instant check works with any valid KL ERP student account.",
                 },
               },
               {
