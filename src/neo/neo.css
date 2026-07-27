@@ -30,6 +30,13 @@
   --np-nav-h: 76px;
 }
 
+/* kill the default blue tap flash everywhere (game taps especially) */
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ============================================================
    GLOBAL RE-THEME — override legacy theme variables so every
    old component (modals, calculator, captcha) goes neoPOP
