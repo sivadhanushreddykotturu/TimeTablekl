@@ -616,13 +616,41 @@ export default function NeoAttendance() {
   return (
     <NeoShell onRefresh={fetchAttendanceData} refreshMode="direct" refreshLabel="refetch">
       <div className="np-pagehead">
-        <span className="np-eyebrow">
-          {friendCredentials
-            ? `${friendCredentials.name}'s numbers`
-            : lastFetchedTime
-            ? `your numbers · fetched ${formatTimeAgo(lastFetchedTime)}`
-            : "your numbers"}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+          <span className="np-eyebrow" style={{ margin: 0 }}>
+            {friendCredentials ? `${friendCredentials.name}'s numbers` : "your numbers"}
+          </span>
+          {lastFetchedTime && !friendCredentials && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "3px 8px",
+                background: "var(--np-panel, #17171b)",
+                border: "1px solid var(--np-line, #2a2a31)",
+                color: "var(--np-cream, #f4f2ea)",
+                fontSize: "10px",
+                fontWeight: 600,
+                textTransform: "lowercase",
+                letterSpacing: "0.02em",
+                borderRadius: 0,
+              }}
+            >
+              <span
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: "var(--np-acid, #cfff04)",
+                  boxShadow: "0 0 6px var(--np-acid, #cfff04)",
+                  flexShrink: 0,
+                }}
+              />
+              fetched {formatTimeAgo(lastFetchedTime)}
+            </span>
+          )}
+        </div>
         <div className="np-pagehead__row">
           <h1 className="np-pagehead__title">attendance<i>.</i></h1>
           <button className="np-iconbtn" onClick={() => setShowTargetModal(true)}>
