@@ -183,11 +183,17 @@ export default function NeoHome() {
     const autoSync = async () => {
       try {
         setAutoSyncing(true);
+        const oldSnapshot = timetable || {};
         const newTimetable = await syncTimetable();
         if (!cancelled) {
+          const changes = getTimetableChanges(oldSnapshot, newTimetable);
           setTimetable(newTimetable);
           setTodaySubjects(getTodaySubjects());
           localStorage.setItem("timetable_last_sync", today);
+          if (changes.length > 0) {
+            setResyncChanges(changes);
+            setShowChangesPopup(true);
+          }
           trackEvent("timetable_synced", {
             sync_location: "home_page",
             day_count: Object.keys(newTimetable).length,

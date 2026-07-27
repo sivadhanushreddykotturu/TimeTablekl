@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FiShare2 } from "react-icons/fi";
-import NeoShell from "../Shell.jsx";
+import { FiShare2, FiGrid } from "react-icons/fi";
+import NeoShell, { NeoModal } from "../Shell.jsx";
 import Toast from "../../components/Toast.jsx";
 import { syncTimetable } from "../../../utils/syncTimetable.js";
 import { replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
@@ -41,6 +41,36 @@ function mergeDaySlots(slots, maxSlots) {
   return merged;
 }
 
+function getInitialActiveDay(timetable, maxSlots) {
+  const daysWithData = DAY_ORDER.filter((day) => timetable[day]);
+  if (daysWithData.length === 0) return "Mon";
+
+  const todayName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date().getDay()];
+
+  const hasClassesOnDay = (d) => {
+    if (!timetable[d]) return false;
+    return mergeDaySlots(timetable[d], maxSlots).length > 0;
+  };
+
+  // 1. If today has classes, show today
+  if (hasClassesOnDay(todayName)) {
+    return todayName;
+  }
+
+  // 2. Otherwise find next available day in week order that has classes
+  const todayIndex = DAY_ORDER.indexOf(todayName);
+  const start = todayIndex >= 0 ? todayIndex : 0;
+  for (let offset = 1; offset <= 7; offset++) {
+    const candidateDay = DAY_ORDER[(start + offset) % 7];
+    if (hasClassesOnDay(candidateDay)) {
+      return candidateDay;
+    }
+  }
+
+  // 3. Fallback to first available day in timetable
+  return daysWithData[0] || "Mon";
+}
+
 export default function NeoTimetable() {
   const [timetable, setTimetable] = useState(
     JSON.parse(localStorage.getItem("timetable") || "{}")
@@ -48,14 +78,15 @@ export default function NeoTimetable() {
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [exporting, setExporting] = useState(false);
   const [autoSyncing, setAutoSyncing] = useState(false);
+  const [showTableView, setShowTableView] = useState(false);
 
   const slotTimes = getSlotTimes();
   const maxSlots = getMaxSlots();
 
   const days = DAY_ORDER.filter((day) => timetable[day]);
   const todayName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date().getDay()];
-  const [activeDay, setActiveDay] = useState(
-    days.includes(todayName) ? todayName : days[0] || "Mon"
+  const [activeDay, setActiveDay] = useState(() =>
+    getInitialActiveDay(timetable, maxSlots)
   );
 
   useEffect(() => {
@@ -355,15 +386,140 @@ export default function NeoTimetable() {
       )}
 
       {days.length > 0 && (
-        <button
-          className="np-fab np-fab--1"
-          onClick={exportAsImage}
-          disabled={exporting}
-          title="Share timetable"
-        >
-          {exporting ? "…" : <FiShare2 size={20} />}
-        </button>
+        <>
+          <button
+            className="np-fab np-fab--2"
+            onClick={() => setShowTableView(true)}
+            title="Table View"
+          >
+            <FiGrid size={20} />
+          </button>
+          <button
+            className="np-fab np-fab--1"
+            onClick={exportAsImage}
+            disabled={exporting}
+            title="Share timetable"
+          >
+            {exporting ? "…" : <FiShare2 size={20} />}
+          </button>
+        </>
       )}
+
+      {/* Table View Modal */}
+      <NeoModal
+        open={showTableView}
+        title="weekly schedule"
+        onClose={() => setShowTableView(false)}
+        wide
+      >
+        <div style={{ overflowX: "auto", margin: "-6px 0", borderRadius: 0 }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: "11px",
+              fontFamily: "var(--np-font-ui, 'Space Grotesk', sans-serif)",
+            }}
+          >
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    padding: "10px 12px",
+                    border: "1px solid var(--np-line)",
+                    background: "var(--np-panel)",
+                    color: "var(--np-muted)",
+                    textAlign: "center",
+                    textTransform: "uppercase",
+                    fontSize: "10px",
+                    letterSpacing: "0.1em",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Time
+                </th>
+                {days.map((day) => {
+                  const isToday = day === todayName;
+                  return (
+                    <th
+                      key={day}
+                      style={{
+                        padding: "10px 12px",
+                        border: isToday ? "1px solid #000" : "1px solid var(--np-line)",
+                        background: isToday ? "var(--np-acid)" : "var(--np-panel)",
+                        color: isToday ? "#0a0a0c" : "var(--np-cream)",
+                        fontWeight: 700,
+                        textAlign: "center",
+                        textTransform: "uppercase",
+                        fontSize: "11px",
+                        letterSpacing: "0.08em",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {day}{isToday ? " ·" : ""}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: maxSlots }, (_, idx) => idx + 1).map((slot) => (
+                <tr key={slot}>
+                  <td
+                    style={{
+                      padding: "8px 10px",
+                      border: "1px solid var(--np-line)",
+                      background: "var(--np-well)",
+                      color: "var(--np-acid)",
+                      fontSize: "10.5px",
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      textAlign: "center",
+                      fontFamily: "var(--np-font-ui)",
+                    }}
+                  >
+                    {slotTimes[slot]?.start}<br />
+                    <span style={{ opacity: 0.65, fontSize: "9.5px", color: "var(--np-muted)" }}>
+                      {slotTimes[slot]?.end}
+                    </span>
+                  </td>
+                  {days.map((day) => {
+                    const classInfo = timetable[day]?.[slot.toString()];
+                    const isClass = classInfo && classInfo !== "-";
+                    const isToday = day === todayName;
+                    return (
+                      <td
+                        key={day}
+                        style={{
+                          padding: "8px 10px",
+                          border: "1px solid var(--np-line)",
+                          background: isClass
+                            ? isToday
+                              ? "rgba(207, 255, 4, 0.06)"
+                              : "var(--np-carbon)"
+                            : "var(--np-void)",
+                          color: isClass ? "var(--np-cream)" : "var(--np-faint)",
+                          fontWeight: isClass ? 600 : 400,
+                          fontSize: "11px",
+                          textAlign: "center",
+                          minWidth: 110,
+                          borderLeft: isClass
+                            ? isToday
+                              ? "3px solid var(--np-acid)"
+                              : "3px solid var(--np-purple)"
+                            : "1px solid var(--np-line)",
+                        }}
+                      >
+                        {isClass ? replaceCourseCodeWithCustomName(classInfo) : "—"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </NeoModal>
 
       <Toast
         message={toast.message}
