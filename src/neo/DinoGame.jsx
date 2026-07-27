@@ -6,6 +6,14 @@ import { getCredentials } from "../../utils/storage.js";
 // Minimal neoPOP dino runner. Point per obstacle dodged.
 // Online: JWT-verified runs submit to the leaderboard (top 3 shown).
 // Offline: casual mode — score is discarded, never saved.
+
+// IST calendar day, matching the server's daily leaderboard reset.
+const istDay = () =>
+  new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+
+const cacheBoard = (rows) =>
+  localStorage.setItem("dino_board", JSON.stringify({ day: istDay(), rows }));
+
 export default function DinoGame({ onPhaseChange }) {
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
@@ -18,8 +26,10 @@ export default function DinoGame({ onPhaseChange }) {
   const [phase, setPhase] = useState("idle"); // idle | run | over
   const [hint, setHint] = useState("");
   const [board, setBoard] = useState(() => {
+    // cached board is only shown if it's from today (leaderboard resets daily, IST)
     try {
-      return JSON.parse(localStorage.getItem("dino_board") || "[]");
+      const cached = JSON.parse(localStorage.getItem("dino_board") || "{}");
+      return cached.day === istDay() ? cached.rows || [] : [];
     } catch {
       return [];
     }
@@ -36,7 +46,7 @@ export default function DinoGame({ onPhaseChange }) {
       if (res.data?.success) {
         const lb = res.data.leaderboard || [];
         setBoard(lb);
-        localStorage.setItem("dino_board", JSON.stringify(lb));
+        cacheBoard(lb);
       }
     } catch {
       // silent — leaderboard is a bonus, never block the game
@@ -158,7 +168,7 @@ export default function DinoGame({ onPhaseChange }) {
         if (res.data?.success) {
           if (Array.isArray(res.data.leaderboard)) {
             setBoard(res.data.leaderboard);
-            localStorage.setItem("dino_board", JSON.stringify(res.data.leaderboard));
+            cacheBoard(res.data.leaderboard);
           }
           setHint(`submitted · best ${Number(res.data.best || finalScore)}`);
         } else {
@@ -374,9 +384,10 @@ export default function DinoGame({ onPhaseChange }) {
           (phase === "over" && `game over · ${score} dodged · double tap to retry`)}
       </div>
 
-      {/* top 3 — below the game, dims while playing */}
+      {/* today's top 3 — below the game, dims while playing */}
       {board.length > 0 && (
         <div className={`np-board${phase === "run" ? " np-board--dim" : ""}`}>
+          <div className="np-board__cap">today's top 3 · resets midnight</div>
           {board.map((entry, i) => (
             <div className="np-board__row" key={`${entry.userId}-${i}`}>
               <span className={`np-board__rank${i === 0 ? " np-board__rank--top" : ""}`}>

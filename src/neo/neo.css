@@ -582,6 +582,14 @@ body.np-body button.np-iconbtn--exit {
   -webkit-tap-highlight-color: transparent;
 }
 
+.np-board__cap {
+  font: 700 8px/1 var(--np-font-ui);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--np-faint);
+  padding: 8px 12px 0;
+}
+
 .np-board__row {
   display: flex;
   align-items: center;
