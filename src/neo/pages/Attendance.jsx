@@ -12,8 +12,34 @@ import { trackEvent } from "../../utils/analytics";
 import { getCredentials, handleSessionRefresh } from "../../../utils/storage.js";
 import { getFormData, getRegisterDetailFormData, API_CONFIG } from "../../config/api.js";
 
+function formatTimeAgo(isoString) {
+  if (!isoString) return null;
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return null;
+
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+
+  if (diffMins < 1) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+
+  const isToday = date.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+
+  const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  if (isToday) return `today at ${timeStr}`;
+  if (isYesterday) return `yesterday at ${timeStr}`;
+  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`;
+}
+
 export default function NeoAttendance() {
   const location = useLocation();
+  const friendCredentials = location.state?.friendCredentials || null;
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showCalculatorModal, setShowCalculatorModal] = useState(false);
@@ -21,13 +47,24 @@ export default function NeoAttendance() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [selectedRegisterData, setSelectedRegisterData] = useState(null);
   const [registerLoading, setRegisterLoading] = useState(false);
-  const [attendanceData, setAttendanceData] = useState([]);
+  const [attendanceData, setAttendanceData] = useState(() => {
+    if (friendCredentials) return [];
+    try {
+      const saved = localStorage.getItem("cached_attendance");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [lastFetchedTime, setLastFetchedTime] = useState(() => {
+    if (friendCredentials) return null;
+    return localStorage.getItem("cached_attendance_time") || null;
+  });
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [showCalculationModal, setShowCalculationModal] = useState(false);
   const [selectedCourseData, setSelectedCourseData] = useState(null);
   const [exporting, setExporting] = useState(false);
 
-  const friendCredentials = location.state?.friendCredentials || null;
   const [targetPercentage, setTargetPercentage] = useState(() => {
     const saved = localStorage.getItem("attendanceTargetPercentage");
     const parsed = saved ? parseFloat(saved) : NaN;
@@ -87,6 +124,15 @@ export default function NeoAttendance() {
   };
 
   useEffect(() => {
+    const cached = localStorage.getItem("cached_attendance");
+    if (!friendCredentials && cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return; // Instant load from cache!
+        }
+      } catch (_) {}
+    }
     fetchAttendanceData();
     // eslint-disable-next-line
   }, []);
@@ -155,6 +201,14 @@ export default function NeoAttendance() {
     }
 
     setAttendanceData(attendance);
+    if (!friendCredentials) {
+      const nowIso = new Date().toISOString();
+      try {
+        localStorage.setItem("cached_attendance", JSON.stringify(attendance));
+        localStorage.setItem("cached_attendance_time", nowIso);
+      } catch (_) {}
+      setLastFetchedTime(nowIso);
+    }
     setToast({
       show: true,
       message: "Attendance fetched successfully!",
@@ -563,7 +617,11 @@ export default function NeoAttendance() {
     <NeoShell onRefresh={fetchAttendanceData} refreshMode="direct" refreshLabel="refetch">
       <div className="np-pagehead">
         <span className="np-eyebrow">
-          {friendCredentials ? `${friendCredentials.name}'s numbers` : "your numbers"}
+          {friendCredentials
+            ? `${friendCredentials.name}'s numbers`
+            : lastFetchedTime
+            ? `your numbers · fetched ${formatTimeAgo(lastFetchedTime)}`
+            : "your numbers"}
         </span>
         <div className="np-pagehead__row">
           <h1 className="np-pagehead__title">attendance<i>.</i></h1>
