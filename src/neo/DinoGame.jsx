@@ -12,11 +12,18 @@ export default function DinoGame({ onPhaseChange }) {
   const tokenRef = useRef(null);      // signed game token for the active run
   const casualRef = useRef(false);    // true = run not eligible for leaderboard
   const startReqRef = useRef(null);   // in-flight /game/start promise
+  const jumpRef = useRef(() => {});   // exposed for the full-screen tap layer
 
   const [score, setScore] = useState(0);
   const [phase, setPhase] = useState("idle"); // idle | run | over
   const [hint, setHint] = useState("");
-  const [board, setBoard] = useState([]);
+  const [board, setBoard] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("dino_board") || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   const userId = getCredentials()?.username || "";
 
@@ -26,7 +33,11 @@ export default function DinoGame({ onPhaseChange }) {
         params: { gameId: "dino", limit: 3 },
         timeout: 8000,
       });
-      if (res.data?.success) setBoard(res.data.leaderboard || []);
+      if (res.data?.success) {
+        const lb = res.data.leaderboard || [];
+        setBoard(lb);
+        localStorage.setItem("dino_board", JSON.stringify(lb));
+      }
     } catch {
       // silent — leaderboard is a bonus, never block the game
     }
@@ -34,6 +45,14 @@ export default function DinoGame({ onPhaseChange }) {
 
   useEffect(() => {
     loadLeaderboard();
+  }, [loadLeaderboard]);
+
+  // Keep ranks fresh while the app is open (pause when tab is hidden).
+  useEffect(() => {
+    const tick = setInterval(() => {
+      if (!document.hidden) loadLeaderboard();
+    }, 30000);
+    return () => clearInterval(tick);
   }, [loadLeaderboard]);
 
   // Request a signed token for a fresh run. Falls back to casual mode on any failure.
@@ -137,7 +156,10 @@ export default function DinoGame({ onPhaseChange }) {
         form.append("score", String(finalScore));
         const res = await axios.post(API_CONFIG.GAME_SUBMIT_URL, form, { timeout: 8000 });
         if (res.data?.success) {
-          if (Array.isArray(res.data.leaderboard)) setBoard(res.data.leaderboard);
+          if (Array.isArray(res.data.leaderboard)) {
+            setBoard(res.data.leaderboard);
+            localStorage.setItem("dino_board", JSON.stringify(res.data.leaderboard));
+          }
           setHint(`submitted · best ${Number(res.data.best || finalScore)}`);
         } else {
           setHint("score rejected by server");
@@ -177,6 +199,8 @@ export default function DinoGame({ onPhaseChange }) {
         jump();
       }
     };
+    jumpRef.current = jump;
+
     const onTap = () => jump();
     const tapTarget = wrapRef.current; // whole card is the jump button (phone-friendly)
     tapTarget.addEventListener("pointerdown", onTap);
@@ -356,6 +380,17 @@ export default function DinoGame({ onPhaseChange }) {
             </div>
           ))}
         </div>
+      )}
+
+      {/* while running: the entire screen (incl. footer) is the jump button */}
+      {phase === "run" && (
+        <div
+          className="np-jump-layer"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            jumpRef.current();
+          }}
+        />
       )}
     </section>
   );
