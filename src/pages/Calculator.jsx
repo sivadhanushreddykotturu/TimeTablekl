@@ -1,19 +1,132 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import Header from "../components/Header";
-import { getCredentials } from "../../utils/storage.js";
+import { getCredentials, saveCredentials, saveCookies, handleSessionRefresh } from "../../utils/storage.js";
+import { getFormData, API_CONFIG, getCurrentAcademicYearOptions } from "../config/api.js";
+import { NeoField, NeoSelect, NeoButton } from "../neo/NeoKit.jsx";
+import { trackEvent } from "../utils/analytics";
 import { useTheme } from "../contexts/ThemeContext";
 import { Title, Meta, Link } from "react-head";
+
+// Compact version of the attendance page's LTPS-weighted grouping,
+// used for the quick-check teaser result.
+const LTPS_WEIGHTS = { L: 100, T: 100, P: 50, S: 25, O: 1 };
+
+function summarizeAttendance(attendance) {
+  const grouped = {};
+  attendance.forEach((item) => {
+    const code = item.course_code ?? item.Coursecode ?? "";
+    const name = item.course_name ?? item.Coursedesc ?? "";
+    const type = (item.type ?? item.Ltps ?? "").charAt(0).toUpperCase();
+    const conducted = parseInt(item.conducted ?? item["Total Conducted"] ?? "0", 10) || 0;
+    const attended = parseInt(item.attended ?? item["Total Attended"] ?? "0", 10) || 0;
+    const tcbr = parseInt(item.tcbr ?? item.Tcbr ?? "0", 10) || 0;
+    if (!code) return;
+    if (!grouped[code]) grouped[code] = { code, name, wAtt: 0, wCon: 0 };
+    const w = LTPS_WEIGHTS[type] || LTPS_WEIGHTS.O;
+    grouped[code].wAtt += (attended + (tcbr > 0 ? tcbr : 0)) * w;
+    grouped[code].wCon += conducted * w;
+  });
+
+  const courses = Object.values(grouped)
+    .map((c) => ({
+      code: c.code,
+      name: c.name,
+      pct: c.wCon > 0 ? Math.round((c.wAtt / c.wCon) * 100) : 0,
+    }))
+    .sort((a, b) => a.pct - b.pct);
+
+  const overall = courses.length
+    ? Math.round(courses.reduce((s, c) => s + c.pct, 0) / courses.length)
+    : 0;
+
+  return { courses, overall };
+}
 
 export default function Calculator() {
   const navigate = useNavigate();
   const { isDarkMode } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  
+
+  // ERP quick-check (the SEO -> signup funnel)
+  const [qcUser, setQcUser] = useState("");
+  const [qcPass, setQcPass] = useState("");
+  const [qcSem, setQcSem] = useState("odd");
+  const [qcYear, setQcYear] = useState("");
+  const [qcLoading, setQcLoading] = useState(false);
+  const [qcError, setQcError] = useState("");
+  const [qcResult, setQcResult] = useState(null); // { courses, overall }
+
   useEffect(() => {
     const credentials = getCredentials();
     setIsLoggedIn(!!credentials);
+    const y = new Date().getFullYear();
+    setQcYear(`${y}-${(y + 1).toString().slice(-2)}`);
   }, []);
+
+  const handleQuickCheck = async (e) => {
+    e.preventDefault();
+    if (!qcUser || !qcPass || !qcSem || !qcYear) {
+      setQcError("Fill all fields.");
+      return;
+    }
+    setQcError("");
+    setQcResult(null);
+    setQcLoading(true);
+    trackEvent("quick_check_started", { source: "kl_calculator_page" });
+
+    try {
+      // 1. authenticate (same call as the login page)
+      const loginForm = getFormData(qcUser, qcPass, "", qcSem, qcYear, "");
+      const loginRes = await axios.post(API_CONFIG.FETCH_URL, loginForm);
+
+      if (!loginRes.data?.success) {
+        setQcError("Wrong university id or password.");
+        trackEvent("quick_check_failed", { reason: "auth" });
+        return;
+      }
+
+      // 2. persist — the visitor is now inside the app
+      saveCredentials({ username: qcUser, password: qcPass });
+      if (loginRes.data.cookies) saveCookies(loginRes.data.cookies);
+      if (loginRes.data.timetable) {
+        localStorage.setItem("timetable", JSON.stringify(loginRes.data.timetable));
+      }
+      localStorage.setItem("semester", qcSem);
+      localStorage.setItem("academicYear", qcYear);
+
+      // 3. fetch attendance for the teaser
+      const attForm = getFormData(qcUser, qcPass, "", qcSem, qcYear, "");
+      const attRes = await axios.post(API_CONFIG.ATTENDANCE_URL, attForm);
+
+      if (!attRes.data?.success) {
+        setQcError(attRes.data?.message || "Attendance fetch failed. Open the app to retry.");
+        trackEvent("quick_check_failed", { reason: "attendance" });
+        return;
+      }
+      handleSessionRefresh(attRes.data);
+
+      const summary = summarizeAttendance(attRes.data.attendance || []);
+      localStorage.setItem("cached_attendance", JSON.stringify(attRes.data.attendance || []));
+      localStorage.setItem("cached_attendance_time", new Date().toISOString());
+      setQcResult(summary);
+      trackEvent("quick_check_success", {
+        course_count: summary.courses.length,
+        average_percentage: summary.overall,
+      });
+    } catch (err) {
+      const status = err.response?.status;
+      const msg =
+        status === 500 || status === 401
+          ? "Wrong university id or password."
+          : err.response?.data?.detail || "Something went wrong. Try again.";
+      setQcError(msg);
+      trackEvent("quick_check_failed", { reason: "error" });
+    } finally {
+      setQcLoading(false);
+    }
+  };
   
   // State for Percentage/Sick Tab
   const [activeTab, setActiveTab] = useState("components");
@@ -276,10 +389,10 @@ export default function Calculator() {
 
   return (
     <>
-      <Title>KL Calculator | KL Attendance & Timetable Calculator 2025</Title>
+      <Title>KL Attendance Calculator 2026 | KL University ERP %, Sick Days & Weighted Average</Title>
       <Meta
         name="description"
-        content="Calculate attendance and timetable instantly using the updated KL Calculator for KL University students. Accurate results based on latest ERP updates, with weighted and sick days support."
+        content="Free KL University attendance calculator — exact ERP percentage with LTPS weighting, TCBR support, weighted average, and sick-day planner. Updated for 2026. Check how many classes you can safely miss."
       />
       <Meta
         name="keywords"
@@ -311,6 +424,94 @@ export default function Calculator() {
           </button>
         )}
       </div>
+      {/* ---- ERP quick-check: the visitor's first taste of the app ---- */}
+      <div className="container" style={{ maxWidth: "600px", margin: "0 auto", padding: "0 12px" }}>
+        {qcResult ? (
+          <div className="np-panel" style={{ marginTop: 4 }}>
+            <div className="np-panel__label">your attendance · {qcSem} sem</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "6px 0 14px" }}>
+              <span style={{ font: "400 44px/1 var(--np-font-disp, 'Archivo Black')", color: qcResult.overall >= 75 ? "var(--np-acid)" : "var(--np-pink)" }}>
+                {qcResult.overall}%
+              </span>
+              <span className="np-note">overall · weighted</span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+              {qcResult.courses.map((c) => (
+                <span key={c.code} className="np-chip" title={c.name}>
+                  {c.name || c.code} <small>{c.pct}%</small>
+                </span>
+              ))}
+            </div>
+            <p className="np-note" style={{ marginBottom: 14 }}>
+              This updates automatically in the app — plus timetable, grades,
+              safe-bunk hints and the daily game. Timetable syncs on its own.
+            </p>
+            <NeoButton onClick={() => navigate("/home")}>open the full app →</NeoButton>
+          </div>
+        ) : !isLoggedIn ? (
+          <form className="np-panel" style={{ marginTop: 4 }} onSubmit={handleQuickCheck}>
+            <div className="np-panel__label">instant check · no sign-up</div>
+            <p className="np-note" style={{ margin: "0 0 14px" }}>
+              Skip the typing — pull your <b>real attendance</b> straight from KL ERP.
+              Trusted by <b>10,000+ KL students</b>. Credentials never leave this
+              device; they're sent only to the university ERP.{" "}
+              <a
+                href="https://github.com/sivadhanushreddykotturu/TimeTablekl"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "var(--np-acid)" }}
+              >
+                open source
+              </a>
+            </p>
+            <NeoField
+              id="qc-user"
+              label="university id"
+              placeholder="2400032717"
+              value={qcUser}
+              autoComplete="username"
+              onChange={(e) => setQcUser(e.target.value)}
+            />
+            <NeoField
+              id="qc-pass"
+              label="password"
+              type="password"
+              placeholder="••••••••"
+              value={qcPass}
+              autoComplete="current-password"
+              onChange={(e) => setQcPass(e.target.value)}
+            />
+            <div className="np-row">
+              <NeoSelect id="qc-sem" label="semester" value={qcSem} onChange={(e) => setQcSem(e.target.value)}>
+                <option value="odd">Odd</option>
+                <option value="even">Even</option>
+                <option value="summer">Summer</option>
+                <option value="term3">Term 3</option>
+              </NeoSelect>
+              <NeoSelect id="qc-year" label="academic year" value={qcYear} onChange={(e) => setQcYear(e.target.value)}>
+                {getCurrentAcademicYearOptions().map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </NeoSelect>
+            </div>
+            {qcError && (
+              <p className="np-note" style={{ color: "var(--np-pink)", margin: "4px 0 10px" }}>{qcError}</p>
+            )}
+            <NeoButton loading={qcLoading} loadingText="fetching…">
+              fetch my attendance
+            </NeoButton>
+          </form>
+        ) : (
+          <div className="np-panel" style={{ marginTop: 4 }}>
+            <div className="np-panel__label">you're signed in</div>
+            <p className="np-note" style={{ margin: "0 0 12px" }}>
+              Your attendance, timetable and grades are waiting inside.
+            </p>
+            <NeoButton onClick={() => navigate("/home")}>open the app →</NeoButton>
+          </div>
+        )}
+      </div>
+
       <div className="container" style={{ ...getStyleVars(), padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
         <div
           className="calculator-modal"
@@ -324,9 +525,9 @@ export default function Calculator() {
           }}
         >
           <div className="calculator-header">
-            <h3 style={{ margin: "0 0 8px 0", color: "var(--text-primary)" }}>
-              Attendance Calculator
-            </h3>
+            <h1 style={{ margin: "0 0 8px 0", color: "var(--text-primary)", fontSize: "1.25rem" }}>
+              KL University Attendance Calculator
+            </h1>
             <div
               style={{
                 display: "flex",
@@ -793,6 +994,127 @@ export default function Calculator() {
             </div>
           )}
         </div>
+
+        {/* ---- Crawlable content: this page is the SEO entry point ---- */}
+        <article
+          style={{
+            color: "var(--text-secondary)",
+            fontSize: "0.95rem",
+            lineHeight: 1.7,
+            padding: "0 4px 40px",
+            fontFamily: 'Inter, ui-sans-serif, system-ui',
+          }}
+        >
+          <h2 style={{ color: "var(--text-primary)", fontSize: "1.1rem", margin: "24px 0 8px" }}>
+            What is the KL Attendance Calculator?
+          </h2>
+          <p>
+            A free calculator for KL University (KLEF) students to check attendance
+            percentage exactly the way the ERP computes it — with LTPS weighting
+            (Lecture ×100, Tutorial ×100, Practical ×50, Skilling ×25) and TCBR
+            regularization credits added to your attended count. It also works as a
+            sick-day planner: enter your numbers and see how many classes you can
+            safely miss, or how many you must attend to recover.
+          </p>
+
+          <h2 style={{ color: "var(--text-primary)", fontSize: "1.1rem", margin: "24px 0 8px" }}>
+            How to use it
+          </h2>
+          <p>
+            Open your KL ERP attendance page, note the attended and conducted
+            numbers for each component (L, T, P, S), and enter them in the
+            Components tab for your weighted average — the same percentage the
+            university uses. Use the Percentage tab for a quick single-course check,
+            or switch on the Sick Calculator to plan bunks around the required
+            percentage.
+          </p>
+
+          <h2 style={{ color: "var(--text-primary)", fontSize: "1.1rem", margin: "24px 0 8px" }}>
+            Frequently asked questions
+          </h2>
+
+          <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
+            How is KL University attendance percentage calculated?
+          </h3>
+          <p>
+            Attendance % = (attended + TCBR) ÷ conducted × 100. Your overall
+            percentage is a weighted average across LTPS components, where Lecture
+            and Tutorial hours weigh 100, Practical 50, and Skilling 25.
+          </p>
+
+          <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
+            What is TCBR in KL ERP?
+          </h3>
+          <p>
+            TCBR is the regularization credit shown in the KL ERP attendance
+            register — it is added to your attended classes, so include it when
+            calculating your real percentage.
+          </p>
+
+          <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
+            How many classes can I miss and still stay safe?
+          </h3>
+          <p>
+            Use the Sick Calculator above: enter attended, total and your target
+            percentage (most KL courses require 75% — check your academic
+            regulations). It tells you exactly how many 50-minute classes you can
+            skip, or how many you must attend to recover.
+          </p>
+
+          <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
+            Is there an easier way than typing ERP numbers?
+          </h3>
+          <p>
+            Yes — the TimeTable PWA pulls your attendance, timetable and grades
+            straight from the ERP after one sign-in, and computes safe bunks per
+            course automatically.{" "}
+            <a href="/" style={{ color: "var(--primary-color)" }}>
+              Open the app
+            </a>
+            .
+          </p>
+        </article>
+
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: [
+              {
+                "@type": "Question",
+                name: "How is KL University attendance percentage calculated?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Attendance % = (attended + TCBR) ÷ conducted × 100. The overall percentage is a weighted average across LTPS components: Lecture and Tutorial weigh 100, Practical 50, Skilling 25.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "What is TCBR in KL ERP?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "TCBR is the regularization credit shown in the KL ERP attendance register. It is added to your attended classes when computing your real attendance percentage.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "How many classes can I miss and still stay safe?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Enter attended, total and your target percentage (most KL courses require 75%) in the Sick Calculator to see exactly how many 50-minute classes you can skip or must attend to recover.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Is there an easier way than typing ERP numbers?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Yes — the TimeTable PWA pulls attendance, timetable and grades directly from the ERP after one sign-in and computes safe bunks per course automatically.",
+                },
+              },
+            ],
+          })}
+        </script>
       </div>
     </>
   );

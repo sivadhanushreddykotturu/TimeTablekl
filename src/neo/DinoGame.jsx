@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { API_CONFIG } from "../config/api.js";
 import { getCredentials } from "../../utils/storage.js";
+import { trackEvent } from "../utils/analytics";
 
 // Minimal neoPOP dino runner. Point per obstacle dodged.
 // Online: JWT-verified runs submit to the leaderboard (top 3 shown).
@@ -163,11 +164,17 @@ export default function DinoGame({ onPhaseChange }) {
       if (finalScore <= 0) return;
       // Offline / casual run: discard immediately, never touch local storage.
       if (casualRef.current || !tokenRef.current) {
+        const offline = navigator.onLine === false;
         setHint(
-          navigator.onLine === false
+          offline
             ? "offline score – connect to internet to submit to leaderboard"
             : "couldn't verify with server – score not submitted"
         );
+        trackEvent("game_score_casual", {
+          game_id: "dino",
+          score: finalScore,
+          reason: offline ? "offline" : "token_failed",
+        });
         loadLeaderboard(); // still show fresh ranks after the run
         return;
       }
@@ -185,13 +192,24 @@ export default function DinoGame({ onPhaseChange }) {
             cacheBoard(res.data.leaderboard);
           }
           setHint(`submitted · best ${Number(res.data.best || finalScore)}`);
+          trackEvent("game_score_submitted", {
+            game_id: "dino",
+            score: finalScore,
+            best: Number(res.data.best || finalScore),
+          });
         } else {
           setHint("score rejected by server");
+          trackEvent("game_score_rejected", { game_id: "dino", score: finalScore });
           loadLeaderboard();
         }
       } catch (err) {
         const msg = err?.response?.data?.detail;
         setHint(msg ? `rejected · ${msg}` : "submit failed – network error");
+        trackEvent("game_score_rejected", {
+          game_id: "dino",
+          score: finalScore,
+          detail: String(msg || "network_error").slice(0, 80),
+        });
         loadLeaderboard();
       }
     };
@@ -221,6 +239,7 @@ export default function DinoGame({ onPhaseChange }) {
       st.running = true;
       setPhase("run");
       setHint("");
+      trackEvent("game_started", { game_id: "dino" });
       armRun();
     };
 
@@ -323,6 +342,7 @@ export default function DinoGame({ onPhaseChange }) {
             st.over = true;
             st.running = false;
             setPhase("over");
+            trackEvent("game_over", { game_id: "dino", score: st.score });
             submitScore(st.score);
           }
         }

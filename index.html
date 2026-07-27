@@ -25,8 +25,23 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="TimeTable" />
     <meta name="application-name" content="TimeTable" />
-    <meta name="msapplication-TileColor" content="#3b82f6" />
+    <meta name="msapplication-TileColor" content="#0a0a0c" />
     <meta name="msapplication-config" content="none" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "TimeTable — KL Timetable & Attendance Calculator",
+        "alternateName": "KL Timetable PWA",
+        "url": "https://timetable.vercel.app/",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any (Progressive Web App)",
+        "description": "Free PWA for KL University students: view your weekly timetable, track attendance percentage with LTPS weighting, calculate safe bunks, check grades and find friends' classes.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+        "inLanguage": "en",
+        "audience": { "@type": "EducationalAudience", "educationalRole": "student" }
+      }
+    </script>
     <link rel="apple-touch-icon" href="/maskable_icon_x192.png" />
     <link rel="apple-touch-icon" sizes="192x192" href="/maskable_icon_x192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="/maskable_icon_x512.png" />
@@ -38,7 +53,25 @@
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static placeholder: replaced by React on mount. Gives crawlers real
+           content even before JS executes. -->
+      <main style="font-family: sans-serif; background: #0a0a0c; color: #f4f2ea; padding: 32px 20px; max-width: 640px; margin: 0 auto;">
+        <h1>KL Timetable &amp; Attendance Calculator</h1>
+        <p>
+          TimeTable is a free Progressive Web App for KL University students.
+          Sign in with your ERP credentials to see your weekly timetable,
+          current and next class, attendance percentage with LTPS weighting,
+          grades, and friends' timetables.
+        </p>
+        <p>
+          No sign-up needed for the
+          <a href="https://timetable.vercel.app/kl-calculator" style="color: #cfff04;">KL Attendance Calculator</a>
+          — check your attendance percentage, weighted average, and how many
+          classes you can safely miss.
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
