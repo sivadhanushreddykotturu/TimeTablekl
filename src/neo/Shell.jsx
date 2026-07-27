@@ -136,6 +136,7 @@ export default function NeoShell({
   refreshMode = "sheet",
   refreshLabel = "resync",
   examExit = false,
+  autoSyncing = false,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -196,9 +197,9 @@ export default function NeoShell({
               </button>
             )}
             {onRefresh && (
-              <button className="np-iconbtn" onClick={handleRefreshClick} disabled={syncing}>
-                <FiRefreshCw size={13} className={syncing ? "np-spin" : undefined} />
-                {syncing ? "syncing" : synced ? "synced" : refreshLabel}
+              <button className="np-iconbtn" onClick={handleRefreshClick} disabled={syncing || autoSyncing}>
+                <FiRefreshCw size={13} className={syncing || autoSyncing ? "np-spin" : undefined} />
+                {syncing || autoSyncing ? "syncing" : synced ? "synced" : refreshLabel}
               </button>
             )}
             <Link

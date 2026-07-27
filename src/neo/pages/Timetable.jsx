@@ -47,6 +47,7 @@ export default function NeoTimetable() {
   );
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [exporting, setExporting] = useState(false);
+  const [autoSyncing, setAutoSyncing] = useState(false);
 
   const slotTimes = getSlotTimes();
   const maxSlots = getMaxSlots();
@@ -63,6 +64,37 @@ export default function NeoTimetable() {
       has_timetable: dayCount > 0,
       day_count: dayCount,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-sync timetable once per day
+  useEffect(() => {
+    const lastSync = localStorage.getItem("timetable_last_sync");
+    const today = new Date().toDateString();
+    if (lastSync === today) return; // already synced today
+
+    let cancelled = false;
+    const autoSync = async () => {
+      try {
+        setAutoSyncing(true);
+        const newTimetable = await syncTimetable();
+        if (!cancelled) {
+          setTimetable(newTimetable);
+          localStorage.setItem("timetable_last_sync", today);
+          trackEvent("timetable_synced", {
+            sync_location: "timetable_page",
+            day_count: Object.keys(newTimetable).length,
+            sync_method: "auto_daily",
+          });
+        }
+      } catch {
+        // Silent fail — user can manually resync if needed
+      } finally {
+        if (!cancelled) setAutoSyncing(false);
+      }
+    };
+    autoSync();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -273,7 +305,7 @@ export default function NeoTimetable() {
   const activeBlocks = mergeDaySlots(timetable[activeDay], maxSlots);
 
   return (
-    <NeoShell onRefresh={refreshTimetable} refreshMode="sheet">
+    <NeoShell onRefresh={refreshTimetable} refreshMode="direct" autoSyncing={autoSyncing}>
       <div className="np-pagehead">
         <span className="np-eyebrow">full schedule</span>
         <h1 className="np-pagehead__title">the week<i>.</i></h1>
