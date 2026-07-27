@@ -19,7 +19,7 @@ export default function DinoGame({ onPhaseChange }) {
   const wrapRef = useRef(null);
   const tokenRef = useRef(null);      // signed game token for the active run
   const casualRef = useRef(false);    // true = run not eligible for leaderboard
-  const startReqRef = useRef(null);   // in-flight /game/start promise
+  const retryRef = useRef(null);      // pending token-retry timer
   const jumpRef = useRef(() => {});   // exposed for the full-screen tap layer
 
   const [score, setScore] = useState(0);
@@ -65,35 +65,44 @@ export default function DinoGame({ onPhaseChange }) {
     return () => clearInterval(tick);
   }, [loadLeaderboard]);
 
-  // Request a signed token for a fresh run. Falls back to casual mode on any failure.
+  // Request a signed token for a fresh run. The backend may be cold-starting
+  // (Render free tier takes 30-60s to wake), so retry in the background while
+  // the run is in progress — most runs outlast the cold start. Only after all
+  // retries fail do we mark the run casual.
   const armRun = useCallback(() => {
     tokenRef.current = null;
     casualRef.current = false;
+    if (retryRef.current) {
+      clearTimeout(retryRef.current);
+      retryRef.current = null;
+    }
 
     if (navigator.onLine === false || !userId) {
       casualRef.current = true;
-      return Promise.resolve();
+      return;
     }
 
-    const form = new FormData();
-    form.append("userId", userId);
-    form.append("gameId", "dino");
-
-    const req = axios
-      .post(API_CONFIG.GAME_START_URL, form, { timeout: 8000 })
-      .then((res) => {
+    const attempt = async (n) => {
+      try {
+        const form = new FormData();
+        form.append("userId", userId);
+        form.append("gameId", "dino");
+        const res = await axios.post(API_CONFIG.GAME_START_URL, form, { timeout: 15000 });
         if (res.data?.success && res.data.token) {
           tokenRef.current = res.data.token;
-        } else {
-          casualRef.current = true;
+          casualRef.current = false;
+          return;
         }
-      })
-      .catch(() => {
-        casualRef.current = true; // backend unreachable — casual run
-      });
-
-    startReqRef.current = req;
-    return req;
+        throw new Error("no token");
+      } catch {
+        if (n < 6) {
+          retryRef.current = setTimeout(() => attempt(n + 1), 8000);
+        } else {
+          casualRef.current = true; // backend truly unreachable — casual run
+        }
+      }
+    };
+    attempt(1);
   }, [userId]);
 
   useEffect(() => {
@@ -145,6 +154,11 @@ export default function DinoGame({ onPhaseChange }) {
     };
 
     const submitScore = async (finalScore) => {
+      // Run is over — stop chasing a token for it.
+      if (retryRef.current) {
+        clearTimeout(retryRef.current);
+        retryRef.current = null;
+      }
       // Nothing worth submitting.
       if (finalScore <= 0) return;
       // Offline / casual run: discard immediately, never touch local storage.
@@ -152,7 +166,7 @@ export default function DinoGame({ onPhaseChange }) {
         setHint(
           navigator.onLine === false
             ? "offline score – connect to internet to submit to leaderboard"
-            : "casual run – score not submitted"
+            : "couldn't verify with server – score not submitted"
         );
         loadLeaderboard(); // still show fresh ranks after the run
         return;
@@ -357,6 +371,7 @@ export default function DinoGame({ onPhaseChange }) {
 
     return () => {
       cancelAnimationFrame(raf);
+      if (retryRef.current) clearTimeout(retryRef.current);
       window.removeEventListener("resize", resize);
       window.removeEventListener("keydown", onKey);
       tapTarget.removeEventListener("pointerdown", onTap);
