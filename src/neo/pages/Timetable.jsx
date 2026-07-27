@@ -101,6 +101,7 @@ export default function NeoTimetable() {
   const refreshTimetable = async () => {
     try {
       const newTimetable = await syncTimetable();
+      localStorage.setItem("timetable_last_sync", new Date().toDateString());
       trackEvent("timetable_synced", {
         sync_location: "timetable_page",
         day_count: Object.keys(newTimetable).length,

@@ -133,14 +133,13 @@ function ResyncSheet({ open, onClose, onSync, syncing }) {
 export default function NeoShell({
   children,
   onRefresh,
-  refreshMode = "sheet",
+  refreshMode = "direct",
   refreshLabel = "resync",
   examExit = false,
   autoSyncing = false,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [showSheet, setShowSheet] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [synced, setSynced] = useState(false);
   const [avatarSeed] = useState(
@@ -158,7 +157,6 @@ export default function NeoShell({
       await onRefresh();
       setSynced(true);
       setTimeout(() => setSynced(false), 2500);
-      setShowSheet(false);
     } catch {
       /* page surfaces its own toast */
     } finally {
@@ -167,11 +165,7 @@ export default function NeoShell({
   };
 
   const handleRefreshClick = () => {
-    if (refreshMode === "sheet") {
-      setShowSheet(true);
-    } else {
-      runRefresh();
-    }
+    runRefresh();
   };
 
   const handleExitExam = () => {
@@ -252,15 +246,6 @@ export default function NeoShell({
           </NavLink>
         </div>
       </nav>
-
-      {refreshMode === "sheet" && (
-        <ResyncSheet
-          open={showSheet}
-          onClose={() => setShowSheet(false)}
-          onSync={runRefresh}
-          syncing={syncing}
-        />
-      )}
     </div>
   );
 }

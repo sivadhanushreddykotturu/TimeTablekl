@@ -149,6 +149,7 @@ export default function NeoHome() {
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [showChangesPopup, setShowChangesPopup] = useState(false);
   const [resyncChanges, setResyncChanges] = useState([]);
+  const [autoSyncing, setAutoSyncing] = useState(false);
   const previousTimetableRef = useRef(null);
 
   useEffect(() => {
@@ -172,10 +173,45 @@ export default function NeoHome() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auto-sync timetable once per day
+  useEffect(() => {
+    const lastSync = localStorage.getItem("timetable_last_sync");
+    const today = new Date().toDateString();
+    if (lastSync === today) return; // already synced today
+
+    let cancelled = false;
+    const autoSync = async () => {
+      try {
+        setAutoSyncing(true);
+        const newTimetable = await syncTimetable();
+        if (!cancelled) {
+          setTimetable(newTimetable);
+          setTodaySubjects(getTodaySubjects());
+          localStorage.setItem("timetable_last_sync", today);
+          trackEvent("timetable_synced", {
+            sync_location: "home_page",
+            day_count: Object.keys(newTimetable).length,
+            sync_method: "auto_daily",
+          });
+        }
+      } catch {
+        // Silent fail — user can manually resync if needed
+      } finally {
+        if (!cancelled) setAutoSyncing(false);
+      }
+    };
+    autoSync();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleRefresh = async () => {
     previousTimetableRef.current = timetable;
     try {
       const newTimetable = await syncTimetable();
+      const today = new Date().toDateString();
+      localStorage.setItem("timetable_last_sync", today);
+
       const dayCount = Object.keys(newTimetable).length;
       trackEvent("timetable_synced", {
         sync_location: "home_page",
@@ -210,7 +246,7 @@ export default function NeoHome() {
   });
 
   return (
-    <NeoShell onRefresh={handleRefresh} refreshMode="sheet">
+    <NeoShell onRefresh={handleRefresh} refreshMode="direct" autoSyncing={autoSyncing}>
       <div className="np-pagehead">
         <span className="np-eyebrow">today · {todayLabel}</span>
         <div className="np-pagehead__row">
