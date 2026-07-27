@@ -137,6 +137,7 @@ export default function NeoShell({
   refreshLabel = "resync",
   examExit = false,
   autoSyncing = false,
+  chromeDimmed = false,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -178,7 +179,7 @@ export default function NeoShell({
   return (
     <div className="np-app">
       <div className="np-app__inner">
-        <header className="np-topbar">
+        <header className={`np-topbar${chromeDimmed ? " np-gaming-dim" : ""}`}>
           <Link to="/home" className="np-topbar__brand" aria-label="Home">
             <span className="np-topbar__tile">kl</span>
             <span className="np-topbar__word">timetable<i>.</i></span>
@@ -212,7 +213,7 @@ export default function NeoShell({
         <main>{children}</main>
       </div>
 
-      <nav className="np-nav" aria-label="Main">
+      <nav className={`np-nav${chromeDimmed ? " np-gaming-dim" : ""}`} aria-label="Main">
         <div className="np-nav__row">
           <NavLink to="/home" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
             <FiHome size={18} />

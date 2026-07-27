@@ -17,6 +17,7 @@ import GradesPage from "./neo/pages/Grades.jsx";
 import ProfilePage from "./neo/pages/Profile.jsx";
 import RegisterPage from "./pages/Register.jsx";
 import ExamPage from "./neo/pages/Exam.jsx";
+import FlappyBirdPage from "./neo/pages/FlappyBirdPage.jsx";
 import { ToasterProvider } from "./components/Toast.jsx";
 import "./neo/neo.css";
 const CalculatorPage = lazy(() => import("./pages/Calculator.jsx"));
@@ -56,6 +57,8 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/exam" element={<ExamPage />} />
+              <Route path="/games" element={<FlappyBirdPage />} />
+              <Route path="/games/flappy-bird" element={<FlappyBirdPage />} />
               <Route path="/kl-calculator" element={<CalculatorPage />} />
             </Routes>
             </Suspense>

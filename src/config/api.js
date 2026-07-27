@@ -20,6 +20,11 @@ export const API_CONFIG = {
 
   // Per-course marks scorecard (lazy-load via target_href)
   MARKS_DETAIL_URL: import.meta.env.VITE_MARKS_DETAIL_URL,
+
+  // Game endpoints
+  GAME_START_URL: import.meta.env.VITE_GAME_START_URL || "https://render-testb.onrender.com/api/game/start",
+  GAME_SUBMIT_URL: import.meta.env.VITE_GAME_SUBMIT_URL || "https://render-testb.onrender.com/api/game/submit",
+  GAME_LEADERBOARD_URL: import.meta.env.VITE_GAME_LEADERBOARD_URL || "https://render-testb.onrender.com/api/game/leaderboard",
 };
 
 // Semester mapping

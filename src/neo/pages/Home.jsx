@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import NeoShell, { NeoModal } from "../Shell.jsx";
+import DinoGame from "../DinoGame.jsx";
 import Toast from "../../components/Toast.jsx";
+
 import { syncTimetable } from "../../../utils/syncTimetable.js";
 import { getTodaySubjects, replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
 import { trackEvent } from "../../utils/analytics";
@@ -138,6 +141,7 @@ const SEMESTER_NAMES = {
 };
 
 export default function NeoHome() {
+  const navigate = useNavigate();
   const [timetable, setTimetable] = useState(
     JSON.parse(localStorage.getItem("timetable") || "{}")
   );
@@ -150,6 +154,7 @@ export default function NeoHome() {
   const [showChangesPopup, setShowChangesPopup] = useState(false);
   const [resyncChanges, setResyncChanges] = useState([]);
   const [autoSyncing, setAutoSyncing] = useState(false);
+  const [gameRunning, setGameRunning] = useState(false);
   const previousTimetableRef = useRef(null);
 
   useEffect(() => {
@@ -252,7 +257,8 @@ export default function NeoHome() {
   });
 
   return (
-    <NeoShell onRefresh={handleRefresh} refreshMode="direct" autoSyncing={autoSyncing}>
+    <NeoShell onRefresh={handleRefresh} refreshMode="direct" autoSyncing={autoSyncing} chromeDimmed={gameRunning}>
+      <div className={gameRunning ? "np-gaming-dim" : ""} style={{ transition: "opacity 0.3s ease" }}>
       <div className="np-pagehead">
         <span className="np-eyebrow">today · {todayLabel}</span>
         <div className="np-pagehead__row">
@@ -302,6 +308,10 @@ export default function NeoHome() {
           </div>
         </section>
       )}
+      </div>
+
+      {/* minimal dino runner for the dead time */}
+      <DinoGame onPhaseChange={(p) => setGameRunning(p === "run")} />
 
       {/* timetable changes after resync */}
       <NeoModal
