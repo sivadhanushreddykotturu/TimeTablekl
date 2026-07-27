@@ -172,31 +172,38 @@ export default function DinoGame({ onPhaseChange }) {
       }
     };
 
-    const jump = () => {
-      if (st.over) {
-        reset();
-        st.running = true;
-        setPhase("run");
-        setHint("");
-        armRun();
+    let lastStartTap = 0;
+
+    const jump = (forceStart = false) => {
+      // mid-run: every tap jumps
+      if (st.running && !st.over) {
+        if (st.dino.grounded) {
+          st.dino.vy = -7.4;
+          st.dino.grounded = false;
+        }
         return;
       }
-      if (!st.running) {
-        st.running = true;
-        setPhase("run");
-        setHint("");
-        armRun();
+      // idle / game-over: starting needs a deliberate double tap, so
+      // scrolling past the card never fires it up. Spacebar always starts.
+      if (!forceStart) {
+        const now = performance.now();
+        if (now - lastStartTap > 350) {
+          lastStartTap = now;
+          return;
+        }
+        lastStartTap = 0;
       }
-      if (st.dino.grounded) {
-        st.dino.vy = -7.4;
-        st.dino.grounded = false;
-      }
+      reset();
+      st.running = true;
+      setPhase("run");
+      setHint("");
+      armRun();
     };
 
     const onKey = (e) => {
       if (e.code === "Space" || e.code === "ArrowUp") {
         e.preventDefault();
-        jump();
+        jump(true);
       }
     };
     jumpRef.current = jump;
@@ -363,8 +370,8 @@ export default function DinoGame({ onPhaseChange }) {
       <canvas ref={canvasRef} className="np-dino__canvas" />
       <div className="np-dino__hint">
         {hint ||
-          (phase === "idle" && "tap to run · jump blocks · dodge flyers") ||
-          (phase === "over" && `game over · ${score} dodged · tap to retry`)}
+          (phase === "idle" && "double tap to run · jump blocks · dodge flyers") ||
+          (phase === "over" && `game over · ${score} dodged · double tap to retry`)}
       </div>
 
       {/* top 3 — below the game, dims while playing */}

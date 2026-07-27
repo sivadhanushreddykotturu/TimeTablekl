@@ -113,7 +113,7 @@ export default function NeoLogin() {
             <NeoField
               id="np-username"
               label="university id"
-              placeholder="2400090000"
+              placeholder="2400032717"
               value={username}
               autoComplete="username"
               onChange={(e) => setUsername(e.target.value)}

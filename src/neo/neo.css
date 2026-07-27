@@ -484,6 +484,25 @@ body.np-body button.np-iconbtn--exit {
   margin-bottom: 12px;
 }
 
+/* on/off pill used in profile settings rows */
+.np-toggle {
+  font: 700 9px/1 var(--np-font-ui);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border: 1px solid var(--np-line);
+  color: var(--np-muted);
+  background: var(--np-void);
+  transition: all 0.15s ease;
+}
+
+.np-toggle--on {
+  background: var(--np-acid);
+  color: #0a0a0c;
+  border-color: #000;
+  box-shadow: 2px 2px 0 0 var(--np-purple);
+}
+
 /* minimal dino runner */
 .np-dino {
   position: relative;

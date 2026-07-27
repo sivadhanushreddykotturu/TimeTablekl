@@ -8,6 +8,7 @@ import {
   FiGithub,
   FiLinkedin,
   FiRefreshCw,
+  FiPlay,
 } from "react-icons/fi";
 import NeoShell, { NeoModal } from "../Shell.jsx";
 import { NeoField, NeoSelect, NeoButton } from "../NeoKit.jsx";
@@ -39,6 +40,9 @@ export default function NeoProfile() {
   );
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [gamesEnabled, setGamesEnabled] = useState(
+    () => localStorage.getItem("games_enabled") !== "false"
+  );
   const credsSnapshotRef = useRef({ username: "", password: "" });
 
   // feedback state
@@ -253,6 +257,23 @@ export default function NeoProfile() {
           <FiMessageSquare size={15} /> send feedback
         </span>
         <span className="np-linkrow__go">→</span>
+      </button>
+
+      <button
+        className="np-linkrow"
+        onClick={() =>
+          setGamesEnabled((prev) => {
+            localStorage.setItem("games_enabled", String(!prev));
+            return !prev;
+          })
+        }
+      >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          <FiPlay size={15} /> break-time games
+        </span>
+        <span className={`np-toggle${gamesEnabled ? " np-toggle--on" : ""}`}>
+          {gamesEnabled ? "on" : "off"}
+        </span>
       </button>
 
       <button className="np-linkrow np-linkrow--danger" onClick={() => setShowLogoutConfirm(true)}>

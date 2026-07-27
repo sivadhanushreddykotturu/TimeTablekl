@@ -5,7 +5,7 @@ import DinoGame from "../DinoGame.jsx";
 import Toast from "../../components/Toast.jsx";
 
 import { syncTimetable } from "../../../utils/syncTimetable.js";
-import { getTodaySubjects, replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
+import { replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
 import { trackEvent } from "../../utils/analytics";
 import { getSlotTimes, getMaxSlots } from "../../utils/slotTimes";
 
@@ -147,7 +147,6 @@ export default function NeoHome() {
   );
   const [current, setCurrent] = useState(null);
   const [next, setNext] = useState(null);
-  const [todaySubjects, setTodaySubjects] = useState([]);
   const [semester, setSemester] = useState("");
   const [academicYear, setAcademicYear] = useState("");
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
@@ -166,13 +165,11 @@ export default function NeoHome() {
     const validSemesters = new Set(["odd", "even", "summer", "term3"]);
     setSemester(validSemesters.has(storedSemester) ? storedSemester : "odd");
     setAcademicYear(localStorage.getItem("academicYear") || "2024-25");
-    setTodaySubjects(getTodaySubjects());
   }, [timetable]);
 
   useEffect(() => {
     trackEvent("home_page_viewed", {
       has_timetable: Object.keys(timetable).length > 0,
-      today_subjects_count: todaySubjects.length,
       has_current_class: !!current,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -193,7 +190,6 @@ export default function NeoHome() {
         if (!cancelled) {
           const changes = getTimetableChanges(oldSnapshot, newTimetable);
           setTimetable(newTimetable);
-          setTodaySubjects(getTodaySubjects());
           localStorage.setItem("timetable_last_sync", today);
           if (changes.length > 0) {
             setResyncChanges(changes);
@@ -234,7 +230,6 @@ export default function NeoHome() {
       const changes = getTimetableChanges(oldSnapshot, newTimetable);
 
       setTimetable(newTimetable);
-      setTodaySubjects(getTodaySubjects());
       if (changes.length > 0) {
         setResyncChanges(changes);
         setShowChangesPopup(true);
@@ -292,26 +287,12 @@ export default function NeoHome() {
         </div>
       </section>
 
-      {/* today's subjects */}
-      {todaySubjects.length > 0 && (
-        <section className="np-panel">
-          <div className="np-panel__label">today's subjects</div>
-          <div className="np-chips">
-            {todaySubjects.map((subject, index) => (
-              <span key={index} className="np-chip">
-                {subject.displayName}
-                {subject.displayName !== subject.code && (
-                  <small>{subject.code}</small>
-                )}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
       </div>
 
-      {/* minimal dino runner for the dead time */}
-      <DinoGame onPhaseChange={(p) => setGameRunning(p === "run")} />
+      {/* minimal dino runner for the dead time (toggleable in profile) */}
+      {localStorage.getItem("games_enabled") !== "false" && (
+        <DinoGame onPhaseChange={(p) => setGameRunning(p === "run")} />
+      )}
 
       {/* timetable changes after resync */}
       <NeoModal
