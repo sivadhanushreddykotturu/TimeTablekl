@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { FiSmartphone, FiMonitor } from "react-icons/fi";
 import { API_CONFIG } from "../config/api.js";
 import { getCredentials } from "../../utils/storage.js";
 import { trackEvent } from "../utils/analytics";
@@ -14,6 +15,17 @@ const istDay = () =>
 
 const cacheBoard = (rows) =>
   localStorage.setItem("dino_board", JSON.stringify({ day: istDay(), rows }));
+
+// Device class for the leaderboard badge — coarse pointer = phone/tablet.
+const DEVICE_CLASS =
+  window.matchMedia?.("(pointer: coarse)").matches ||
+  /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+    ? "mobile"
+    : "desktop";
+
+// Physics equalizer: everyone races the same-width track regardless of screen,
+// so a wide laptop canvas grants no extra reaction time.
+const MAX_TRACK_WIDTH = 480;
 
 export default function DinoGame({ onPhaseChange }) {
   const canvasRef = useRef(null);
@@ -88,6 +100,7 @@ export default function DinoGame({ onPhaseChange }) {
         const form = new FormData();
         form.append("userId", userId);
         form.append("gameId", "dino");
+        form.append("deviceClass", DEVICE_CLASS);
         const res = await axios.post(API_CONFIG.GAME_START_URL, form, { timeout: 15000 });
         if (res.data?.success && res.data.token) {
           tokenRef.current = res.data.token;
@@ -130,9 +143,11 @@ export default function DinoGame({ onPhaseChange }) {
 
     const resize = () => {
       // content-box width: clientWidth includes the section's padding, which
-      // would push the canvas (and ground line) past the right edge
+      // would push the canvas (and ground line) past the right edge.
+      // Capped so every device races an identical-width track.
       const cs = getComputedStyle(wrapRef.current);
-      W = wrapRef.current.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      const avail = wrapRef.current.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      W = Math.min(avail, MAX_TRACK_WIDTH);
       canvas.width = W * DPR;
       canvas.height = H * DPR;
       canvas.style.width = `${W}px`;
@@ -428,7 +443,11 @@ export default function DinoGame({ onPhaseChange }) {
               <span className={`np-board__rank${i === 0 ? " np-board__rank--top" : ""}`}>
                 {i + 1}
               </span>
-              <span className="np-board__id">{entry.userId}</span>
+              <span className="np-board__id">
+                {entry.userId}
+                {entry.device === "mobile" && <FiSmartphone size={10} className="np-board__dev" />}
+                {entry.device === "desktop" && <FiMonitor size={10} className="np-board__dev" />}
+              </span>
               <span className="np-board__score">{entry.score}</span>
             </div>
           ))}

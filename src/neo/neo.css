@@ -550,7 +550,16 @@ body.np-body button.np-iconbtn--exit {
 .np-dino__canvas {
   display: block;
   width: 100%;
+  max-width: 480px; /* physics equalizer: same track width on every device */
+  margin: 0 auto;
   cursor: pointer;
+}
+
+/* tiny device badge beside leaderboard ids */
+.np-board__dev {
+  margin-left: 6px;
+  color: var(--np-faint);
+  vertical-align: baseline;
 }
 
 /* top-3 leaderboard */
