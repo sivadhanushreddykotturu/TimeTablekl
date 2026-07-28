@@ -17,11 +17,58 @@ const cacheBoard = (rows) =>
   localStorage.setItem("dino_board", JSON.stringify({ day: istDay(), rows }));
 
 // Device class for the leaderboard badge — coarse pointer = phone/tablet.
-const DEVICE_CLASS =
-  window.matchMedia?.("(pointer: coarse)").matches ||
-  /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
-    ? "mobile"
-    : "desktop";
+const detectDeviceClass = () => {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return "desktop";
+  }
+
+  // 1. Initial touch/userAgent check.
+  const hasCoarsePointer = window.matchMedia?.("(pointer: coarse)").matches || false;
+  const hasTouchStart = "ontouchstart" in window;
+  const hasMobileUA = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+  let isMobile = (hasCoarsePointer || hasTouchStart) && hasMobileUA;
+
+  // 2. Override for DevTools Mobile Emulation or Desktop Touch Screens.
+  // A. Check navigator.userAgentData (present on Chrome/Edge on Desktop, but not on Safari or iOS Chrome).
+  if (navigator.userAgentData) {
+    if (navigator.userAgentData.mobile === false) {
+      isMobile = false;
+    }
+    const platform = navigator.userAgentData.platform?.toLowerCase() || "";
+    if (
+      platform.includes("win") ||
+      platform.includes("mac") ||
+      platform.includes("linux")
+    ) {
+      isMobile = false;
+    }
+  }
+
+  // B. Check navigator.platform discrepancies.
+  // Real mobile devices do not return desktop platforms.
+  // Firefox/Safari Responsive Mode on laptops leaves navigator.platform unchanged (e.g. Win32, Win64, MacIntel, Linux x86_64).
+  if (navigator.platform) {
+    const platform = navigator.platform.toLowerCase();
+    if (
+      platform.includes("win") ||
+      platform.includes("macintel") ||
+      (platform.includes("linux") && !platform.includes("arm") && !platform.includes("aarch"))
+    ) {
+      isMobile = false;
+    }
+  }
+
+  // C. Check navigator.userAgent for desktop/laptop indications.
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes("windows") || ua.includes("macintosh")) {
+    isMobile = false;
+  }
+
+  return isMobile ? "mobile" : "desktop";
+};
+
+const DEVICE_CLASS = detectDeviceClass();
 
 // Physics equalizer: everyone races the same-width track regardless of screen,
 // so a wide laptop canvas grants no extra reaction time.
@@ -263,6 +310,10 @@ export default function DinoGame({ onPhaseChange }) {
     const onKey = (e) => {
       if (e.code === "Space" || e.code === "ArrowUp") {
         e.preventDefault();
+        if (DEVICE_CLASS === "mobile" && !casualRef.current) {
+          casualRef.current = true;
+          setHint("keyboard detected – run marked casual");
+        }
         jump(true);
       }
     };
