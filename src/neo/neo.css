@@ -555,12 +555,7 @@ body.np-body button.np-iconbtn--exit {
   cursor: pointer;
 }
 
-/* tiny device badge beside leaderboard ids */
-.np-board__dev {
-  margin-left: 6px;
-  color: var(--np-faint);
-  vertical-align: baseline;
-}
+
 
 /* top-3 leaderboard */
 .np-board {
@@ -597,6 +592,15 @@ body.np-body button.np-iconbtn--exit {
   text-transform: uppercase;
   color: var(--np-faint);
   padding: 8px 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* league marker in the board caption */
+.np-board__league {
+  color: var(--np-faint);
+  vertical-align: -1px;
 }
 
 .np-board__row {

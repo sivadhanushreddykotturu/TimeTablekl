@@ -39,7 +39,7 @@ export default function DinoGame({ onPhaseChange }) {
   const [phase, setPhase] = useState("idle"); // idle | run | over
   const [hint, setHint] = useState("");
   const [board, setBoard] = useState(() => {
-    // cached board is only shown if it's from today (leaderboard resets daily, IST)
+    // cached board (own league) is only shown if it's from today
     try {
       const cached = JSON.parse(localStorage.getItem("dino_board") || "{}");
       return cached.day === istDay() ? cached.rows || [] : [];
@@ -50,10 +50,11 @@ export default function DinoGame({ onPhaseChange }) {
 
   const userId = getCredentials()?.username || "";
 
+  // Your device is your league — always fetch your own class's board.
   const loadLeaderboard = useCallback(async () => {
     try {
       const res = await axios.get(API_CONFIG.GAME_LEADERBOARD_URL, {
-        params: { gameId: "dino", limit: 3 },
+        params: { gameId: "dino", limit: 3, device: DEVICE_CLASS },
         timeout: 8000,
       });
       if (res.data?.success) {
@@ -202,6 +203,7 @@ export default function DinoGame({ onPhaseChange }) {
         form.append("score", String(finalScore));
         const res = await axios.post(API_CONFIG.GAME_SUBMIT_URL, form, { timeout: 8000 });
         if (res.data?.success) {
+          // submit returns the player's own-league board
           if (Array.isArray(res.data.leaderboard)) {
             setBoard(res.data.leaderboard);
             cacheBoard(res.data.leaderboard);
@@ -434,20 +436,26 @@ export default function DinoGame({ onPhaseChange }) {
           (phase === "over" && `game over · ${score} dodged · double tap to retry`)}
       </div>
 
-      {/* today's top 3 — below the game, dims while playing */}
+      {/* today's top 3 in YOUR league (your device class) — below the game */}
       {board.length > 0 && (
         <div className={`np-board${phase === "run" ? " np-board--dim" : ""}`}>
-          <div className="np-board__cap">today's top 3 · resets midnight</div>
+          <div className="np-board__cap">
+            <span>
+              today's top 3 ·{" "}
+              {DEVICE_CLASS === "mobile" ? (
+                <FiSmartphone size={9} className="np-board__league" />
+              ) : (
+                <FiMonitor size={9} className="np-board__league" />
+              )}{" "}
+              {DEVICE_CLASS === "mobile" ? "phone league" : "pc league"} · resets midnight
+            </span>
+          </div>
           {board.map((entry, i) => (
             <div className="np-board__row" key={`${entry.userId}-${i}`}>
               <span className={`np-board__rank${i === 0 ? " np-board__rank--top" : ""}`}>
                 {i + 1}
               </span>
-              <span className="np-board__id">
-                {entry.userId}
-                {entry.device === "mobile" && <FiSmartphone size={10} className="np-board__dev" />}
-                {entry.device === "desktop" && <FiMonitor size={10} className="np-board__dev" />}
-              </span>
+              <span className="np-board__id">{entry.userId}</span>
               <span className="np-board__score">{entry.score}</span>
             </div>
           ))}
