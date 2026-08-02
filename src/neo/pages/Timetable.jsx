@@ -375,6 +375,9 @@ export default function NeoTimetable() {
                 <div className="np-block__time">
                   {slotTimes[block.startSlot].start}
                   <small>{slotTimes[block.endSlot].end}</small>
+                  <span style={{ fontSize: "9px", color: "var(--np-muted)", opacity: 0.5, marginTop: "4px", fontWeight: 500 }}>
+                    Slot {block.startSlot}{block.startSlot !== block.endSlot ? `–${block.endSlot}` : ""}
+                  </span>
                 </div>
                 <div className="np-block__name">
                   {replaceCourseCodeWithCustomName(block.content)}
@@ -481,6 +484,9 @@ export default function NeoTimetable() {
                     {slotTimes[slot]?.start}<br />
                     <span style={{ opacity: 0.65, fontSize: "9.5px", color: "var(--np-muted)" }}>
                       {slotTimes[slot]?.end}
+                    </span>
+                    <span style={{ display: "block", fontSize: "8.5px", opacity: 0.5, color: "var(--np-muted)", marginTop: "2px", fontWeight: 400 }}>
+                      Slot {slot}
                     </span>
                   </td>
                   {days.map((day) => {

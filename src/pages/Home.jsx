@@ -108,13 +108,15 @@ function findCurrentAndNextClass(timetable) {
   // Set current class
   if (currentBlock) {
     const mappedContent = replaceCourseCodeWithCustomName(currentBlock.content);
-    currentClass = `${mappedContent} (${slotTimes[currentBlock.startSlot].start} - ${slotTimes[currentBlock.endSlot].end})`;
+    const slotStr = currentBlock.startSlot === currentBlock.endSlot ? `Slot ${currentBlock.startSlot}` : `Slots ${currentBlock.startSlot}-${currentBlock.endSlot}`;
+    currentClass = `${mappedContent} (${slotTimes[currentBlock.startSlot].start} - ${slotTimes[currentBlock.endSlot].end} · ${slotStr})`;
   }
 
   // Set next class
   if (nextBlock) {
     const mappedContent = replaceCourseCodeWithCustomName(nextBlock.content);
-    nextClass = `${mappedContent} (${slotTimes[nextBlock.startSlot].start} - ${slotTimes[nextBlock.endSlot].end})`;
+    const slotStr = nextBlock.startSlot === nextBlock.endSlot ? `Slot ${nextBlock.startSlot}` : `Slots ${nextBlock.startSlot}-${nextBlock.endSlot}`;
+    nextClass = `${mappedContent} (${slotTimes[nextBlock.startSlot].start} - ${slotTimes[nextBlock.endSlot].end} · ${slotStr})`;
   }
 
   return { currentClass, nextClass };

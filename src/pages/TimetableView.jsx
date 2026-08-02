@@ -304,6 +304,9 @@ export default function TimetableView() {
               <div className="class-name">{displayContent}</div>
               <div className="class-time">
                 {slotTimes[block.startSlot].start} – {slotTimes[block.endSlot].end}
+                <span style={{ fontSize: "0.85em", color: "#888", marginLeft: "6px" }}>
+                  (Slot {block.startSlot}{block.startSlot !== block.endSlot ? `-${block.endSlot}` : ""})
+                </span>
               </div>
             </div>
           );

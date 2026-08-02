@@ -94,13 +94,14 @@ function findCurrentAndNextClass(timetable) {
     }
   }
 
-  const toInfo = (block) =>
-    block
-      ? {
-          name: replaceCourseCodeWithCustomName(block.content),
-          time: `${slotTimes[block.startSlot].start} – ${slotTimes[block.endSlot].end}`,
-        }
-      : null;
+  const toInfo = (block) => {
+    if (!block) return null;
+    const slotStr = block.startSlot === block.endSlot ? `Slot ${block.startSlot}` : `Slots ${block.startSlot}–${block.endSlot}`;
+    return {
+      name: replaceCourseCodeWithCustomName(block.content),
+      time: `${slotTimes[block.startSlot].start} – ${slotTimes[block.endSlot].end} · [${slotStr}]`,
+    };
+  };
 
   return { current: toInfo(currentBlock), next: toInfo(nextBlock) };
 }
