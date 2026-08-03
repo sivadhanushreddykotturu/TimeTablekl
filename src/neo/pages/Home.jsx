@@ -7,7 +7,7 @@ import Toast from "../../components/Toast.jsx";
 import { syncTimetable } from "../../../utils/syncTimetable.js";
 import { replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
 import { trackEvent } from "../../utils/analytics";
-import { getSlotTimes, getMaxSlots } from "../../utils/slotTimes";
+import { getSlotTimes, getMaxSlots, formatTimeStr } from "../../utils/slotTimes";
 
 function getCurrentSlotNumber() {
   const slotTimes = getSlotTimes();
@@ -96,10 +96,13 @@ function findCurrentAndNextClass(timetable) {
 
   const toInfo = (block) => {
     if (!block) return null;
+    const formatSetting = localStorage.getItem("time_format") || "12";
     const slotStr = block.startSlot === block.endSlot ? `Slot ${block.startSlot}` : `Slots ${block.startSlot}–${block.endSlot}`;
+    const startFormatted = formatTimeStr(slotTimes[block.startSlot].start, formatSetting);
+    const endFormatted = formatTimeStr(slotTimes[block.endSlot].end, formatSetting);
     return {
       name: replaceCourseCodeWithCustomName(block.content),
-      time: `${slotTimes[block.startSlot].start} – ${slotTimes[block.endSlot].end} · [${slotStr}]`,
+      time: `${startFormatted} – ${endFormatted} · [${slotStr}]`,
     };
   };
 

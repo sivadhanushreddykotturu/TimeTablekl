@@ -9,6 +9,7 @@ import {
   FiLinkedin,
   FiRefreshCw,
   FiPlay,
+  FiClock,
 } from "react-icons/fi";
 import NeoShell, { NeoModal } from "../Shell.jsx";
 import { NeoField, NeoSelect, NeoButton } from "../NeoKit.jsx";
@@ -42,6 +43,9 @@ export default function NeoProfile() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [gamesEnabled, setGamesEnabled] = useState(
     () => localStorage.getItem("games_enabled") !== "false"
+  );
+  const [timeFormat, setTimeFormat] = useState(
+    () => localStorage.getItem("time_format") || "12"
   );
   const credsSnapshotRef = useRef({ username: "", password: "" });
 
@@ -273,6 +277,24 @@ export default function NeoProfile() {
         </span>
         <span className={`np-toggle${gamesEnabled ? " np-toggle--on" : ""}`}>
           {gamesEnabled ? "on" : "off"}
+        </span>
+      </button>
+
+      <button
+        className="np-linkrow"
+        onClick={() =>
+          setTimeFormat((prev) => {
+            const next = prev === "12" ? "24" : "12";
+            localStorage.setItem("time_format", next);
+            return next;
+          })
+        }
+      >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          <FiClock size={15} /> time format
+        </span>
+        <span className={`np-toggle${timeFormat === "24" ? " np-toggle--on" : ""}`}>
+          {timeFormat === "24" ? "24 hr" : "12 hr"}
         </span>
       </button>
 

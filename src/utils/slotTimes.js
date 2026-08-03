@@ -92,3 +92,23 @@ export function getMaxSlots(username = null) {
   return Math.max(...Object.keys(slotTimes).map(Number));
 }
 
+/**
+ * Formats a time string (HH:mm) to 12-hour or 24-hour format
+ * @param {string} timeStr - Time string in HH:mm format
+ * @param {string} formatSetting - '12' or '24' (defaults to '12')
+ * @returns {string} Formatted time string
+ */
+export function formatTimeStr(timeStr, formatSetting = "12") {
+  if (!timeStr) return "";
+  if (formatSetting === "24") return timeStr;
+  const parts = timeStr.split(":");
+  if (parts.length < 2) return timeStr;
+  const [hStr, mStr] = parts;
+  const h = parseInt(hStr, 10);
+  if (isNaN(h)) return timeStr;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const displayH = h % 12 === 0 ? 12 : h % 12;
+  return `${displayH}:${mStr} ${ampm}`;
+}
+
+

@@ -5,7 +5,7 @@ import Toast from "../../components/Toast.jsx";
 import { syncTimetable } from "../../../utils/syncTimetable.js";
 import { replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
 import { trackEvent } from "../../utils/analytics";
-import { getSlotTimes, getMaxSlots } from "../../utils/slotTimes";
+import { getSlotTimes, getMaxSlots, formatTimeStr } from "../../utils/slotTimes";
 
 const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -220,8 +220,11 @@ export default function NeoTimetable() {
 
       ctx.fillStyle = "#cfff04";
       ctx.font = "500 12px system-ui, -apple-system, sans-serif";
+      const formatSetting = localStorage.getItem("time_format") || "12";
+      const startFormatted = formatTimeStr(slotTimes[slot].start, formatSetting);
+      const endFormatted = formatTimeStr(slotTimes[slot].end, formatSetting);
+      const timeText = `${startFormatted} - ${endFormatted}`;
       ctx.textAlign = "center";
-      const timeText = `${slotTimes[slot].start} - ${slotTimes[slot].end}`;
       ctx.fillText(timeText, x + timeColWidth / 2, slotY + rowHeight / 2 + 4);
 
       orderedDays.forEach((day, dayIdx) => {
@@ -373,8 +376,8 @@ export default function NeoTimetable() {
             activeBlocks.map((block, idx) => (
               <div key={idx} className="np-block">
                 <div className="np-block__time">
-                  {slotTimes[block.startSlot].start}
-                  <small>{slotTimes[block.endSlot].end}</small>
+                  {formatTimeStr(slotTimes[block.startSlot].start, localStorage.getItem("time_format") || "12")}
+                  <small>{formatTimeStr(slotTimes[block.endSlot].end, localStorage.getItem("time_format") || "12")}</small>
                   <span style={{ fontSize: "9px", color: "var(--np-muted)", opacity: 0.5, marginTop: "4px", fontWeight: 500 }}>
                     Slot {block.startSlot}{block.startSlot !== block.endSlot ? `–${block.endSlot}` : ""}
                   </span>
@@ -481,9 +484,9 @@ export default function NeoTimetable() {
                       fontFamily: "var(--np-font-ui)",
                     }}
                   >
-                    {slotTimes[slot]?.start}<br />
+                    {formatTimeStr(slotTimes[slot]?.start, localStorage.getItem("time_format") || "12")}<br />
                     <span style={{ opacity: 0.65, fontSize: "9.5px", color: "var(--np-muted)" }}>
-                      {slotTimes[slot]?.end}
+                      {formatTimeStr(slotTimes[slot]?.end, localStorage.getItem("time_format") || "12")}
                     </span>
                     <span style={{ display: "block", fontSize: "8.5px", opacity: 0.5, color: "var(--np-muted)", marginTop: "2px", fontWeight: 400 }}>
                       Slot {slot}
