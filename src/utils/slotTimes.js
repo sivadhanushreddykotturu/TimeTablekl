@@ -14,7 +14,7 @@ export const vijayawadaSlotTimes = {
   8: { start: "13:50", end: "14:40" },
   // Slot 9 starts at 14:40, not 14:50. The 10-minute gap caused the
   // homepage current-class detector to miss ongoing double periods.
-  9: { start: "14:40", end: "15:40" },
+  9: { start: "14:40", end: "15:30" },
   10: { start: "15:50", end: "16:40" },
   11: { start: "16:40", end: "17:30" },
   12: { start: "17:30", end: "18:20" },

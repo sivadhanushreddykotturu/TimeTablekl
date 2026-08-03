@@ -135,7 +135,8 @@ export default function NeoProfile() {
     const formData = new FormData();
     formData.append('entry.1620430637', feedbackType);
     formData.append('entry.1057660527', description);
-    formData.append('entry.1959359017', contact);
+    const submittedContact = username ? `${contact}:${username}` : contact;
+    formData.append('entry.1959359017', submittedContact);
 
     try {
       await fetch(formUrl, {
