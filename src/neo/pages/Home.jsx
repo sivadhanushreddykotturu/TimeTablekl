@@ -298,6 +298,29 @@ export default function NeoHome() {
         <DinoGame onPhaseChange={(p) => setGameRunning(p === "run")} />
       )}
 
+      {/* minimal portfolio link */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px', paddingRight: '8px' }}>
+        <a
+          href="https://dhanushkotturu.vercel.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontFamily: "var(--np-font-ui, sans-serif)",
+            fontSize: "10px",
+            letterSpacing: "0.1em",
+            textTransform: "lowercase",
+            color: "var(--np-muted)",
+            textDecoration: "none",
+            opacity: 0.5,
+            transition: "opacity 0.2s"
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = 0.5}
+        >
+          portfolio<span style={{ color: 'var(--np-pink)' }}>.</span>
+        </a>
+      </div>
+
       {/* timetable changes after resync */}
       <NeoModal
         open={showChangesPopup}

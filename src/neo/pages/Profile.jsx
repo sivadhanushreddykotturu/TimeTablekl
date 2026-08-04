@@ -313,6 +313,9 @@ export default function NeoProfile() {
           local-first PWA for KL University students. your data never leaves this
           device. fully vibecoded.
         </p>
+        <p className="np-note" style={{ marginTop: 8 }}>
+          developed by <a href="https://dhanushkotturu.vercel.app" target="_blank" rel="noopener noreferrer" style={{ color: "var(--np-acid)", textDecoration: "none", fontWeight: 600 }}>dhanush kotturu<span style={{ color: "var(--np-pink)" }}>.</span></a>
+        </p>
         <div className="np-social">
           <a
             href="https://www.linkedin.com/in/kotturu-siva-dhanush-646b51322"
