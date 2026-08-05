@@ -5,6 +5,11 @@ import { API_CONFIG } from "../config/api.js";
 import { getCredentials } from "../../utils/storage.js";
 import { trackEvent } from "../utils/analytics";
 
+// --- TEMPORARY BANNER TOGGLE ---
+// Set SHOW_CELEBRATION_BANNER to false or delete this block to easily remove the banner.
+const SHOW_CELEBRATION_BANNER = true;
+
+
 // Minimal neoPOP dino runner. Point per obstacle dodged.
 // Online: JWT-verified runs submit to the leaderboard (top 3 shown).
 // Offline: casual mode — score is discarded, never saved.
@@ -85,7 +90,9 @@ export default function DinoGame({ onPhaseChange }) {
   const [score, setScore] = useState(0);
   const [phase, setPhase] = useState("idle"); // idle | run | over
   const [hint, setHint] = useState("");
+  const [announcement, setAnnouncement] = useState(null);
   const [board, setBoard] = useState(() => {
+
     // cached board (own league) is only shown if it's from today
     try {
       const cached = JSON.parse(localStorage.getItem("dino_board") || "{}");
@@ -117,6 +124,24 @@ export default function DinoGame({ onPhaseChange }) {
   useEffect(() => {
     loadLeaderboard();
   }, [loadLeaderboard]);
+
+  // Fetch real-time cached-busted announcements
+  useEffect(() => {
+    const fetchAnnouncement = async () => {
+      try {
+        const res = await axios.get(`/announcements.json?t=${Date.now()}`);
+        if (res.data && res.data.active) {
+          setAnnouncement(res.data);
+        } else {
+          setAnnouncement(null);
+        }
+      } catch {
+        setAnnouncement(null);
+      }
+    };
+    fetchAnnouncement();
+  }, []);
+
 
   // Keep ranks fresh while the app is open (pause when tab is hidden).
   useEffect(() => {
@@ -512,6 +537,31 @@ export default function DinoGame({ onPhaseChange }) {
           ))}
         </div>
       )}
+
+      {/* BEST FRIEND CELEBRATION BANNER */}
+      {SHOW_CELEBRATION_BANNER && announcement && phase !== "run" && (
+        <div 
+          className="np-board" 
+          style={{ 
+            borderColor: "#cfff04", 
+            background: "rgba(207, 255, 4, 0.05)",
+            padding: "10px 12px",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "4px"
+          }}
+        >
+          <div style={{ font: "700 8px/1 var(--np-font-ui)", letterSpacing: "0.28em", textTransform: "uppercase", color: "#cfff04" }}>
+            {announcement.title || "🎉 CELEBRATION ALERT 🎉"}
+          </div>
+          <div style={{ fontSize: "11px", color: "var(--np-text)", fontFamily: "var(--np-font-ui)", lineHeight: "1.4" }}>
+            {announcement.message}
+          </div>
+        </div>
+      )}
+
 
       {/* while running: the entire screen (incl. footer) is the jump button */}
       {phase === "run" && (
