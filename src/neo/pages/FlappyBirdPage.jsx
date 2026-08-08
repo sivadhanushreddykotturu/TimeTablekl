@@ -584,6 +584,23 @@ export default function FlappyBirdPage() {
                     </span>
                     <span className="np-leaderboard-user" style={{ fontFamily: "var(--np-font-ui)", letterSpacing: "0.05em" }}>
                       ID: {idDisplay}
+                      {(() => {
+                        const campus = getCampus(idDisplay);
+                        if (!campus) return null;
+                        const isVij = campus === "VIJ";
+                        return (
+                          <span style={{
+                            marginLeft: 5,
+                            fontSize: "0.7em",
+                            fontFamily: "var(--np-font-ui)",
+                            letterSpacing: "0.12em",
+                            fontWeight: 700,
+                            color: isVij ? "#cfff04" : "#ff2e63",
+                            opacity: 0.85,
+                            verticalAlign: "middle",
+                          }}>{campus}</span>
+                        );
+                      })()}
                     </span>
                     <span className="np-leaderboard-score">{item.score} pts</span>
                   </div>

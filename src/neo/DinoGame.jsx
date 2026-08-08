@@ -11,6 +11,13 @@ const SHOW_CELEBRATION_BANNER = true;
 
 
 // Minimal neoPOP dino runner. Point per obstacle dodged.
+// Campus detection — chars 2-4 of the 10-digit KL student ID
+// e.g. 21B91A0501 → "000" = VIJ, anything else = HYD
+function getCampus(userId) {
+  if (!userId || userId.length < 5) return null;
+  return userId.slice(2, 5) === "000" ? "VIJ" : "HYD";
+}
+
 // Online: JWT-verified runs submit to the leaderboard (top 3 shown).
 // Offline: casual mode — score is discarded, never saved.
 
@@ -531,7 +538,26 @@ export default function DinoGame({ onPhaseChange }) {
               <span className={`np-board__rank${i === 0 ? " np-board__rank--top" : ""}`}>
                 {i + 1}
               </span>
-              <span className="np-board__id">{entry.userId}</span>
+              <span className="np-board__id">
+                {entry.userId}
+                {(() => {
+                  const campus = getCampus(entry.userId);
+                  if (!campus) return null;
+                  const isVij = campus === "VIJ";
+                  return (
+                    <span style={{
+                      marginLeft: 5,
+                      fontSize: "0.68em",
+                      fontFamily: "var(--np-font-ui)",
+                      letterSpacing: "0.12em",
+                      fontWeight: 700,
+                      color: isVij ? "#cfff04" : "#ff2e63",
+                      opacity: 0.85,
+                      verticalAlign: "middle",
+                    }}>{campus}</span>
+                  );
+                })()}
+              </span>
               <span className="np-board__score">{entry.score}</span>
             </div>
           ))}
