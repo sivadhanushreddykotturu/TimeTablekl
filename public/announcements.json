@@ -1,10 +1,5 @@
 {
   "active": true,
-  "title": "ALERT 📢❗🚨",
-  "message": "ERP implemented rate-limiting, we can't server you as fast as before for few days"
+  "title": "⚠️ Service Notice: Temporary Downtime",
+  "message": "The university updated their firewalls, causing the app to time out. We are working on a fix, but expect downtime until upcoming Monday while we rebuild our routing system. We'll update you when we're back online!"
 }
-
-
-
-
-
