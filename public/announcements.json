@@ -1,7 +1,7 @@
 {
-  "active": false,
+  "active": true,
   "title": "ALERT 📢❗🚨",
-  "message": "College ERP login server is broken. This timetable app will be back online as soon as the college fixes the backend."
+  "message": "ERP implemented rate-limiting, we can't server you as fast as before for few days"
 }
 
 
