@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import NeoShell, { NeoModal } from "../Shell.jsx";
 import DinoGame from "../DinoGame.jsx";
 import ClassTimer, { ClassTimerReadout, ClassProgressBar } from "../components/ClassTimer.jsx";
+import AnnouncementBanner from "../components/AnnouncementBanner.jsx";
 import Toast from "../../components/Toast.jsx";
 
 import { syncTimetable } from "../../../utils/syncTimetable.js";
@@ -319,6 +320,9 @@ export default function NeoHome() {
       {localStorage.getItem("games_enabled") !== "false" && (
         <DinoGame onPhaseChange={(p) => setGameRunning(p === "run")} />
       )}
+
+      {/* announcement banner (always visible even if games are disabled) */}
+      <AnnouncementBanner />
 
       {/* minimal portfolio link */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px', paddingRight: '8px' }}>

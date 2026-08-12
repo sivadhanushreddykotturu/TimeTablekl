@@ -133,22 +133,7 @@ export default function DinoGame({ onPhaseChange }) {
     loadLeaderboard();
   }, [loadLeaderboard]);
 
-  // Fetch real-time cached-busted announcements
-  useEffect(() => {
-    const fetchAnnouncement = async () => {
-      try {
-        const res = await axios.get(`/announcements.json?t=${Date.now()}`);
-        if (res.data && res.data.active) {
-          setAnnouncement(res.data);
-        } else {
-          setAnnouncement(null);
-        }
-      } catch {
-        setAnnouncement(null);
-      }
-    };
-    fetchAnnouncement();
-  }, []);
+
 
 
   // Keep ranks fresh while the app is open (pause when tab is hidden).
@@ -565,29 +550,7 @@ export default function DinoGame({ onPhaseChange }) {
         </div>
       )}
 
-      {/* BEST FRIEND CELEBRATION BANNER */}
-      {SHOW_CELEBRATION_BANNER && announcement && phase !== "run" && (
-        <div 
-          className="np-board" 
-          style={{ 
-            borderColor: getCSSColor("--np-acid"), 
-            background: "rgba(207, 255, 4, 0.05)",
-            padding: "10px 12px",
-            textAlign: "center",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "4px"
-          }}
-        >
-          <div style={{ font: "700 8px/1 var(--np-font-ui)", letterSpacing: "0.28em", textTransform: "uppercase", color: getCSSColor("--np-acid") }}>
-            {announcement.title || "🎉 CELEBRATION ALERT 🎉"}
-          </div>
-          <div style={{ fontSize: "11px", color: "var(--np-text)", fontFamily: "var(--np-font-ui)", lineHeight: "1.4" }}>
-            {announcement.message}
-          </div>
-        </div>
-      )}
+
 
 
       {/* while running: the entire screen (incl. footer) is the jump button */}
