@@ -713,8 +713,45 @@ body.np-body button.np-iconbtn--exit {
 .np-now__time {
   margin-top: 10px;
   font: 700 13px/1 var(--np-font-ui);
-  letter-spacing: 0.08em;
-  color: rgba(244, 242, 234, 0.9);
+  letter-spacing: 0.06em;
+  color: var(--np-purple-text);
+  opacity: 0.9;
+}
+
+/* live class timer & progress bar */
+.np-now__progress-track {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.np-now__progress-bar {
+  height: 100%;
+  background: var(--np-acid);
+  transition: width 0.5s linear, background-color 0.5s ease;
+}
+
+.np-now__progress-bar--warning {
+  background: var(--np-pink) !important;
+}
+
+.np-timer-readout {
+  font: 700 10px/1 var(--np-font-ui);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--np-purple-text);
+  opacity: 0.85;
+  margin-left: auto;
+  transition: color 0.5s ease, opacity 0.5s ease;
+}
+
+.np-timer-readout--warning {
+  color: var(--np-pink) !important;
+  opacity: 1 !important;
 }
 
 .np-now--idle {

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import NeoShell, { NeoModal } from "../Shell.jsx";
 import DinoGame from "../DinoGame.jsx";
+import ClassTimer, { ClassTimerReadout, ClassProgressBar } from "../components/ClassTimer.jsx";
 import Toast from "../../components/Toast.jsx";
 
 import { syncTimetable } from "../../../utils/syncTimetable.js";
@@ -100,9 +101,18 @@ function findCurrentAndNextClass(timetable) {
     const slotStr = block.startSlot === block.endSlot ? `Slot ${block.startSlot}` : `Slots ${block.startSlot}–${block.endSlot}`;
     const startFormatted = formatTimeStr(slotTimes[block.startSlot].start, formatSetting);
     const endFormatted = formatTimeStr(slotTimes[block.endSlot].end, formatSetting);
+
+    const now = new Date();
+    const [sh, sm] = slotTimes[block.startSlot].start.split(":").map(Number);
+    const [eh, em] = slotTimes[block.endSlot].end.split(":").map(Number);
+    const startTimeMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0, 0).getTime();
+    const endTimeMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0, 0).getTime();
+
     return {
       name: replaceCourseCodeWithCustomName(block.content),
       time: `${startFormatted} – ${endFormatted} · [${slotStr}]`,
+      startTimeMs,
+      endTimeMs,
     };
   };
 
@@ -272,12 +282,24 @@ export default function NeoHome() {
       <section className={`np-now${current ? "" : " np-now--idle"}`}>
         <div className="np-now__label">
           <span className="np-now__pulse" />
-          {current ? "happening now" : "nothing right now"}
+          <span>{current ? "happening now" : "nothing right now"}</span>
+          {current && (
+            <ClassTimerReadout
+              startTimeMs={current.startTimeMs}
+              endTimeMs={current.endTimeMs}
+            />
+          )}
         </div>
         <div className="np-now__class">
           {current ? current.name : "no ongoing class. enjoy the break."}
         </div>
         {current && <div className="np-now__time">{current.time}</div>}
+        {current && (
+          <ClassProgressBar
+            startTimeMs={current.startTimeMs}
+            endTimeMs={current.endTimeMs}
+          />
+        )}
       </section>
 
       {/* up next */}
