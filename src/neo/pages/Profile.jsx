@@ -10,6 +10,7 @@ import {
   FiRefreshCw,
   FiPlay,
   FiClock,
+  FiDroplet,
 } from "react-icons/fi";
 import NeoShell, { NeoModal } from "../Shell.jsx";
 import { NeoField, NeoSelect, NeoButton } from "../NeoKit.jsx";
@@ -240,6 +241,13 @@ export default function NeoProfile() {
       <button className="np-linkrow" onClick={() => navigate("/subjects")}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
           <FiEdit3 size={15} /> manage subject names
+        </span>
+        <span className="np-linkrow__go">→</span>
+      </button>
+
+      <button className="np-linkrow" onClick={() => navigate("/customize")}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          <FiDroplet size={15} /> customize theme
         </span>
         <span className="np-linkrow__go">→</span>
       </button>

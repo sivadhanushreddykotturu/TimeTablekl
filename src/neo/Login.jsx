@@ -6,6 +6,7 @@ import Toast from "../components/Toast.jsx";
 import { getFormData, API_CONFIG, getCurrentAcademicYearOptions } from "../config/api.js";
 import { NeoButton, NeoField, NeoSelect, NeoCard } from "./NeoKit.jsx";
 import { Sparkle, LoginDecor } from "./Decor.jsx";
+import { getCSSColor } from "./utils/themeEngine";
 import "./neo.css";
 
 export default function NeoLogin() {
@@ -89,7 +90,7 @@ export default function NeoLogin() {
       <main className="np-shell">
         {/* hero plaque */}
         <section className="np-plaque">
-          <Sparkle className="np-plaque__star" size={34} color="#cfff04" />
+          <Sparkle className="np-plaque__star" size={34} color={getCSSColor("--np-acid")} />
           <div className="np-plaque__eyebrow">KL University · ERP companion</div>
           <h1 className="np-plaque__title">
             timetable<span className="np-dot">.</span>

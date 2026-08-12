@@ -4,6 +4,7 @@ import { FiShare2, FiArrowLeft } from "react-icons/fi";
 import NeoShell from "../Shell.jsx";
 import Toast from "../../components/Toast.jsx";
 import { getSlotTimes, getMaxSlots } from "../../utils/slotTimes";
+import { getCSSColor } from "../utils/themeEngine";
 
 const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -66,10 +67,10 @@ export default function NeoMaddyTimetable() {
     canvas.height = height * scale;
     ctx.scale(scale, scale);
 
-    ctx.fillStyle = '#0a0a0c';
+    ctx.fillStyle = getCSSColor("--np-void");
     ctx.fillRect(0, 0, width, height);
 
-    ctx.fillStyle = '#cfff04';
+    ctx.fillStyle = getCSSColor("--np-acid");
     ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`${maddy.name}'s Timetable`, width / 2, 35);
@@ -77,25 +78,25 @@ export default function NeoMaddyTimetable() {
     let x = padding;
     let y = padding + headerHeight;
 
-    ctx.fillStyle = '#17171b';
+    ctx.fillStyle = getCSSColor("--np-panel");
     ctx.fillRect(x, y - headerHeight, timeColWidth, headerHeight);
-    ctx.strokeStyle = '#2a2a31';
+    ctx.strokeStyle = getCSSColor("--np-line");
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y - headerHeight, timeColWidth, headerHeight);
 
-    ctx.fillStyle = '#8b8b95';
+    ctx.fillStyle = getCSSColor("--np-muted");
     ctx.font = '600 14px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Time', x + timeColWidth / 2, y - headerHeight / 2 + 5);
 
     orderedDays.forEach((day, dayIdx) => {
       const dayX = x + timeColWidth + (dayColWidth * dayIdx);
-      ctx.fillStyle = '#6533f4';
+      ctx.fillStyle = getCSSColor("--np-purple");
       ctx.fillRect(dayX, y - headerHeight, dayColWidth, headerHeight);
       ctx.strokeStyle = '#000000';
       ctx.strokeRect(dayX, y - headerHeight, dayColWidth, headerHeight);
 
-      ctx.fillStyle = '#f4f2ea';
+      ctx.fillStyle = getCSSColor("--np-cream");
       ctx.font = 'bold 16px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(day, dayX + dayColWidth / 2, y - headerHeight / 2 + 5);
@@ -104,12 +105,12 @@ export default function NeoMaddyTimetable() {
     for (let slot = 1; slot <= numSlots; slot++) {
       const slotY = y + (rowHeight * (slot - 1));
 
-      ctx.fillStyle = '#17171b';
+      ctx.fillStyle = getCSSColor("--np-panel");
       ctx.fillRect(x, slotY, timeColWidth, rowHeight);
-      ctx.strokeStyle = '#2a2a31';
+      ctx.strokeStyle = getCSSColor("--np-line");
       ctx.strokeRect(x, slotY, timeColWidth, rowHeight);
 
-      ctx.fillStyle = '#cfff04';
+      ctx.fillStyle = getCSSColor("--np-acid");
       ctx.font = '500 12px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'center';
       const timeText = `${slotTimes[slot].start} - ${slotTimes[slot].end}`;
@@ -120,14 +121,14 @@ export default function NeoMaddyTimetable() {
         const daySlots = maddy.timetable[day] || {};
         const classInfo = daySlots[slot.toString()];
 
-        ctx.fillStyle = classInfo && classInfo !== '-' ? '#131316' : '#0a0a0c';
+        ctx.fillStyle = classInfo && classInfo !== '-' ? getCSSColor("--np-carbon") : getCSSColor("--np-void");
         ctx.fillRect(dayX, slotY, dayColWidth, rowHeight);
-        ctx.strokeStyle = '#2a2a31';
+        ctx.strokeStyle = getCSSColor("--np-line");
         ctx.strokeRect(dayX, slotY, dayColWidth, rowHeight);
 
         if (classInfo && classInfo !== '-') {
           const maxWidth = dayColWidth - (cellPadding * 2);
-          ctx.fillStyle = '#f4f2ea';
+          ctx.fillStyle = getCSSColor("--np-cream");
           ctx.font = '600 11px system-ui, -apple-system, sans-serif';
           ctx.textAlign = 'left';
 
@@ -154,7 +155,7 @@ export default function NeoMaddyTimetable() {
 
     ctx.save();
     ctx.globalAlpha = 0.4;
-    ctx.fillStyle = '#8b8b95';
+    ctx.fillStyle = getCSSColor("--np-muted");
     ctx.font = 'italic 14px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText('timetable.', width - 20, height - 15);

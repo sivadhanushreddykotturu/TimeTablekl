@@ -6,6 +6,12 @@ import { NeoButton } from "../NeoKit.jsx";
 import Toast from "../../components/Toast.jsx";
 import { API_CONFIG } from "../../config/api.js";
 import { getCredentials } from "../../../utils/storage.js";
+import { getCSSColor } from "../utils/themeEngine";
+
+function getCampus(userId) {
+  if (!userId || userId.length < 5) return null;
+  return userId.slice(2, 5) === "000" ? "VIJ" : "HYD";
+}
 
 // Web Audio API synthesized sound generator (100% offline cache compatible)
 class SoundFx {
@@ -36,7 +42,7 @@ class SoundFx {
       gain.connect(this.ctx.destination);
       osc.start();
       osc.stop(this.ctx.currentTime + 0.1);
-    } catch {}
+    } catch (e) { /* ignore */ }
   }
   score() {
     try {
@@ -53,7 +59,7 @@ class SoundFx {
       gain.connect(this.ctx.destination);
       osc.start();
       osc.stop(this.ctx.currentTime + 0.2);
-    } catch {}
+    } catch (e) { /* ignore */ }
   }
   hit() {
     try {
@@ -70,7 +76,7 @@ class SoundFx {
       gain.connect(this.ctx.destination);
       osc.start();
       osc.stop(this.ctx.currentTime + 0.15);
-    } catch {}
+    } catch (e) { /* ignore */ }
   }
 }
 
@@ -290,33 +296,33 @@ export default function FlappyBirdPage() {
       // Draw Pipes (Neo-brutalist style with acid green & thick black borders)
       g.pipes.forEach((p) => {
         // Top pipe
-        ctx.fillStyle = "#cfff04";
+        ctx.fillStyle = getCSSColor("--np-acid");
         ctx.fillRect(p.x, 0, 48, p.topH);
         ctx.strokeStyle = "#000";
         ctx.lineWidth = 3;
         ctx.strokeRect(p.x, 0, 48, p.topH);
 
         // Top pipe rim
-        ctx.fillStyle = "#94b802";
+        ctx.fillStyle = getCSSColor("--np-acid-mid");
         ctx.fillRect(p.x - 3, p.topH - 16, 54, 16);
         ctx.strokeRect(p.x - 3, p.topH - 16, 54, 16);
 
         // Bottom pipe
         const botH = PLAY_H - p.bottomY;
-        ctx.fillStyle = "#cfff04";
+        ctx.fillStyle = getCSSColor("--np-acid");
         ctx.fillRect(p.x, p.bottomY, 48, botH);
         ctx.strokeRect(p.x, p.bottomY, 48, botH);
 
         // Bottom pipe rim
-        ctx.fillStyle = "#94b802";
+        ctx.fillStyle = getCSSColor("--np-acid-mid");
         ctx.fillRect(p.x - 3, p.bottomY, 54, 16);
         ctx.strokeRect(p.x - 3, p.bottomY, 54, 16);
       });
 
       // Draw Ground
-      ctx.fillStyle = "#17171b";
+      ctx.fillStyle = getCSSColor("--np-panel");
       ctx.fillRect(0, PLAY_H, W, GROUND_H);
-      ctx.strokeStyle = "#cfff04";
+      ctx.strokeStyle = getCSSColor("--np-acid");
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(0, PLAY_H);
@@ -324,7 +330,7 @@ export default function FlappyBirdPage() {
       ctx.stroke();
 
       // Ground pattern lines
-      ctx.strokeStyle = "#2a2a31";
+      ctx.strokeStyle = getCSSColor("--np-line");
       ctx.lineWidth = 2;
       const groundOffset = (g.frameCount * 2.2) % 20;
       for (let x = -20; x < W + 20; x += 20) {
@@ -341,7 +347,7 @@ export default function FlappyBirdPage() {
       ctx.rotate(angle);
 
       // Bird body (Neon Acid / Gold)
-      ctx.fillStyle = "#ff2e63";
+      ctx.fillStyle = getCSSColor("--np-pink");
       ctx.beginPath();
       ctx.arc(0, 0, birdR, 0, Math.PI * 2);
       ctx.fill();
@@ -360,7 +366,7 @@ export default function FlappyBirdPage() {
       ctx.fill();
 
       // Beak
-      ctx.fillStyle = "#cfff04";
+      ctx.fillStyle = getCSSColor("--np-acid");
       ctx.beginPath();
       ctx.moveTo(10, 0);
       ctx.lineTo(18, 3);
@@ -379,7 +385,7 @@ export default function FlappyBirdPage() {
       ctx.restore();
 
       // HUD Score display
-      ctx.fillStyle = "#f4f2ea";
+      ctx.fillStyle = getCSSColor("--np-cream");
       ctx.font = "bold 32px 'Archivo Black', sans-serif";
       ctx.textAlign = "center";
       ctx.shadowColor = "#000";
@@ -390,7 +396,7 @@ export default function FlappyBirdPage() {
       g.animId = requestAnimationFrame(loop);
     };
 
-    g.animId = requestAnimationFrame(loop);
+    gameRef.current.animId = requestAnimationFrame(loop);
   };
 
   // Game Over Handler
@@ -595,7 +601,7 @@ export default function FlappyBirdPage() {
                             fontFamily: "var(--np-font-ui)",
                             letterSpacing: "0.12em",
                             fontWeight: 700,
-                            color: isVij ? "#cfff04" : "#ff2e63",
+                            color: isVij ? getCSSColor("--np-acid") : getCSSColor("--np-pink"),
                             opacity: 0.85,
                             verticalAlign: "middle",
                           }}>{campus}</span>

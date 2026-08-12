@@ -18,7 +18,9 @@ import ProfilePage from "./neo/pages/Profile.jsx";
 import RegisterPage from "./pages/Register.jsx";
 import ExamPage from "./neo/pages/Exam.jsx";
 import FlappyBirdPage from "./neo/pages/FlappyBirdPage.jsx";
+import Customization from "./neo/pages/Customization.jsx";
 import { ToasterProvider } from "./components/Toast.jsx";
+import { loadAndApplyTheme } from "./neo/utils/themeEngine";
 import "./neo/neo.css";
 const CalculatorPage = lazy(() => import("./pages/Calculator.jsx"));
 
@@ -29,6 +31,7 @@ function App() {
   // neoPOP full-bleed black canvas, app-wide
   useEffect(() => {
     document.body.classList.add("np-body");
+    loadAndApplyTheme();
     return () => document.body.classList.remove("np-body");
   }, []);
 
@@ -55,6 +58,7 @@ function App() {
               <Route path="/attendance" element={<AttendancePage />} />
               <Route path="/grades" element={<GradesPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/customize" element={<Customization />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/exam" element={<ExamPage />} />
               <Route path="/games" element={<FlappyBirdPage />} />

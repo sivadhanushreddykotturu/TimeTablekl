@@ -18,6 +18,7 @@ import {
   filterCoursesBySemester,
   formatSemesterLabel,
 } from "../../utils/gradesUtils.js";
+import { getCSSColor } from "../utils/themeEngine";
 import { trackEvent } from "../../utils/analytics";
 
 const MARKS_DETAIL_FIELDS = [
@@ -258,10 +259,10 @@ export default function NeoGrades() {
     canvas.height = totalHeight * scale;
     ctx.scale(scale, scale);
 
-    ctx.fillStyle = "#0a0a0c";
+    ctx.fillStyle = getCSSColor("--np-void");
     ctx.fillRect(0, 0, maxWidth, totalHeight);
 
-    ctx.fillStyle = "#cfff04";
+    ctx.fillStyle = getCSSColor("--np-acid");
     ctx.font = "bold 26px system-ui, -apple-system, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(shareTitle, maxWidth / 2, 36);
@@ -269,18 +270,18 @@ export default function NeoGrades() {
     let yPos = padding + 50;
 
     const gpaBoxX = padding;
-    ctx.fillStyle = "#6533f4";
+    ctx.fillStyle = getCSSColor("--np-purple");
     ctx.fillRect(gpaBoxX, yPos, cardWidth, gpaBoxHeight);
     ctx.strokeStyle = "#000000";
     ctx.lineWidth = 2;
     ctx.strokeRect(gpaBoxX, yPos, cardWidth, gpaBoxHeight);
 
-    ctx.fillStyle = "#cfff04";
+    ctx.fillStyle = getCSSColor("--np-acid");
     ctx.font = "bold 13px system-ui, -apple-system, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(gpaLabel, maxWidth / 2, yPos + 28);
 
-    ctx.fillStyle = "#f4f2ea";
+    ctx.fillStyle = getCSSColor("--np-cream");
     ctx.font = "bold 40px system-ui, -apple-system, sans-serif";
     ctx.fillText(headlineGpa ?? "—", maxWidth / 2, yPos + 62);
 
@@ -296,16 +297,16 @@ export default function NeoGrades() {
       const cardX = padding;
       const cardHeight = headerHeight + cardBodyHeight;
 
-      ctx.fillStyle = "#131316";
+      ctx.fillStyle = getCSSColor("--np-carbon");
       ctx.fillRect(cardX, yPos, cardWidth, cardHeight);
-      ctx.strokeStyle = "#2a2a31";
+      ctx.strokeStyle = getCSSColor("--np-line");
       ctx.lineWidth = 1;
       ctx.strokeRect(cardX, yPos, cardWidth, cardHeight);
 
-      ctx.fillStyle = "#6533f4";
+      ctx.fillStyle = getCSSColor("--np-purple");
       ctx.fillRect(cardX, yPos, cardWidth, headerHeight);
 
-      ctx.fillStyle = "#f4f2ea";
+      ctx.fillStyle = getCSSColor("--np-cream");
       ctx.font = "bold 16px system-ui, -apple-system, sans-serif";
       ctx.textAlign = "left";
       const courseName = decodeHtml(course.course_name);
@@ -315,7 +316,7 @@ export default function NeoGrades() {
 
       ctx.textAlign = "right";
       ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
-      ctx.fillStyle = "#cfff04";
+      ctx.fillStyle = getCSSColor("--np-acid");
       ctx.fillText(
         course.grade || "—",
         cardX + cardWidth - cardPadding,
@@ -323,20 +324,20 @@ export default function NeoGrades() {
       );
 
       const bodyY = yPos + headerHeight;
-      ctx.fillStyle = "#17171b";
+      ctx.fillStyle = getCSSColor("--np-panel");
       ctx.fillRect(cardX, bodyY, cardWidth, cardBodyHeight);
 
-      ctx.fillStyle = "#f4f2ea";
+      ctx.fillStyle = getCSSColor("--np-cream");
       ctx.font = "600 13px system-ui, -apple-system, sans-serif";
       ctx.textAlign = "left";
       const statsLine = `GP: ${course.grade_point}   Credits: ${course.credits}   Status: ${course.promotion_status}`;
       ctx.fillText(statsLine, cardX + cardPadding, bodyY + 22);
 
-      ctx.fillStyle = "#8b8b95";
+      ctx.fillStyle = getCSSColor("--np-muted");
       ctx.font = "bold 13px system-ui, -apple-system, sans-serif";
       ctx.fillText(`Grade: ${course.grade}`, cardX + cardPadding, bodyY + 40);
 
-      ctx.fillStyle = "#8b8b95";
+      ctx.fillStyle = getCSSColor("--np-muted");
       ctx.font = "500 12px system-ui, -apple-system, sans-serif";
       ctx.textAlign = "right";
       ctx.fillText(
@@ -350,7 +351,7 @@ export default function NeoGrades() {
 
     ctx.save();
     ctx.globalAlpha = 0.4;
-    ctx.fillStyle = "#8b8b95";
+    ctx.fillStyle = getCSSColor("--np-muted");
     ctx.font = "italic 14px system-ui, -apple-system, sans-serif";
     ctx.textAlign = "right";
     ctx.fillText("timetable.", maxWidth - 20, totalHeight - 15);

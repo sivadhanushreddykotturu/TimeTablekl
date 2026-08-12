@@ -1,4 +1,5 @@
 import React from "react";
+import { getCSSColor } from "./utils/themeEngine";
 
 /* ============================================================
    neoPOP scattered decorations — sparkles, bursts, confetti
@@ -6,7 +7,7 @@ import React from "react";
    ============================================================ */
 
 /** Four-point sparkle star. */
-export function Sparkle({ size = 22, color = "#f4f2ea", style, className }) {
+export function Sparkle({ size = 22, color = getCSSColor("--np-cream"), style, className }) {
   return (
     <svg
       className={className}
@@ -23,7 +24,7 @@ export function Sparkle({ size = 22, color = "#f4f2ea", style, className }) {
 }
 
 /** Radiating ray burst — top corner accent from the poster. */
-export function Burst({ size = 90, color = "#f4f2ea", style, className }) {
+export function Burst({ size = 90, color = getCSSColor("--np-cream"), style, className }) {
   const rays = Array.from({ length: 12 }, (_, i) => i * 30);
   return (
     <svg
@@ -43,13 +44,13 @@ export function Burst({ size = 90, color = "#f4f2ea", style, className }) {
           transform={`rotate(${deg} 50 50)`}
         />
       ))}
-      <circle cx="50" cy="50" r="14" fill="#0a0a0c" />
+      <circle cx="50" cy="50" r="14" fill={getCSSColor("--np-void")} />
     </svg>
   );
 }
 
 /** Tiny rotated confetti square. */
-export function Confetti({ size = 10, color = "#cfff04", rotate = 20, style, className }) {
+export function Confetti({ size = 10, color = getCSSColor("--np-acid"), rotate = 20, style, className }) {
   return (
     <span
       className={className}
@@ -89,13 +90,13 @@ export function LoginDecor() {
   return (
     <div className="np-deco" aria-hidden="true">
       <Burst size={110} style={{ top: -34, left: -30, opacity: 0.9 }} />
-      <Sparkle className="np-float-1" size={20} color="#cfff04" style={{ top: "12%", right: "8%" }} />
-      <Sparkle className="np-float-2 np-sm-hide" size={12} color="#f4f2ea" style={{ top: "34%", left: "3%" }} />
-      <Sparkle className="np-float-3 np-sm-hide" size={16} color="#ff2e63" style={{ top: "56%", right: "4%" }} />
-      <Sparkle className="np-float-2 np-sm-hide" size={11} color="#f4f2ea" style={{ bottom: "14%", left: "9%" }} />
-      <Confetti className="np-float-1 np-sm-hide" size={9} color="#ffa114" rotate={28} style={{ top: "20%", left: "14%", position: "absolute" }} />
-      <Confetti className="np-float-3 np-sm-hide" size={8} color="#6533f4" rotate={-15} style={{ bottom: "24%", right: "12%", position: "absolute" }} />
-      <Confetti size={7} color="#ff2e63" rotate={45} style={{ top: "8%", left: "42%", position: "absolute" }} />
+      <Sparkle className="np-float-1" size={20} color={getCSSColor("--np-acid")} style={{ top: "12%", right: "8%" }} />
+      <Sparkle className="np-float-2 np-sm-hide" size={12} color={getCSSColor("--np-cream")} style={{ top: "34%", left: "3%" }} />
+      <Sparkle className="np-float-3 np-sm-hide" size={16} color={getCSSColor("--np-pink")} style={{ top: "56%", right: "4%" }} />
+      <Sparkle className="np-float-2 np-sm-hide" size={11} color={getCSSColor("--np-cream")} style={{ bottom: "14%", left: "9%" }} />
+      <Confetti className="np-float-1 np-sm-hide" size={9} color={getCSSColor("--np-orange")} rotate={28} style={{ top: "20%", left: "14%", position: "absolute" }} />
+      <Confetti className="np-float-3 np-sm-hide" size={8} color={getCSSColor("--np-purple")} rotate={-15} style={{ bottom: "24%", right: "12%", position: "absolute" }} />
+      <Confetti size={7} color={getCSSColor("--np-pink")} rotate={45} style={{ top: "8%", left: "42%", position: "absolute" }} />
       <Ring className="np-sm-hide" size={14} color="rgba(207,255,4,0.55)" style={{ top: "70%", left: "4%", position: "absolute" }} />
     </div>
   );

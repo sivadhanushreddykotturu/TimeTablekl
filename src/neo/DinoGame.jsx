@@ -4,6 +4,7 @@ import { FiSmartphone, FiMonitor } from "react-icons/fi";
 import { API_CONFIG } from "../config/api.js";
 import { getCredentials } from "../../utils/storage.js";
 import { trackEvent } from "../utils/analytics";
+import { getCSSColor } from "./utils/themeEngine";
 
 // --- TEMPORARY BANNER TOGGLE ---
 // Set SHOW_CELEBRATION_BANNER to false or delete this block to easily remove the banner.
@@ -452,7 +453,7 @@ export default function DinoGame({ onPhaseChange }) {
       ctx.clearRect(0, 0, W, H);
 
       // ground
-      ctx.fillStyle = "#2a2a30";
+      ctx.fillStyle = getCSSColor("--np-line");
       ctx.fillRect(0, GROUND + 1, W, 2);
 
       // obstacles
@@ -460,9 +461,9 @@ export default function DinoGame({ onPhaseChange }) {
         const oTop = o.bottom - o.h;
         if (o.fly) {
           // pink flyer with flapping wing
-          ctx.fillStyle = "#ff2e63";
+          ctx.fillStyle = getCSSColor("--np-pink");
           ctx.fillRect(o.x, oTop, o.w, o.h);
-          ctx.fillStyle = "#cfff04";
+          ctx.fillStyle = getCSSColor("--np-acid");
           const wingUp = Math.sin(st.flap) > 0;
           ctx.fillRect(
             o.x + 3,
@@ -470,7 +471,7 @@ export default function DinoGame({ onPhaseChange }) {
             7, 3
           );
         } else {
-          ctx.fillStyle = "#6533f4";
+          ctx.fillStyle = getCSSColor("--np-purple");
           ctx.fillRect(o.x, oTop, o.w, o.h);
         }
       }
@@ -479,9 +480,9 @@ export default function DinoGame({ onPhaseChange }) {
       ctx.save();
       ctx.translate(d.x + d.size / 2, d.y - d.size / 2);
       if (!d.grounded) ctx.rotate(d.vy * 0.03);
-      ctx.fillStyle = "#cfff04";
+      ctx.fillStyle = getCSSColor("--np-acid");
       ctx.fillRect(-d.size / 2, -d.size / 2, d.size, d.size);
-      ctx.fillStyle = "#0a0a0c";
+      ctx.fillStyle = getCSSColor("--np-void");
       ctx.fillRect(d.size / 4 - 1, -d.size / 4, 3, 3);
       ctx.restore();
 
@@ -551,7 +552,7 @@ export default function DinoGame({ onPhaseChange }) {
                       fontFamily: "var(--np-font-ui)",
                       letterSpacing: "0.12em",
                       fontWeight: 700,
-                      color: isVij ? "#cfff04" : "#ff2e63",
+                      color: isVij ? getCSSColor("--np-acid") : getCSSColor("--np-pink"),
                       opacity: 0.85,
                       verticalAlign: "middle",
                     }}>{campus}</span>
@@ -569,7 +570,7 @@ export default function DinoGame({ onPhaseChange }) {
         <div 
           className="np-board" 
           style={{ 
-            borderColor: "#cfff04", 
+            borderColor: getCSSColor("--np-acid"), 
             background: "rgba(207, 255, 4, 0.05)",
             padding: "10px 12px",
             textAlign: "center",
@@ -579,7 +580,7 @@ export default function DinoGame({ onPhaseChange }) {
             gap: "4px"
           }}
         >
-          <div style={{ font: "700 8px/1 var(--np-font-ui)", letterSpacing: "0.28em", textTransform: "uppercase", color: "#cfff04" }}>
+          <div style={{ font: "700 8px/1 var(--np-font-ui)", letterSpacing: "0.28em", textTransform: "uppercase", color: getCSSColor("--np-acid") }}>
             {announcement.title || "🎉 CELEBRATION ALERT 🎉"}
           </div>
           <div style={{ fontSize: "11px", color: "var(--np-text)", fontFamily: "var(--np-font-ui)", lineHeight: "1.4" }}>

@@ -11,6 +11,7 @@ import Toast from "../../components/Toast.jsx";
 import { trackEvent } from "../../utils/analytics";
 import { getCredentials, handleSessionRefresh } from "../../../utils/storage.js";
 import { getFormData, getRegisterDetailFormData, API_CONFIG } from "../../config/api.js";
+import { getCSSColor } from "../utils/themeEngine";
 
 function formatTimeAgo(isoString) {
   if (!isoString) return null;
@@ -356,10 +357,10 @@ export default function NeoAttendance() {
     canvas.height = totalHeight * scale;
     ctx.scale(scale, scale);
 
-    ctx.fillStyle = '#0a0a0c';
+    ctx.fillStyle = getCSSColor("--np-void");
     ctx.fillRect(0, 0, maxWidth, totalHeight);
 
-    ctx.fillStyle = '#cfff04';
+    ctx.fillStyle = getCSSColor("--np-acid");
     ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'center';
     const titleText = friendCredentials ? `${friendCredentials.name}'s Attendance` : 'Attendance';
@@ -379,18 +380,18 @@ export default function NeoAttendance() {
       });
       const cardHeight = headerHeight + (componentCount * componentRowHeight);
 
-      ctx.fillStyle = '#131316';
+      ctx.fillStyle = getCSSColor("--np-carbon");
       ctx.fillRect(cardX, yPos, cardWidth, cardHeight);
-      ctx.strokeStyle = '#2a2a31';
+      ctx.strokeStyle = getCSSColor("--np-line");
       ctx.lineWidth = 1;
       ctx.strokeRect(cardX, yPos, cardWidth, cardHeight);
 
-      ctx.fillStyle = '#6533f4';
+      ctx.fillStyle = getCSSColor("--np-purple");
       ctx.fillRect(cardX, yPos, cardWidth, headerHeight);
       ctx.strokeStyle = '#000000';
       ctx.strokeRect(cardX, yPos, cardWidth, headerHeight);
 
-      ctx.fillStyle = '#f4f2ea';
+      ctx.fillStyle = getCSSColor("--np-cream");
       ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'left';
       const courseName = course.courseName.length > 45
@@ -398,7 +399,7 @@ export default function NeoAttendance() {
         : course.courseName;
       ctx.fillText(courseName, cardX + cardPadding, yPos + headerHeight / 2 + 6);
 
-      ctx.fillStyle = '#cfff04';
+      ctx.fillStyle = getCSSColor("--np-acid");
       ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText(`${course.overallPercentage}%`, cardX + cardWidth - cardPadding, yPos + headerHeight / 2 + 6);
@@ -419,17 +420,17 @@ export default function NeoAttendance() {
             individualPercentage = Math.ceil((adjustedAttended / safeConducted) * 100);
           }
 
-          ctx.fillStyle = compIndex % 2 === 0 ? '#131316' : '#17171b';
+          ctx.fillStyle = compIndex % 2 === 0 ? getCSSColor("--np-carbon") : getCSSColor("--np-panel");
           ctx.fillRect(cardX, componentY, cardWidth, componentRowHeight);
 
-          ctx.fillStyle = '#6533f4';
+          ctx.fillStyle = getCSSColor("--np-purple");
           ctx.fillRect(cardX + cardPadding, componentY + 8, 32, 24);
-          ctx.fillStyle = '#f4f2ea';
+          ctx.fillStyle = getCSSColor("--np-cream");
           ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText(comp, cardX + cardPadding + 16, componentY + 24);
 
-          ctx.fillStyle = '#f4f2ea';
+          ctx.fillStyle = getCSSColor("--np-cream");
           ctx.font = '600 14px system-ui, -apple-system, sans-serif';
           ctx.textAlign = 'left';
           ctx.fillText(`${individualPercentage}%`, cardX + cardPadding + componentIndent + 32, componentY + componentRowHeight / 2 + 5);
@@ -438,7 +439,7 @@ export default function NeoAttendance() {
         }
       });
 
-      ctx.strokeStyle = '#2a2a31';
+      ctx.strokeStyle = getCSSColor("--np-line");
       ctx.strokeRect(cardX, yPos, cardWidth, cardHeight);
 
       yPos += cardHeight + cardSpacing;
@@ -446,7 +447,7 @@ export default function NeoAttendance() {
 
     ctx.save();
     ctx.globalAlpha = 0.4;
-    ctx.fillStyle = '#8b8b95';
+    ctx.fillStyle = getCSSColor("--np-muted");
     ctx.font = 'italic 14px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText('timetable.', maxWidth - 20, totalHeight - 15);
