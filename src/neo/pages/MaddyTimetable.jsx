@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiShare2, FiArrowLeft } from "react-icons/fi";
-import NeoShell from "../Shell.jsx";
+import { FiShare2, FiArrowLeft, FiEdit2 } from "react-icons/fi";
+import NeoShell, { NeoModal } from "../Shell.jsx";
+import { NeoField, NeoButton } from "../NeoKit.jsx";
 import Toast from "../../components/Toast.jsx";
 import { getSlotTimes, getMaxSlots } from "../../utils/slotTimes";
+import { extractMainCode, replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
 import { getCSSColor } from "../utils/themeEngine";
 
 const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -22,6 +24,51 @@ export default function NeoMaddyTimetable() {
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [exporting, setExporting] = useState(false);
   const [activeDay, setActiveDay] = useState(null);
+  const [nicknameTarget, setNicknameTarget] = useState(null); // { code, hasMapping }
+  const [nicknameInput, setNicknameInput] = useState("");
+  const [, setNickVersion] = useState(0); // bump to re-render after mapping changes
+
+  const openNicknameEdit = (content) => {
+    const code = extractMainCode(content);
+    if (!code) return;
+    const mappings = JSON.parse(localStorage.getItem("subjectMappings") || "{}");
+    setNicknameTarget({ code, hasMapping: Boolean(mappings[code]) });
+    setNicknameInput(mappings[code] || "");
+  };
+
+  const closeNicknameEdit = () => {
+    setNicknameTarget(null);
+    setNicknameInput("");
+  };
+
+  const saveNickname = () => {
+    if (!nicknameTarget) return;
+    const name = nicknameInput.trim();
+    if (!name) {
+      setToast({ show: true, message: "Subject name cannot be empty", type: "error" });
+      return;
+    }
+    if (name.length > 5) {
+      setToast({ show: true, message: "Subject name must be 5 letters or less", type: "error" });
+      return;
+    }
+    const mappings = JSON.parse(localStorage.getItem("subjectMappings") || "{}");
+    mappings[nicknameTarget.code] = name;
+    localStorage.setItem("subjectMappings", JSON.stringify(mappings));
+    setNickVersion(v => v + 1);
+    closeNicknameEdit();
+    setToast({ show: true, message: "Subject name saved!", type: "success" });
+  };
+
+  const removeNickname = () => {
+    if (!nicknameTarget) return;
+    const mappings = JSON.parse(localStorage.getItem("subjectMappings") || "{}");
+    delete mappings[nicknameTarget.code];
+    localStorage.setItem("subjectMappings", JSON.stringify(mappings));
+    setNickVersion(v => v + 1);
+    closeNicknameEdit();
+    setToast({ show: true, message: "Subject mapping removed", type: "success" });
+  };
 
   useEffect(() => {
     const maddys = JSON.parse(localStorage.getItem("maddys") || "[]");
@@ -132,7 +179,7 @@ export default function NeoMaddyTimetable() {
           ctx.font = '600 11px system-ui, -apple-system, sans-serif';
           ctx.textAlign = 'left';
 
-          const words = classInfo.split(' ');
+          const words = replaceCourseCodeWithCustomName(classInfo).split(' ');
           let line = '';
           let lineY = slotY + cellPadding + 12;
 
@@ -320,7 +367,15 @@ export default function NeoMaddyTimetable() {
               {slotTimes[block.startSlot].start}
               <small>{slotTimes[block.endSlot].end}</small>
             </div>
-            <div className="np-block__name">{block.content}</div>
+            <div
+              className="np-block__name"
+              onClick={() => openNicknameEdit(block.content)}
+              style={{ cursor: "pointer" }}
+              title="tap to edit subject nickname"
+            >
+              {replaceCourseCodeWithCustomName(block.content)}
+              <FiEdit2 size={11} style={{ marginLeft: 8, verticalAlign: "middle", opacity: 0.55 }} />
+            </div>
           </div>
         ))
       )}
@@ -335,6 +390,41 @@ export default function NeoMaddyTimetable() {
           {exporting ? "…" : <FiShare2 size={20} />}
         </button>
       )}
+
+      {/* Subject nickname */}
+      <NeoModal
+        open={!!nicknameTarget}
+        title={`nickname · ${nicknameTarget?.code || ""}`}
+        onClose={closeNicknameEdit}
+      >
+        <NeoField
+          id="np-nick-name"
+          label="short name"
+          placeholder="max 5 letters"
+          maxLength={5}
+          value={nicknameInput}
+          onChange={(e) => setNicknameInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && saveNickname()}
+          autoFocus
+        />
+        <p className="np-note" style={{ marginBottom: 16 }}>
+          Shared nickname — the same code shows this name on your timetable too.
+        </p>
+        <NeoButton type="button" onClick={saveNickname}>
+          save
+        </NeoButton>
+        {nicknameTarget?.hasMapping && (
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={removeNickname}
+              className="np-minibtn"
+              style={{ borderColor: "var(--np-pink)", color: "var(--np-pink)" }}
+            >
+              remove nickname
+            </button>
+          </div>
+        )}
+      </NeoModal>
 
       <Toast
         message={toast.message}

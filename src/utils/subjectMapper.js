@@ -1,5 +1,5 @@
 // Helper to extract main course code
-function extractMainCode(code) {
+export function extractMainCode(code) {
   if (!code) return "";
   // Match alphanumeric code at the start (e.g., 24AD01HF)
   const match = code.match(/^[A-Za-z0-9]+/);

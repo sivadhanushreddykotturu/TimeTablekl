@@ -11,6 +11,7 @@ import Toast from "../../components/Toast.jsx";
 import { trackEvent } from "../../utils/analytics";
 import { getCredentials, handleSessionRefresh } from "../../../utils/storage.js";
 import { getFormData, getRegisterDetailFormData, API_CONFIG } from "../../config/api.js";
+import { getSubjectName } from "../../utils/subjectMapper";
 import { getCSSColor } from "../utils/themeEngine";
 
 function formatTimeAgo(isoString) {
@@ -155,47 +156,47 @@ export default function NeoAttendance() {
       friend_name: friendCredentials?.name || null
     });
 
-    // Auto-map empty subject names upon attendance fetch
+    // Auto-map empty subject names upon attendance fetch — runs for your own
+    // and friends' fetches alike, since nicknames are shared (matching codes
+    // get the same shortcut as on the main timetable).
     try {
-      if (!friendCredentials) {
-        const savedMappings = JSON.parse(localStorage.getItem("subjectMappings") || "{}");
-        let madeChanges = false;
+      const savedMappings = JSON.parse(localStorage.getItem("subjectMappings") || "{}");
+      let madeChanges = false;
 
-        attendance.forEach(item => {
-          const code = getField(item, "course_code", "Coursecode");
-          const name = getField(item, "course_name", "Coursedesc");
-          if (code && name) {
-            const match = code.match(/^[A-Za-z0-9]+/);
-            const mainCode = match ? match[0] : code;
+      attendance.forEach(item => {
+        const code = getField(item, "course_code", "Coursecode");
+        const name = getField(item, "course_name", "Coursedesc");
+        if (code && name) {
+          const match = code.match(/^[A-Za-z0-9]+/);
+          const mainCode = match ? match[0] : code;
 
-            if (!savedMappings[mainCode]) {
-              const words = name.trim().split(/\s+/);
-              let acronym = "";
-              if (words.length === 1) {
-                acronym = words[0].substring(0, 5).toUpperCase();
-              } else {
-                words.forEach(word => {
-                  if (
-                    word.length > 0 &&
-                    !["AND", "OF", "THE", "IN", "FOR", "TO"].includes(word.toUpperCase()) &&
-                    !word.match(/^[0-9]+$/)
-                  ) {
-                    acronym += word[0].toUpperCase();
-                  }
-                });
-                acronym = acronym.substring(0, 5);
-              }
-              if (acronym) {
-                savedMappings[mainCode] = acronym;
-                madeChanges = true;
-              }
+          if (!savedMappings[mainCode]) {
+            const words = name.trim().split(/\s+/);
+            let acronym = "";
+            if (words.length === 1) {
+              acronym = words[0].substring(0, 5).toUpperCase();
+            } else {
+              words.forEach(word => {
+                if (
+                  word.length > 0 &&
+                  !["AND", "OF", "THE", "IN", "FOR", "TO"].includes(word.toUpperCase()) &&
+                  !word.match(/^[0-9]+$/)
+                ) {
+                  acronym += word[0].toUpperCase();
+                }
+              });
+              acronym = acronym.substring(0, 5);
+            }
+            if (acronym) {
+              savedMappings[mainCode] = acronym;
+              madeChanges = true;
             }
           }
-        });
-
-        if (madeChanges) {
-          localStorage.setItem("subjectMappings", JSON.stringify(savedMappings));
         }
+      });
+
+      if (madeChanges) {
+        localStorage.setItem("subjectMappings", JSON.stringify(savedMappings));
       }
     } catch (err) {
       console.error("Error auto-mapping subjects:", err);
@@ -676,7 +677,7 @@ export default function NeoAttendance() {
         groupAttendanceByCourse(attendanceData).map((course, index) => (
           <div key={index} className="np-att">
             <div className="np-att__head">
-              <div className="np-att__code">{course.courseCode}</div>
+              <div className="np-att__code">{getSubjectName(course.courseCode)}</div>
               <h3 className="np-att__name">{course.courseName}</h3>
             </div>
 

@@ -5,6 +5,7 @@ import NeoShell from "../Shell.jsx";
 import ClassTimer, { ClassTimerReadout, ClassProgressBar } from "../components/ClassTimer.jsx";
 import Toast from "../../components/Toast.jsx";
 import { getSlotTimes, getMaxSlots } from "../../utils/slotTimes";
+import { replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
 
 const SEMESTER_NAMES = {
   odd: "odd sem",
@@ -182,7 +183,7 @@ export default function NeoMaddyClassInfo() {
           )}
         </div>
         <div className="np-now__class">
-          {current ? current.name : `${maddy.name} has no ongoing class.`}
+          {current ? replaceCourseCodeWithCustomName(current.name) : `${maddy.name} has no ongoing class.`}
         </div>
         {current && <div className="np-now__time">{current.time}</div>}
         {current && (
@@ -197,7 +198,7 @@ export default function NeoMaddyClassInfo() {
         <span className="np-next__label">up<br />next</span>
         <div className="np-next__body">
           <div className="np-next__class">
-            {next ? next.name : "No more classes today"}
+            {next ? replaceCourseCodeWithCustomName(next.name) : "No more classes today"}
           </div>
           {next && <div className="np-next__time">{next.time}</div>}
         </div>

@@ -8,6 +8,7 @@ import {
   FiPieChart,
   FiAward,
   FiTrash2,
+  FiEdit2,
 } from "react-icons/fi";
 import NeoShell, { NeoModal, NeoLoading } from "../Shell.jsx";
 import { NeoField, NeoSelect, NeoButton } from "../NeoKit.jsx";
@@ -46,6 +47,13 @@ export default function NeoMaddys() {
   const [tempFriendData, setTempFriendData] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editSemester, setEditSemester] = useState("odd");
+  const [editAcademicYear, setEditAcademicYear] = useState("");
   const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [selectedMaddyForCompare, setSelectedMaddyForCompare] = useState(null);
@@ -190,6 +198,64 @@ export default function NeoMaddys() {
   const cancelDelete = () => {
     setShowDeleteConfirm(false);
     setDeleteTarget(null);
+  };
+
+  const openEditModal = (maddy) => {
+    const validSemesters = new Set(["odd", "even", "summer", "term3"]);
+    const options = getCurrentAcademicYearOptions();
+    setEditTarget(maddy);
+    setEditName(maddy.name || "");
+    setEditUsername(maddy.username || "");
+    setEditPassword(maddy.password || "");
+    setEditSemester(validSemesters.has(maddy.semester) ? maddy.semester : "odd");
+    setEditAcademicYear(maddy.academicYear || options[1] || options[0] || "");
+    setShowEditModal(true);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditTarget(null);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editTarget) return;
+
+    if (!editName.trim() || editName.trim().length > 10) {
+      setToast({
+        show: true,
+        message: "Please enter a name (max 10 characters).",
+        type: "error"
+      });
+      return;
+    }
+    if (!editUsername.trim() || !editPassword || !editSemester || !editAcademicYear) {
+      setToast({ show: true, message: "Please fill all fields.", type: "error" });
+      return;
+    }
+
+    const updatedMaddys = maddys.map((maddy) =>
+      maddy.id === editTarget.id
+        ? {
+            ...maddy,
+            name: editName.trim(),
+            username: editUsername.trim(),
+            password: editPassword,
+            semester: editSemester,
+            academicYear: editAcademicYear
+          }
+        : maddy
+    );
+    saveMaddys(updatedMaddys);
+
+    trackEvent('maddy_edited', {
+      maddy_id: editTarget.id,
+      maddy_name: editName.trim(),
+      semester: editSemester,
+      academic_year: editAcademicYear
+    });
+
+    closeEditModal();
+    setToast({ show: true, message: "Friend updated! Resync to refresh timetable.", type: "success" });
   };
 
   const handleRefreshMaddy = (maddy) => {
@@ -421,13 +487,22 @@ export default function NeoMaddys() {
             <div key={maddy.id} className="np-maddy">
               <div className="np-maddy__top">
                 <h3 className="np-maddy__name">{maddy.name}</h3>
-                <button
-                  className="np-action np-action--danger"
-                  onClick={() => openDeleteConfirm(maddy)}
-                  title="Remove"
-                >
-                  <FiTrash2 size={15} />
-                </button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    className="np-action"
+                    onClick={() => openEditModal(maddy)}
+                    title="Edit"
+                  >
+                    <FiEdit2 size={15} />
+                  </button>
+                  <button
+                    className="np-action np-action--danger"
+                    onClick={() => openDeleteConfirm(maddy)}
+                    title="Remove"
+                  >
+                    <FiTrash2 size={15} />
+                  </button>
+                </div>
               </div>
               <p className="np-maddy__meta">
                 {SEMESTER_NAMES[maddy.semester] || maddy.semester} · {maddy.academicYear}
@@ -549,6 +624,66 @@ export default function NeoMaddys() {
         />
         <NeoButton type="button" onClick={handleSaveFriend}>
           save
+        </NeoButton>
+      </NeoModal>
+
+      {/* Edit friend */}
+      <NeoModal
+        open={showEditModal && !!editTarget}
+        title={`edit ${editTarget?.name || "doc"}`}
+        onClose={closeEditModal}
+      >
+        <NeoField
+          id="np-edit-name"
+          label="name"
+          placeholder="max 10 characters"
+          maxLength={10}
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+        />
+        <NeoField
+          id="np-edit-user"
+          label="university id"
+          placeholder="2400090000"
+          value={editUsername}
+          onChange={(e) => setEditUsername(e.target.value)}
+        />
+        <NeoField
+          id="np-edit-pass"
+          label="password"
+          type="password"
+          placeholder="••••••••"
+          value={editPassword}
+          onChange={(e) => setEditPassword(e.target.value)}
+        />
+        <div className="np-row">
+          <NeoSelect
+            id="np-edit-sem"
+            label="semester"
+            value={editSemester}
+            onChange={(e) => setEditSemester(e.target.value)}
+          >
+            <option value="odd">Odd</option>
+            <option value="even">Even</option>
+            <option value="summer">Summer</option>
+            <option value="term3">Term 3</option>
+          </NeoSelect>
+          <NeoSelect
+            id="np-edit-year"
+            label="academic year"
+            value={editAcademicYear}
+            onChange={(e) => setEditAcademicYear(e.target.value)}
+          >
+            {Array.from(new Set([editAcademicYear, ...getCurrentAcademicYearOptions()])).filter(Boolean).map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </NeoSelect>
+        </div>
+        <p className="np-note" style={{ marginBottom: 16 }}>
+          Saved timetable stays as-is — resync to refetch it.
+        </p>
+        <NeoButton type="button" onClick={handleSaveEdit}>
+          save changes
         </NeoButton>
       </NeoModal>
 
