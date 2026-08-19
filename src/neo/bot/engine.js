@@ -175,6 +175,9 @@ export function sampleFrame(stateId, localTime, look, prevStateId, morphT, expre
     return {
       d: capsulePath(hw * 2, hh * 2),
       matrix: `matrix(${r2(ax)},${r2(ay * k)},${r2(cx2)},${r2(cy2 * k)},${r2(e.x * fit + offX * scale)},${r2(e.y * fit + offY * scale)})`,
+      // Eye center in viewBox units (used to anchor the projection beams)
+      x: r2(e.x * fit + offX * scale),
+      y: r2(e.y * fit + offY * scale),
       alpha: totalEyeAlpha * clamp(e.depth / 0.12)
     }
   }).filter(Boolean)

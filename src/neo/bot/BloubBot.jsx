@@ -34,6 +34,7 @@ const NO_LOOK = { yaw: 0, pitch: 10, mix: 0, wander: 1 }
  *                  eye-turn began, or null
  *   expression   - rest expression object (expressions.js) or null; glides
  *   shapeRadii   - body profile (shapes.js) or null for the plain ball; glides
+ *   eyePosRef    - optional ref: receives the live eye centers (viewBox units)
  *   ink          - body color (default '#161622')
  *   eyeColor     - eye capsule color (default '#ffffff')
  *   decorColor   - color for dots when no explicit color (default '#ffffff')
@@ -46,6 +47,7 @@ export default function BloubBot({
   spinFrom = null,
   expression = null,
   shapeRadii = null,
+  eyePosRef = null,
   ink = '#161622',
   eyeColor = '#ffffff',
   decorColor = '#ffffff',
@@ -125,8 +127,8 @@ export default function BloubBot({
       const targetState = stateIdRef.current || 'idle'
       const state = STATE_BY_ID[currentStateRef.current]
       if (state && localTime > state.duration) {
-        if (targetState === 'thinking' || targetState === 'sleep') {
-          // Loop continuous state
+        if (targetState === 'thinking' || targetState === 'sleep' || targetState === 'notify') {
+          // Loop continuous state (notify re-pops its badge each pass: a pulse)
           stateStartRef.current = nowSec
         } else if (currentStateRef.current !== 'idle') {
           prevStateRef.current = currentStateRef.current
@@ -191,7 +193,12 @@ export default function BloubBot({
         RAYON
       )
 
-      if (f) setFrame(f)
+      if (f) {
+        setFrame(f)
+        if (eyePosRef) {
+          eyePosRef.current = f.eyes.map((e) => ({ x: e.x, y: e.y }))
+        }
+      }
       rafRef.current = requestAnimationFrame(tick)
     }
 

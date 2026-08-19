@@ -24,7 +24,7 @@ export default function AnnouncementBanner() {
 
   return (
     <div
-      className="np-board"
+      className="np-board np-announce-banner"
       style={{
         borderColor: "var(--np-acid)",
         background: "rgba(207, 255, 4, 0.05)",
