@@ -211,6 +211,62 @@ body.np-body .toast {
 .np-eyebrow--acid { color: var(--np-acid); }
 
 /* ============================================================
+   DESKTOP LAYOUT WRAPPER
+   ============================================================ */
+
+.np-layout {
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  width: 100%;
+}
+
+/* ============================================================
+   DESKTOP COMPANION — hidden on mobile, calm on laptop+
+   ============================================================ */
+
+.np-desktop-companion {
+  display: none; /* mobile: hidden */
+}
+
+@keyframes np-companion-arrive {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Show companion on desktop */
+  .np-desktop-companion {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 20;
+    pointer-events: none;
+    user-select: none;
+    animation: np-companion-arrive 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .np-desktop-companion__bot {
+    pointer-events: auto;
+    cursor: pointer;
+    filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
+    transition: filter 0.6s ease;
+    transform-origin: center bottom;
+  }
+
+  .np-desktop-companion__bot:hover {
+    filter: drop-shadow(0 16px 32px rgba(0, 0, 0, 0.55));
+  }
+}
+
+/* ============================================================
    APP SHELL
    ============================================================ */
 
@@ -2419,74 +2475,193 @@ body.np-body button.np-btn--pink:hover { background-color: #ff4f7c; color: var(-
    CUSTOMIZATION PAGE
    ============================================================ */
 
-/* Theme circles scrollable row */
-.np-theme-row {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  padding: 4px 0 8px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/* Theme card grid */
+.np-tcard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
 }
-.np-theme-row::-webkit-scrollbar { display: none; }
 
-.np-theme-circle-wrap {
+.np-tcard {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+}
+
+body.np-body button.np-tcard__mock,
+.np-screen button.np-tcard__mock {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: var(--np-carbon) !important;
+  border: 1px solid var(--np-line) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease !important;
+}
+body.np-body button.np-tcard__mock::before,
+body.np-body button.np-tcard__mock::after { display: none !important; }
+
+body.np-body button.np-tcard__mock:hover {
+  border-color: var(--np-muted) !important;
+  transform: translateY(-2px) !important;
+}
+
+.np-tcard--active .np-tcard__mock {
+  border-color: var(--np-acid) !important;
+  box-shadow: 0 0 0 1px var(--np-acid) !important;
+}
+
+.np-tcard__badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
   align-items: center;
+  gap: 4px;
+  font: 700 8px/1 var(--np-font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--np-acid);
+  color: var(--np-acid-text);
+  padding: 3px 6px;
+}
+
+.np-tcard__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.np-tcard__name {
+  font: 600 10px/1.2 var(--np-font-ui);
+  letter-spacing: 0.06em;
+  color: var(--np-muted);
+  text-transform: lowercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.np-tcard__actions {
+  display: flex;
   gap: 6px;
   flex-shrink: 0;
 }
 
-.np-theme-circle {
-  width: 48px;
-  height: 48px;
+/* "new theme" dashed card */
+body.np-body button.np-tcard--add {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-height: 120px !important;
+  height: 100% !important;
+  padding: 16px 12px !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 2px dashed var(--np-line) !important;
+  border-radius: 0 !important;
+  color: var(--np-faint) !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  transition: border-color 0.15s ease, color 0.15s ease !important;
+}
+body.np-body button.np-tcard--add::before,
+body.np-body button.np-tcard--add::after { display: none !important; }
+
+body.np-body button.np-tcard--add:hover {
+  border-color: var(--np-muted) !important;
+  color: var(--np-muted) !important;
+}
+
+.np-tcard__add-icon { display: flex; }
+
+/* Mini app mock (painted via scoped theme vars) */
+.np-mock {
+  background: var(--np-void);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.np-mock__bar { display: flex; align-items: center; gap: 6px; }
+.np-mock__dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  border: 2px solid var(--np-line);
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  background: var(--np-acid);
+  flex-shrink: 0;
+}
+.np-mock__title {
+  font: 700 9px/1 var(--np-font-display);
+  color: var(--np-cream);
+  letter-spacing: 0.04em;
+  flex: 1;
+}
+.np-mock__chip {
+  font: 700 6px/1 var(--np-font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--np-purple);
+  color: var(--np-purple-text);
+  padding: 3px 5px;
+}
+.np-mock__card {
+  background: var(--np-carbon);
+  border: 1px solid var(--np-line);
+  border-left: 3px solid var(--np-acid);
+  padding: 7px 8px;
+}
+.np-mock__card-top {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0;
-  outline: none;
-}
-.np-theme-circle:hover {
-  transform: scale(1.08);
-}
-.np-theme-circle--active {
-  border-color: var(--np-cream);
-  box-shadow: 0 0 0 3px var(--np-void), 0 0 0 5px var(--np-cream);
-}
-.np-theme-circle--add {
-  background: var(--np-carbon) !important;
-  border: 2px dashed var(--np-faint);
-  color: var(--np-faint);
-}
-.np-theme-circle--add:hover {
-  border-color: var(--np-muted);
-  color: var(--np-muted);
-}
-
-.np-theme-circle__label {
-  font: 600 9px/1 var(--np-font-ui);
-  letter-spacing: 0.08em;
-  color: var(--np-muted);
-  text-transform: lowercase;
-  white-space: nowrap;
-  max-width: 56px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: center;
-}
-
-.np-theme-circle__actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 6px;
-  margin-top: 4px;
-  width: 100%;
+}
+.np-mock__subject {
+  font: 700 10px/1 var(--np-font-display);
+  color: var(--np-acid);
+}
+.np-mock__room {
+  font: 600 7px/1 var(--np-font-ui);
+  background: var(--np-purple);
+  color: var(--np-purple-text);
+  padding: 2px 5px;
+  letter-spacing: 0.05em;
+}
+.np-mock__lines i {
+  display: block;
+  height: 3px;
+  background: var(--np-line);
+  margin-top: 5px;
+}
+.np-mock__row { display: flex; gap: 6px; align-items: center; }
+.np-mock__btn {
+  font: 700 7px/1 var(--np-font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--np-acid);
+  color: var(--np-acid-text);
+  padding: 4px 8px;
+  box-shadow: 2px 2px 0 var(--np-acid-deep);
+}
+.np-mock__btn--danger {
+  background: transparent;
+  color: var(--np-pink);
+  border: 1px solid var(--np-pink);
+  box-shadow: none;
+  padding: 3px 7px;
 }
 
 body.np-body button.np-theme-action-btn,
@@ -2537,18 +2712,79 @@ body.np-body button.np-theme-action-btn--del:hover {
   border-color: var(--np-pink) !important;
 }
 
-/* Theme Editor Panel */
-.np-theme-editor {
-  margin-top: 20px;
-  padding: 16px;
-  background: var(--np-carbon);
+/* Theme Editor (modal) */
+.np-editor-preview {
+  margin-bottom: 14px;
   border: 1px solid var(--np-line);
-  animation: np-slideUp 0.2s ease;
 }
 
-@keyframes np-slideUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* Swatch grids */
+.np-swatch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 0 6px;
+}
+
+.np-swatches {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+body.np-body button.np-swatch,
+.np-screen button.np-swatch {
+  aspect-ratio: 1 / 1;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease !important;
+}
+body.np-body button.np-swatch::before,
+body.np-body button.np-swatch::after { display: none !important; }
+
+body.np-body button.np-swatch:hover {
+  transform: scale(1.12) !important;
+}
+
+body.np-body button.np-swatch--on,
+.np-screen button.np-swatch--on {
+  border-color: transparent !important;
+  box-shadow: 0 0 0 2px var(--np-void), 0 0 0 4px var(--np-cream) !important;
+}
+
+/* Advanced (raw color inputs) toggle */
+body.np-body button.np-editor-adv-toggle,
+.np-screen button.np-editor-adv-toggle {
+  display: inline-flex !important;
+  width: auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 12px 0 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  color: var(--np-faint) !important;
+  font: 600 10px/1 var(--np-font-ui) !important;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  text-decoration: underline;
+  box-shadow: none !important;
+  cursor: pointer !important;
+}
+body.np-body button.np-editor-adv-toggle::before,
+body.np-body button.np-editor-adv-toggle::after { display: none !important; }
+
+body.np-body button.np-editor-adv-toggle:hover {
+  color: var(--np-cream) !important;
 }
 
 .np-theme-editor__field {
@@ -2568,6 +2804,7 @@ body.np-body button.np-theme-action-btn--del:hover {
 .np-theme-editor__colors {
   display: flex;
   gap: 10px;
+  margin-top: 10px;
   margin-bottom: 14px;
 }
 
@@ -2619,37 +2856,56 @@ body.np-body button.np-theme-action-btn--del:hover {
   pointer-events: none;
 }
 
-/* Preview strip */
-.np-theme-editor__preview {
-  margin-bottom: 14px;
-}
-.np-theme-editor__preview-label {
-  font: 600 9px/1 var(--np-font-ui);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--np-muted);
-  display: block;
-  margin-bottom: 8px;
-}
-.np-theme-editor__preview-strip {
+/* Import code row + preview */
+.np-import-row {
   display: flex;
   gap: 8px;
+  margin-top: 12px;
+}
+.np-import-row .np-field__input { flex: 1; }
+
+.np-import-err {
+  font: 500 10px/1.4 var(--np-font-ui);
+  color: var(--np-pink);
+  margin: 8px 0 0;
 }
 
-.np-theme-editor__swatch {
-  flex: 1;
-  height: 40px;
+.np-import-preview {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font: 700 13px/1 var(--np-font-display);
-  color: var(--np-void);
-  border: 1px solid transparent;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px;
+  background: var(--np-well);
+  border: 1px solid var(--np-line);
 }
-.np-theme-editor__swatch--dark {
-  background: var(--np-void);
-  border-width: 2px;
-  border-style: solid;
+.np-import-preview__mock { width: 110px; flex-shrink: 0; }
+.np-import-preview__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.np-import-preview__title {
+  font: 700 11px/1.2 var(--np-font-ui);
+  color: var(--np-cream);
+}
+.np-import-preview__sub {
+  font: 500 10px/1.3 var(--np-font-ui);
+  color: var(--np-muted);
+}
+
+/* Share code block */
+.np-code {
+  font: 600 13px/1.5 var(--np-font-ui);
+  letter-spacing: 0.08em;
+  color: var(--np-acid);
+  background: var(--np-well);
+  border: 1px solid var(--np-line);
+  padding: 12px;
+  margin-bottom: 12px;
+  word-break: break-all;
+  user-select: all;
 }
 
 /* Editor actions */

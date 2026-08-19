@@ -1,7 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiChevronLeft, FiPlus, FiX, FiCheck, FiSliders, FiTrash2 } from "react-icons/fi";
-import NeoShell from "../Shell.jsx";
+import {
+  FiChevronLeft,
+  FiPlus,
+  FiCheck,
+  FiCopy,
+  FiShare2,
+  FiZap,
+} from "react-icons/fi";
+import NeoShell, { NeoModal } from "../Shell.jsx";
+import ThemeCard, { ThemeMock } from "../components/ThemeCard.jsx";
+import Toast from "../../components/Toast.jsx";
 import {
   PRESETS,
   DEFAULT_THEME,
@@ -17,119 +26,169 @@ import {
   applyFont,
   saveActiveFontId,
   getActiveFontId,
+  resolveFontById,
   FONT_SIZE_PRESETS,
   DEFAULT_FONT_SIZE,
   applyFontSize,
   saveActiveFontSizeId,
   getActiveFontSizeId,
+  resolveFontSizeById,
+  ACCENT_SWATCHES,
+  SECONDARY_SWATCHES,
+  DANGER_SWATCHES,
+  suggestHarmony,
+  encodeThemeCode,
+  decodeThemeCode,
 } from "../utils/themeEngine";
 
 // ── Customization Page ───────────────────────────────────────────
 export default function Customization() {
   const navigate = useNavigate();
 
-  // Active theme state
+  // Active selections
   const [activeId, setActiveId] = useState(() => getActiveThemeId() || DEFAULT_THEME.id);
   const [customThemes, setCustomThemes] = useState(() => getUserThemes());
   const [activeFontId, setActiveFontId] = useState(() => getActiveFontId() || DEFAULT_FONT.id);
   const [activeFontSizeId, setActiveFontSizeId] = useState(() => getActiveFontSizeId() || DEFAULT_FONT_SIZE.id);
 
-  // Editor state
+  // Editor modal state
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editAccent, setEditAccent] = useState("#cfff04");
   const [editSecondary, setEditSecondary] = useState("#6533f4");
   const [editDanger, setEditDanger] = useState("#ff2e63");
-  const [editBaseId, setEditBaseId] = useState(null); // if editing an existing custom theme
+  const [editBaseId, setEditBaseId] = useState(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // All themes combined for rendering
-  const allThemes = [...PRESETS, ...customThemes];
+  // Share / import state
+  const [shareTarget, setShareTarget] = useState(null); // theme object or null
+  const [importCode, setImportCode] = useState("");
 
-  // ── Apply a theme ─────────────────────────────────────────────
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const showToast = (message, type = "success") => setToast({ show: true, message, type });
+
+  // Decoded import (live validation)
+  const importResult = useMemo(() => decodeThemeCode(importCode), [importCode]);
+  const importTheme = useMemo(
+    () =>
+      importResult
+        ? buildTheme("__import__", "imported", importResult.accent, importResult.secondary, importResult.danger)
+        : null,
+    [importResult]
+  );
+
+  // Draft theme for the editor preview (scoped to the modal mock only)
+  const draftTheme = useMemo(
+    () => buildTheme("__draft__", editName || "preview", editAccent, editSecondary, editDanger),
+    [editName, editAccent, editSecondary, editDanger]
+  );
+
+  // ── Apply helpers ─────────────────────────────────────────────
   function selectTheme(theme) {
     applyTheme(theme);
     saveActiveThemeId(theme.id);
     setActiveId(theme.id);
   }
 
-  // ── Apply a font ──────────────────────────────────────────────
   function selectFont(font) {
     applyFont(font);
     saveActiveFontId(font.id);
     setActiveFontId(font.id);
   }
 
-  // ── Apply a font size ──────────────────────────────────────────
   function selectFontSize(preset) {
     applyFontSize(preset.scale);
     saveActiveFontSizeId(preset.id);
     setActiveFontSizeId(preset.id);
   }
 
-  // ── Open editor ───────────────────────────────────────────────
+  // ── Editor ────────────────────────────────────────────────────
   function openEditor(baseTheme, isExistingCustom = false) {
     setEditAccent(baseTheme.accent);
     setEditSecondary(baseTheme.secondary);
     setEditDanger(baseTheme.danger);
     setEditName(isExistingCustom ? baseTheme.name : "");
     setEditBaseId(isExistingCustom ? baseTheme.id : null);
+    setShowAdvanced(false);
     setEditing(true);
   }
 
   function openNewEditor() {
     const active = resolveThemeById(activeId) || DEFAULT_THEME;
-    setEditAccent(active.accent);
-    setEditSecondary(active.secondary);
-    setEditDanger(active.danger);
-    setEditName("");
-    setEditBaseId(null);
-    setEditing(true);
+    openEditor(active, false);
   }
 
-  // ── Save custom theme ─────────────────────────────────────────
+  function autoMatch() {
+    const { secondary, danger } = suggestHarmony(editAccent);
+    setEditSecondary(secondary);
+    setEditDanger(danger);
+  }
+
   function saveCustomTheme() {
     const name = editName.trim() || `Custom ${customThemes.length + 1}`;
     const id = editBaseId || `custom_${Date.now()}`;
     const theme = buildTheme(id, name, editAccent, editSecondary, editDanger);
 
-    let updated;
-    if (editBaseId) {
-      // Editing existing custom theme
-      updated = customThemes.map((t) => (t.id === editBaseId ? theme : t));
-    } else {
-      // Creating new
-      updated = [...customThemes, theme];
-    }
+    const updated = editBaseId
+      ? customThemes.map((t) => (t.id === editBaseId ? theme : t))
+      : [...customThemes, theme];
 
     saveUserThemes(updated);
     setCustomThemes(updated);
     selectTheme(theme);
     setEditing(false);
+    showToast(editBaseId ? "Theme updated." : "Theme saved.");
   }
 
-  // ── Delete custom theme ───────────────────────────────────────
   function deleteCustom(id) {
     const updated = customThemes.filter((t) => t.id !== id);
     saveUserThemes(updated);
     setCustomThemes(updated);
-    // If deleted theme was active, fall back to default
-    if (activeId === id) {
-      selectTheme(DEFAULT_THEME);
+    if (activeId === id) selectTheme(DEFAULT_THEME);
+  }
+
+  // ── Share / import ────────────────────────────────────────────
+  const shareCode = shareTarget
+    ? encodeThemeCode(shareTarget, activeFontId, activeFontSizeId)
+    : "";
+
+  async function copyShareCode() {
+    try {
+      await navigator.clipboard.writeText(shareCode);
+      showToast("Code copied — send it to a friend.");
+    } catch {
+      // Clipboard fallback (older browsers / insecure context)
+      const ta = document.createElement("textarea");
+      ta.value = shareCode;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+        showToast("Code copied — send it to a friend.");
+      } catch {
+        showToast("Copy failed — long-press the code instead.", "error");
+      }
+      document.body.removeChild(ta);
     }
   }
 
-  // Live preview while editing
-  useEffect(() => {
-    if (!editing) return;
-    const preview = buildTheme("__preview__", "Preview", editAccent, editSecondary, editDanger);
-    applyTheme(preview);
-  }, [editing, editAccent, editSecondary, editDanger]);
-
-  // Revert on cancel
-  function cancelEditor() {
-    setEditing(false);
-    const theme = resolveThemeById(activeId) || DEFAULT_THEME;
-    applyTheme(theme);
+  function applyImport() {
+    if (!importResult || !importTheme) return;
+    const theme = buildTheme(
+      `custom_${Date.now()}`,
+      `Imported ${customThemes.length + 1}`,
+      importResult.accent,
+      importResult.secondary,
+      importResult.danger
+    );
+    const updated = [...customThemes, theme];
+    saveUserThemes(updated);
+    setCustomThemes(updated);
+    selectTheme(theme);
+    selectFont(resolveFontById(importResult.fontId));
+    selectFontSize(resolveFontSizeById(importResult.fontSizeId));
+    setImportCode("");
+    showToast("Imported — enjoy the new look.");
   }
 
   return (
@@ -150,77 +209,98 @@ export default function Customization() {
         </span>
       </button>
 
-      {/* ── PRESETS ──────────────────────────────────────────────── */}
-      <div className="np-panel__label" style={{ margin: "12px 0 10px" }}>presets</div>
-      <div className="np-theme-row">
-        {PRESETS.map((theme) => (
-          <div key={theme.id} className="np-theme-circle-wrap">
-            <button
-              className={`np-theme-circle${activeId === theme.id ? " np-theme-circle--active" : ""}`}
-              style={{ background: theme.accent }}
-              onClick={() => selectTheme(theme)}
-              title={theme.name}
-            >
-              {activeId === theme.id && <FiCheck size={16} strokeWidth={3} color="#000" />}
-            </button>
-            <span className="np-theme-circle__label">{theme.name}</span>
-            <div className="np-theme-circle__actions">
-              <button
-                className="np-theme-action-btn"
-                onClick={(e) => { e.stopPropagation(); openEditor(theme); }}
-                title={`Customize ${theme.name}`}
-              >
-                <FiSliders size={12} />
-              </button>
+      {/* ── SHARE & IMPORT ──────────────────────────────────────── */}
+      <section className="np-panel" style={{ marginBottom: 8 }}>
+        <div className="np-panel__label">theme codes</div>
+        <p className="np-note" style={{ marginBottom: 12 }}>
+          one code = the full look — colors, font &amp; size. share yours or
+          paste a friend's.
+        </p>
+        <button
+          className="np-btn np-btn--sm"
+          onClick={() => setShareTarget(resolveThemeById(activeId) || DEFAULT_THEME)}
+        >
+          <FiShare2 size={12} style={{ marginRight: 6 }} />
+          share my current setup
+        </button>
+
+        <div className="np-import-row">
+          <input
+            type="text"
+            className="np-field__input"
+            placeholder="paste code — TTK1-…"
+            value={importCode}
+            onChange={(e) => setImportCode(e.target.value)}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          <button
+            className="np-btn np-btn--sm"
+            onClick={applyImport}
+            disabled={!importResult}
+          >
+            apply
+          </button>
+        </div>
+
+        {importCode.trim() !== "" && !importResult && (
+          <p className="np-import-err">that code doesn't look right — check for typos.</p>
+        )}
+
+        {importResult && importTheme && (
+          <div className="np-import-preview">
+            <div className="np-import-preview__mock">
+              <ThemeMock theme={importTheme} />
+            </div>
+            <div className="np-import-preview__meta">
+              <span className="np-import-preview__title">looks legit.</span>
+              <span className="np-import-preview__sub">
+                {resolveFontById(importResult.fontId).name} ·{" "}
+                {resolveFontSizeById(importResult.fontSizeId).name}
+              </span>
             </div>
           </div>
+        )}
+      </section>
+
+      {/* ── PRESETS ──────────────────────────────────────────────── */}
+      <div className="np-panel__label" style={{ margin: "16px 0 10px" }}>presets</div>
+      <div className="np-tcard-grid">
+        {PRESETS.map((theme) => (
+          <ThemeCard
+            key={theme.id}
+            theme={theme}
+            active={activeId === theme.id}
+            onSelect={() => selectTheme(theme)}
+            onEdit={() => openEditor(theme)}
+            onShare={() => setShareTarget(theme)}
+          />
         ))}
       </div>
 
       {/* ── MY THEMES ───────────────────────────────────────────── */}
-      <div className="np-panel__label" style={{ margin: "20px 0 10px" }}>my themes</div>
-      <div className="np-theme-row">
+      <div className="np-panel__label" style={{ margin: "24px 0 10px" }}>my themes</div>
+      <div className="np-tcard-grid">
         {customThemes.map((theme) => (
-          <div key={theme.id} className="np-theme-circle-wrap">
-            <button
-              className={`np-theme-circle${activeId === theme.id ? " np-theme-circle--active" : ""}`}
-              style={{ background: theme.accent }}
-              onClick={() => selectTheme(theme)}
-              title={theme.name}
-            >
-              {activeId === theme.id && <FiCheck size={16} strokeWidth={3} color="#000" />}
-            </button>
-            <span className="np-theme-circle__label">{theme.name}</span>
-            <div className="np-theme-circle__actions">
-              <button
-                className="np-theme-action-btn"
-                onClick={(e) => { e.stopPropagation(); openEditor(theme, true); }}
-                title={`Edit ${theme.name}`}
-              >
-                <FiSliders size={12} />
-              </button>
-              <button
-                className="np-theme-action-btn np-theme-action-btn--del"
-                onClick={(e) => { e.stopPropagation(); deleteCustom(theme.id); }}
-                title="Delete theme"
-              >
-                <FiTrash2 size={12} />
-              </button>
-            </div>
-          </div>
+          <ThemeCard
+            key={theme.id}
+            theme={theme}
+            active={activeId === theme.id}
+            onSelect={() => selectTheme(theme)}
+            onEdit={() => openEditor(theme, true)}
+            onShare={() => setShareTarget(theme)}
+            onDelete={() => deleteCustom(theme.id)}
+          />
         ))}
 
-        {/* Create new theme button */}
-        <div className="np-theme-circle-wrap">
-          <button
-            className="np-theme-circle np-theme-circle--add"
-            onClick={openNewEditor}
-            title="Create new theme"
-          >
-            <FiPlus size={18} />
-          </button>
-          <span className="np-theme-circle__label">new</span>
-        </div>
+        {/* Create new theme card */}
+        <button className="np-tcard np-tcard--add" onClick={openNewEditor}>
+          <span className="np-tcard__add-icon">
+            <FiPlus size={20} />
+          </span>
+          <span className="np-tcard__name">new theme</span>
+        </button>
       </div>
 
       {customThemes.length === 0 && (
@@ -276,67 +356,100 @@ export default function Customization() {
         ))}
       </div>
 
-      {/* ── THEME EDITOR ────────────────────────────────────────── */}
-      {editing && (
-        <div className="np-theme-editor">
-          <div className="np-panel__label" style={{ margin: "0 0 12px" }}>
-            {editBaseId ? "edit theme" : "create theme"}
-          </div>
+      {/* ── THEME EDITOR MODAL ──────────────────────────────────── */}
+      <NeoModal
+        open={editing}
+        title={editBaseId ? "edit theme" : "create theme"}
+        onClose={() => setEditing(false)}
+        wide
+      >
+        {/* Scoped live preview — doesn't touch the real app theme */}
+        <div className="np-editor-preview">
+          <ThemeMock theme={draftTheme} />
+        </div>
 
-          {/* Name */}
-          <label className="np-theme-editor__field">
-            <span className="np-theme-editor__label">name</span>
-            <input
-              type="text"
-              className="np-field__input"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              placeholder={`Custom ${customThemes.length + 1}`}
-              maxLength={20}
-            />
-          </label>
+        {/* Name */}
+        <label className="np-theme-editor__field">
+          <span className="np-theme-editor__label">name</span>
+          <input
+            type="text"
+            className="np-field__input"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            placeholder={`Custom ${customThemes.length + 1}`}
+            maxLength={20}
+          />
+        </label>
 
-          {/* Color Pickers */}
+        {/* Accent swatches */}
+        <SwatchRow label="accent" swatches={ACCENT_SWATCHES} value={editAccent} onChange={setEditAccent} />
+
+        {/* Secondary swatches + auto-match */}
+        <div className="np-swatch-head">
+          <span className="np-theme-editor__label">secondary</span>
+          <button className="np-minibtn" onClick={autoMatch} title="Auto-pick secondary & danger from accent">
+            <FiZap size={10} style={{ marginRight: 4 }} />
+            auto-match
+          </button>
+        </div>
+        <SwatchGrid swatches={SECONDARY_SWATCHES} value={editSecondary} onChange={setEditSecondary} />
+
+        {/* Danger swatches */}
+        <SwatchRow label="danger" swatches={DANGER_SWATCHES} value={editDanger} onChange={setEditDanger} />
+
+        {/* Advanced: raw color inputs */}
+        <button className="np-editor-adv-toggle" onClick={() => setShowAdvanced((v) => !v)}>
+          {showAdvanced ? "hide custom colors" : "pick custom colors instead"}
+        </button>
+        {showAdvanced && (
           <div className="np-theme-editor__colors">
             <ColorPicker label="accent" value={editAccent} onChange={setEditAccent} />
             <ColorPicker label="secondary" value={editSecondary} onChange={setEditSecondary} />
             <ColorPicker label="danger" value={editDanger} onChange={setEditDanger} />
           </div>
+        )}
 
-          {/* Live Preview */}
-          <div className="np-theme-editor__preview">
-            <span className="np-theme-editor__preview-label">preview</span>
-            <div className="np-theme-editor__preview-strip">
-              <div className="np-theme-editor__swatch" style={{ background: editAccent }}>
-                <span>Aa</span>
-              </div>
-              <div className="np-theme-editor__swatch" style={{ background: editSecondary }}>
-                <span>Bb</span>
-              </div>
-              <div className="np-theme-editor__swatch" style={{ background: editDanger }}>
-                <span>!</span>
-              </div>
-              <div className="np-theme-editor__swatch np-theme-editor__swatch--dark" style={{ borderColor: editAccent }}>
-                <span style={{ color: editAccent }}>text</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="np-theme-editor__actions">
-            <button className="np-btn np-btn--sm" onClick={saveCustomTheme}>
-              save theme
-            </button>
-            <button
-              className="np-btn np-btn--sm np-btn--ghost"
-              onClick={cancelEditor}
-              style={{ marginLeft: 8 }}
-            >
-              cancel
-            </button>
-          </div>
+        {/* Actions */}
+        <div className="np-theme-editor__actions">
+          <button className="np-btn np-btn--sm" onClick={saveCustomTheme}>
+            save theme
+          </button>
+          <button
+            className="np-btn np-btn--sm np-btn--ghost"
+            onClick={() => setEditing(false)}
+            style={{ marginLeft: 8 }}
+          >
+            cancel
+          </button>
         </div>
-      )}
+      </NeoModal>
+
+      {/* ── SHARE MODAL ─────────────────────────────────────────── */}
+      <NeoModal open={!!shareTarget} title="share this look" onClose={() => setShareTarget(null)}>
+        {shareTarget && (
+          <>
+            <div className="np-editor-preview">
+              <ThemeMock theme={shareTarget} />
+            </div>
+            <p className="np-note" style={{ marginBottom: 10 }}>
+              anyone who enters this code gets the exact same look — colors,
+              font &amp; size.
+            </p>
+            <div className="np-code">{shareCode}</div>
+            <button className="np-btn np-btn--sm" onClick={copyShareCode}>
+              <FiCopy size={12} style={{ marginRight: 6 }} />
+              copy code
+            </button>
+          </>
+        )}
+      </NeoModal>
+
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.show}
+        onClose={() => setToast((prev) => ({ ...prev, show: false }))}
+      />
 
       {/* Spacer for bottom nav */}
       <div style={{ height: 80 }} />
@@ -344,7 +457,37 @@ export default function Customization() {
   );
 }
 
-// ── Color Picker Sub-component ───────────────────────────────────
+// ── Swatch Row (label + grid) ────────────────────────────────────
+function SwatchRow({ label, swatches, value, onChange }) {
+  return (
+    <>
+      <span className="np-theme-editor__label" style={{ display: "block", margin: "12px 0 6px" }}>
+        {label}
+      </span>
+      <SwatchGrid swatches={swatches} value={value} onChange={onChange} />
+    </>
+  );
+}
+
+// ── Swatch Grid ──────────────────────────────────────────────────
+function SwatchGrid({ swatches, value, onChange }) {
+  return (
+    <div className="np-swatches">
+      {swatches.map((hex) => (
+        <button
+          key={hex}
+          className={`np-swatch${value.toLowerCase() === hex.toLowerCase() ? " np-swatch--on" : ""}`}
+          style={{ background: hex }}
+          onClick={() => onChange(hex)}
+          title={hex}
+          aria-label={hex}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Color Picker Sub-component (advanced) ────────────────────────
 function ColorPicker({ label, value, onChange }) {
   const inputRef = useRef(null);
 

@@ -2,9 +2,11 @@ import React, { lazy, Suspense, useEffect } from "react";
 import { HeadProvider } from "react-head";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { SyncProvider } from "./contexts/SyncContext";
 import AuthGuard from "./components/AuthGuard.jsx";
 import PerformanceMonitor from "./components/PerformanceMonitor.jsx";
 import GoogleAnalytics from "./components/GoogleAnalytics.jsx";
+import DesktopCompanion from "./neo/bot/DesktopCompanion.jsx";
 import LoginPage from "./neo/Login.jsx";
 import HomePage from "./neo/pages/Home.jsx";
 import TimetablePage from "./neo/pages/Timetable.jsx";
@@ -38,40 +40,44 @@ function App() {
   return (
     <HeadProvider>
       <ThemeProvider>
-        <PerformanceMonitor />
-        <Router>
-          <GoogleAnalytics />
-          <div className="app-wrapper">
-            <Suspense fallback={<div className="loading-container">Loading...</div>}>
-            <Routes>
-              <Route path="/" element={
-                <AuthGuard>
-                  <LoginPage />
-                </AuthGuard>
-              } />
-              <Route path="/home" element={<HomePage />} />
-              <Route path="/timetable" element={<TimetablePage />} />
-              <Route path="/subjects" element={<SubjectsPage />} />
-              <Route path="/maddys" element={<MaddysPage />} />
-              <Route path="/maddys/:id/class" element={<MaddyClassInfo />} />
-              <Route path="/maddys/:id/timetable" element={<MaddyTimetable />} />
-              <Route path="/attendance" element={<AttendancePage />} />
-              <Route path="/grades" element={<GradesPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/customize" element={<Customization />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/exam" element={<ExamPage />} />
-              <Route path="/games" element={<FlappyBirdPage />} />
-              <Route path="/games/flappy-bird" element={<FlappyBirdPage />} />
-              <Route path="/kl-calculator" element={<CalculatorPage />} />
-            </Routes>
-            </Suspense>
-          </div>
-        </Router>
-        <Suspense fallback={null}>
-          <Analytics />
-        </Suspense>
-        <ToasterProvider />
+        <SyncProvider>
+          <PerformanceMonitor />
+          <Router>
+            <GoogleAnalytics />
+            {/* Companion lives here — above Routes, never remounts */}
+            <DesktopCompanion />
+            <div className="app-wrapper">
+              <Suspense fallback={<div className="loading-container">Loading...</div>}>
+              <Routes>
+                <Route path="/" element={
+                  <AuthGuard>
+                    <LoginPage />
+                  </AuthGuard>
+                } />
+                <Route path="/home" element={<HomePage />} />
+                <Route path="/timetable" element={<TimetablePage />} />
+                <Route path="/subjects" element={<SubjectsPage />} />
+                <Route path="/maddys" element={<MaddysPage />} />
+                <Route path="/maddys/:id/class" element={<MaddyClassInfo />} />
+                <Route path="/maddys/:id/timetable" element={<MaddyTimetable />} />
+                <Route path="/attendance" element={<AttendancePage />} />
+                <Route path="/grades" element={<GradesPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/customize" element={<Customization />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/exam" element={<ExamPage />} />
+                <Route path="/games" element={<FlappyBirdPage />} />
+                <Route path="/games/flappy-bird" element={<FlappyBirdPage />} />
+                <Route path="/kl-calculator" element={<CalculatorPage />} />
+              </Routes>
+              </Suspense>
+            </div>
+          </Router>
+          <Suspense fallback={null}>
+            <Analytics />
+          </Suspense>
+          <ToasterProvider />
+        </SyncProvider>
       </ThemeProvider>
     </HeadProvider>
   );

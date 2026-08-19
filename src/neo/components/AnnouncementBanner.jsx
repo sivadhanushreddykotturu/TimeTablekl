@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { getCSSColor } from "../utils/themeEngine";
 
 export default function AnnouncementBanner() {
   const [announcement, setAnnouncement] = useState(null);
@@ -47,7 +46,7 @@ export default function AnnouncementBanner() {
           paddingTop: "2px",
         }}
       >
-        {announcement.title || "🎉 ANNOUNCEMENT 🎉"}
+        {announcement.title || "ANNOUNCEMENT"}
       </div>
       <div
         style={{

@@ -32,6 +32,41 @@ export function getLuminance(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
+/** { r, g, b } → { h: 0-360, s: 0-1, l: 0-1 } */
+function rgbToHsl({ r, g, b }) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let h = 0;
+  let s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+  }
+  return { h, s, l };
+}
+
+/** { h: 0-360, s: 0-1, l: 0-1 } → "#rrggbb" */
+function hslToHex({ h, s, l }) {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r, g, b;
+  if (h < 60) { r = c; g = x; b = 0; }
+  else if (h < 120) { r = x; g = c; b = 0; }
+  else if (h < 180) { r = 0; g = c; b = x; }
+  else if (h < 240) { r = 0; g = x; b = c; }
+  else if (h < 300) { r = x; g = 0; b = c; }
+  else { r = c; g = 0; b = x; }
+  return rgbToHex({ r: (r + m) * 255, g: (g + m) * 255, b: (b + m) * 255 });
+}
+
 /** Return dark or light text color based on background hex */
 export function getContrastColor(hex) {
   return getLuminance(hex) > 0.55 ? "#0a0a0c" : "#f4f2ea";
@@ -100,6 +135,38 @@ export const PRESETS = [
 ];
 
 export const DEFAULT_THEME = PRESETS[0];
+
+// ── Curated Swatches (all vetted for contrast on the dark UI) ─────
+
+export const ACCENT_SWATCHES = [
+  "#cfff04", "#00e5ff", "#00ff88", "#ffd600",
+  "#ff8800", "#ff00a2", "#b388ff", "#7cff6b",
+  "#4dfff3", "#ff5c8a", "#f4f2ea", "#a3ff12",
+];
+
+export const SECONDARY_SWATCHES = [
+  "#6533f4", "#6366f1", "#06b6d4", "#d97706",
+  "#7b00ff", "#3b82f6", "#ec4899", "#10b981",
+  "#f97316", "#14b8a6", "#8b5cf6", "#e11d48",
+];
+
+export const DANGER_SWATCHES = [
+  "#ff2e63", "#ff0055", "#ff3333", "#ff5500",
+  "#ff0066", "#ff3d00", "#f43f5e", "#ff1744",
+];
+
+/**
+ * Suggest a harmonious (secondary, danger) pair for a given accent.
+ * Secondary = complementary hue; danger = warm crimson family
+ * (shifted to orange if the accent itself is already crimson).
+ */
+export function suggestHarmony(accent) {
+  const { h, s } = rgbToHsl(hexToRgb(accent));
+  const secondary = hslToHex({ h: h + 180, s: Math.max(0.55, s * 0.9), l: 0.58 });
+  const dangerHue = Math.abs(h - 345) < 40 ? 22 : 345;
+  const danger = hslToHex({ h: dangerHue, s: 0.9, l: 0.56 });
+  return { secondary, danger };
+}
 
 // ── Font Presets ──────────────────────────────────────────────────
 
@@ -181,6 +248,19 @@ export function applyTheme(theme) {
   s.setProperty("--np-pink-text", theme.dangerText);
 }
 
+/** Scoped CSS-var style object for painting mini previews with a theme. */
+export function themeVars(theme) {
+  return {
+    "--np-acid": theme.accent,
+    "--np-acid-deep": theme.accentDeep,
+    "--np-acid-text": theme.accentText,
+    "--np-purple": theme.secondary,
+    "--np-purple-text": theme.secondaryText,
+    "--np-pink": theme.danger,
+    "--np-pink-text": theme.dangerText,
+  };
+}
+
 // ── Apply Font ───────────────────────────────────────────────────
 
 /** Apply font custom properties to documentElement */
@@ -222,6 +302,59 @@ export function getActiveFontSizeId() {
 export function resolveFontSizeById(id) {
   if (!id) return DEFAULT_FONT_SIZE;
   return FONT_SIZE_PRESETS.find((s) => s.id === id) || DEFAULT_FONT_SIZE;
+}
+
+// ── Shareable Theme Codes ────────────────────────────────────────
+//
+// Format: TTK1-<accent hex><secondary hex><danger hex><font idx><size idx><checksum>
+// Example: TTK1-CFFF046533F4FF2E6311X
+// Fully offline — the whole look (colors + font + size) fits in ~26 chars.
+
+const CODE_PREFIX = "TTK1-";
+const B36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function codeChecksum(payload) {
+  let sum = 0;
+  for (const ch of payload) sum = (sum + ch.charCodeAt(0)) % 36;
+  return B36[sum];
+}
+
+/** Encode a theme + font + font size into a shareable code string. */
+export function encodeThemeCode(theme, fontId, fontSizeId) {
+  const hex = (c) => c.replace("#", "").toUpperCase();
+  const fi = Math.max(0, FONT_PRESETS.findIndex((f) => f.id === fontId));
+  const zi = Math.max(0, FONT_SIZE_PRESETS.findIndex((s) => s.id === fontSizeId));
+  const payload =
+    hex(theme.accent) +
+    hex(theme.secondary) +
+    hex(theme.danger) +
+    fi.toString(36).toUpperCase() +
+    zi.toString(36).toUpperCase();
+  return CODE_PREFIX + payload + codeChecksum(payload);
+}
+
+/**
+ * Decode a share code. Returns { accent, secondary, danger, fontId, fontSizeId }
+ * or null if the code is malformed or fails its checksum.
+ */
+export function decodeThemeCode(input) {
+  if (!input) return null;
+  const code = input.trim().toUpperCase().replace(/\s+/g, "");
+  if (!code.startsWith(CODE_PREFIX)) return null;
+  const body = code.slice(CODE_PREFIX.length);
+  if (!/^[0-9A-F]{18}[0-9A-Z]{3}$/.test(body)) return null;
+  const payload = body.slice(0, 20);
+  if (codeChecksum(payload) !== body[20]) return null;
+  const fi = parseInt(body[18], 36);
+  const zi = parseInt(body[19], 36);
+  if (fi >= FONT_PRESETS.length || zi >= FONT_SIZE_PRESETS.length) return null;
+  return {
+    accent: "#" + body.slice(0, 6),
+    secondary: "#" + body.slice(6, 12),
+    danger: "#" + body.slice(12, 18),
+    fontId: FONT_PRESETS[fi].id,
+    fontSizeId: FONT_SIZE_PRESETS[zi].id,
+  };
 }
 
 // ── Persistence ──────────────────────────────────────────────────

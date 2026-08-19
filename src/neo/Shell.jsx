@@ -11,6 +11,8 @@ import {
 } from "react-icons/fi";
 import { getCurrentAcademicYearOptions } from "../config/api.js";
 import { NeoSelect, NeoButton } from "./NeoKit.jsx";
+import { useSync } from "../contexts/SyncContext.jsx";
+
 import "./neo.css";
 
 /* ============================================================
@@ -141,6 +143,7 @@ export default function NeoShell({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { registerSyncHandler, setIsSyncing } = useSync();
   const [syncing, setSyncing] = useState(false);
   const [synced, setSynced] = useState(false);
   const [avatarSeed] = useState(
@@ -165,6 +168,16 @@ export default function NeoShell({
     }
   };
 
+  useEffect(() => {
+    if (onRefresh) {
+      return registerSyncHandler(runRefresh);
+    }
+  }, [onRefresh, registerSyncHandler, syncing]);
+
+  useEffect(() => {
+    setIsSyncing(syncing || autoSyncing);
+  }, [syncing, autoSyncing, setIsSyncing]);
+
   const handleRefreshClick = () => {
     runRefresh();
   };
@@ -177,13 +190,15 @@ export default function NeoShell({
   const isProfile = location.pathname === "/profile";
 
   return (
-    <div className="np-app">
-      <div className="np-app__inner">
-        <header className={`np-topbar${chromeDimmed ? " np-gaming-dim" : ""}`}>
-          <Link to="/home" className="np-topbar__brand" aria-label="Home">
-            <span className="np-topbar__tile">kl</span>
-            <span className="np-topbar__word">timetable<i>.</i></span>
-          </Link>
+    <div className="np-layout">
+
+      <div className="np-app">
+        <div className="np-app__inner">
+          <header className={`np-topbar${chromeDimmed ? " np-gaming-dim" : ""}`}>
+            <Link to="/home" className="np-topbar__brand" aria-label="Home">
+              <span className="np-topbar__tile">kl</span>
+              <span className="np-topbar__word">timetable<i>.</i></span>
+            </Link>
 
           <div className="np-topbar__actions">
             {examExit && (
@@ -211,42 +226,43 @@ export default function NeoShell({
         </header>
 
         <main>{children}</main>
+        </div> {/* end np-app__inner */}
+
+        <nav className={`np-nav${chromeDimmed ? " np-gaming-dim" : ""}`} aria-label="Main">
+          <div className="np-nav__row">
+            <NavLink to="/home" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
+              <FiHome size={18} />
+              <span>home</span>
+              <span className="np-nav__dot" />
+            </NavLink>
+
+            <NavLink to="/timetable" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
+              <FiCalendar size={18} />
+              <span>week</span>
+              <span className="np-nav__dot" />
+            </NavLink>
+
+            <NavLink to="/attendance" className={({ isActive }) => `np-nav__core${isActive ? " is-active" : ""}`}>
+              <span className="np-nav__diamond">
+                <FiPieChart size={19} />
+              </span>
+              <span className="np-nav__label">attend</span>
+            </NavLink>
+
+            <NavLink to="/grades" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
+              <FiAward size={18} />
+              <span>grades</span>
+              <span className="np-nav__dot" />
+            </NavLink>
+
+            <NavLink to="/maddys" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
+              <FiUsers size={18} />
+              <span>docs</span>
+              <span className="np-nav__dot" />
+            </NavLink>
+          </div>
+        </nav>
       </div>
-
-      <nav className={`np-nav${chromeDimmed ? " np-gaming-dim" : ""}`} aria-label="Main">
-        <div className="np-nav__row">
-          <NavLink to="/home" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
-            <FiHome size={18} />
-            <span>home</span>
-            <span className="np-nav__dot" />
-          </NavLink>
-
-          <NavLink to="/timetable" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
-            <FiCalendar size={18} />
-            <span>week</span>
-            <span className="np-nav__dot" />
-          </NavLink>
-
-          <NavLink to="/attendance" className={({ isActive }) => `np-nav__core${isActive ? " is-active" : ""}`}>
-            <span className="np-nav__diamond">
-              <FiPieChart size={19} />
-            </span>
-            <span className="np-nav__label">attend</span>
-          </NavLink>
-
-          <NavLink to="/grades" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
-            <FiAward size={18} />
-            <span>grades</span>
-            <span className="np-nav__dot" />
-          </NavLink>
-
-          <NavLink to="/maddys" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
-            <FiUsers size={18} />
-            <span>docs</span>
-            <span className="np-nav__dot" />
-          </NavLink>
-        </div>
-      </nav>
     </div>
   );
 }
