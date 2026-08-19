@@ -104,7 +104,9 @@ export default function DesktopCompanion() {
 
   const hasAnnouncement = Boolean(announcement)
 
-  const finalState = projecting || hasAnnouncement ? 'notify' : (clickState ?? autoState ?? 'idle')
+  // The notify badge holds while an announcement is up, but idle animations
+  // still interject now and then (the dot returns right after each)
+  const finalState = projecting ? 'notify' : (clickState ?? autoState ?? (hasAnnouncement ? 'notify' : 'idle'))
   const finalStateRef = useRef(finalState)
   finalStateRef.current = finalState
 
@@ -199,8 +201,12 @@ export default function DesktopCompanion() {
       const nx = clamp((e.clientX - bcx) / (window.innerWidth / 2), -1, 1)
       const ny = clamp((e.clientY - bcy) / (window.innerHeight / 2), -1, 1)
       // Only rest-face states take the cursor: elsewhere the gaze IS the
-      // measured animation (orbit's flying eyes), and mixing would blur it
-      const canFollow = Boolean(STATE_BY_ID[finalStateRef.current]?.baseFace)
+      // measured animation (orbit's flying eyes), and mixing would blur it.
+      // notify is the exception: the badge stays put either way, and a
+      // tracked gaze keeps the pinned face alive.
+      const canFollow =
+        Boolean(STATE_BY_ID[finalStateRef.current]?.baseFace) ||
+        finalStateRef.current === 'notify'
       if (canFollow) {
         lookRef.current = {
           yaw: nx * YAW_MAX,
@@ -219,9 +225,9 @@ export default function DesktopCompanion() {
     }
   }, [])
 
-  // Leaving a rest-face state releases the cursor's hold on the gaze
+  // Leaving a followable state releases the cursor's hold on the gaze
   useEffect(() => {
-    if (!projecting && !STATE_BY_ID[finalState]?.baseFace) {
+    if (!projecting && !STATE_BY_ID[finalState]?.baseFace && finalState !== 'notify') {
       lookRef.current = { ...lookRef.current, mix: 0, wander: 1 }
     }
   }, [finalState, projecting])
