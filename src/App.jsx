@@ -23,6 +23,7 @@ import FlappyBirdPage from "./neo/pages/FlappyBirdPage.jsx";
 import Customization from "./neo/pages/Customization.jsx";
 import { ToasterProvider } from "./components/Toast.jsx";
 import { loadAndApplyTheme } from "./neo/utils/themeEngine";
+import { useAppUpdater } from "./hooks/useAppUpdater";
 import "./neo/neo.css";
 const CalculatorPage = lazy(() => import("./pages/Calculator.jsx"));
 
@@ -30,6 +31,9 @@ const CalculatorPage = lazy(() => import("./pages/Calculator.jsx"));
 const Analytics = lazy(() => import("@vercel/analytics/react").then(module => ({ default: module.Analytics })));
 
 function App() {
+  // Silent auto-updater for iOS / Android PWAs (zero stale cache)
+  useAppUpdater();
+
   // neoPOP full-bleed black canvas, app-wide
   useEffect(() => {
     document.body.classList.add("np-body");

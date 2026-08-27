@@ -2,17 +2,40 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'fs'
+import path from 'path'
+
+let appBuildId = Date.now().toString(36)
+try {
+  const versionPath = path.resolve(__dirname, 'public/version.json')
+  if (fs.existsSync(versionPath)) {
+    const raw = JSON.parse(fs.readFileSync(versionPath, 'utf-8'))
+    if (raw.buildId) appBuildId = raw.buildId
+  }
+} catch (e) {
+  // fallback to runtime generated id
+}
 
 export default defineConfig({
+  define: {
+    __APP_BUILD_ID__: JSON.stringify(appBuildId),
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         cleanupOutdatedCaches: true, // 🚀 FORCE PURGE OLD SERVICE WORKERS ON NEW LIVE DEPLOY
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globIgnores: ['**/version.json', '**/announcements.json'],
         runtimeCaching: [
+          {
+            urlPattern: /.*(?:version|announcements)\.json/i,
+            handler: 'NetworkOnly'
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',

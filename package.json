@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/generate-version.js",
     "build": "vite build",
     "build:analyze": "vite build --mode analyze",
     "preview": "vite preview",
