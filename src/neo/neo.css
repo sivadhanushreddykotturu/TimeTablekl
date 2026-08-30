@@ -416,43 +416,40 @@ body.np-body .toast {
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
-  overflow-x: hidden;
 }
 
 /* Instagram-style horizontal slide transitions */
 .np-main-swipe-container {
   width: 100%;
-  position: relative;
-  will-change: transform, opacity;
 }
 
 .np-slide-enter-left {
-  animation: npSlideEnterFromRight 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: npSlideEnterFromRight 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .np-slide-enter-right {
-  animation: npSlideEnterFromLeft 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: npSlideEnterFromLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes npSlideEnterFromRight {
-  from {
+  0% {
     opacity: 0.85;
     transform: translate3d(24px, 0, 0);
   }
-  to {
+  100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
 @keyframes npSlideEnterFromLeft {
-  from {
+  0% {
     opacity: 0.85;
     transform: translate3d(-24px, 0, 0);
   }
-  to {
+  100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
@@ -1763,9 +1760,9 @@ body.np-body button.np-modal__close:hover {
    ============================================================ */
 
 body.np-body button.np-fab {
-  position: fixed;
-  right: 16px;
-  z-index: 80;
+  position: fixed !important;
+  right: max(16px, calc((100vw - 520px) / 2 + 16px));
+  z-index: 85;
   width: 48px;
   height: 48px;
   min-height: 0;
@@ -1789,8 +1786,8 @@ body.np-body button.np-fab:active {
   box-shadow: 1px 1px 0 0 var(--np-purple);
 }
 
-.np-fab--1 { bottom: calc(var(--np-nav-h) + 18px + env(safe-area-inset-bottom, 0px)); }
-.np-fab--2 { bottom: calc(var(--np-nav-h) + 78px + env(safe-area-inset-bottom, 0px)); }
+body.np-body button.np-fab--1 { bottom: calc(var(--np-nav-h) + 18px + env(safe-area-inset-bottom, 0px)) !important; }
+body.np-body button.np-fab--2 { bottom: calc(var(--np-nav-h) + 78px + env(safe-area-inset-bottom, 0px)) !important; }
 
 /* ============================================================
    EMPTY / LOADING / NOTES
