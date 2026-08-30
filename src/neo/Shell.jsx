@@ -12,6 +12,7 @@ import {
 import { getCurrentAcademicYearOptions } from "../config/api.js";
 import { NeoSelect, NeoButton } from "./NeoKit.jsx";
 import { useSync } from "../contexts/SyncContext.jsx";
+import { useSwipeNavigation } from "../hooks/useSwipeNavigation.js";
 
 import "./neo.css";
 
@@ -187,7 +188,16 @@ export default function NeoShell({
     navigate("/home");
   };
 
+  // Enable Instagram-style slide navigation across the 5 primary tabs on mobile
+  useSwipeNavigation();
+
   const isProfile = location.pathname === "/profile";
+  const slideDirection = location.state?.slideDirection;
+  const slideClass = slideDirection === "left"
+    ? "np-slide-enter-left"
+    : slideDirection === "right"
+    ? "np-slide-enter-right"
+    : "";
 
   return (
     <div className="np-layout">
@@ -225,7 +235,7 @@ export default function NeoShell({
           </div>
         </header>
 
-        <main>{children}</main>
+        <main className={`np-main-swipe-container ${slideClass}`}>{children}</main>
         </div> {/* end np-app__inner */}
 
         <nav className={`np-nav${chromeDimmed ? " np-gaming-dim" : ""}`} aria-label="Main">

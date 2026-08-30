@@ -416,6 +416,44 @@ body.np-body .toast {
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
+  overflow-x: hidden;
+}
+
+/* Instagram-style horizontal slide transitions */
+.np-main-swipe-container {
+  width: 100%;
+  position: relative;
+  will-change: transform, opacity;
+}
+
+.np-slide-enter-left {
+  animation: npSlideEnterFromRight 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.np-slide-enter-right {
+  animation: npSlideEnterFromLeft 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes npSlideEnterFromRight {
+  from {
+    opacity: 0.85;
+    transform: translate3d(24px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes npSlideEnterFromLeft {
+  from {
+    opacity: 0.85;
+    transform: translate3d(-24px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 /* ---------- top bar ---------- */
