@@ -472,7 +472,14 @@ export default function CampusRadio() {
         const errDetail = data.detail || "Failed to add song to queue.";
         showNotice(errDetail);
         if (resp.status === 429 && errDetail.includes("Cooldown")) {
-          setCooldownSeconds(600);
+          const match = errDetail.match(/wait\s+(?:(\d+)m\s+)?(\d+)s/i);
+          if (match) {
+            const mins = parseInt(match[1] || "0", 10);
+            const secs = parseInt(match[2] || "0", 10);
+            setCooldownSeconds(mins * 60 + secs);
+          } else {
+            setCooldownSeconds(600);
+          }
         }
         return;
       }
