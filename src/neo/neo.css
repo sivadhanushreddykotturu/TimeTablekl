@@ -496,6 +496,19 @@ body.np-body .toast {
   color: var(--np-pink);
 }
 
+.np-topbar__logo-svg {
+  height: 24px;
+  width: auto;
+  max-width: 120px;
+  color: var(--np-cream);
+  display: block;
+  transition: color 0.15s ease;
+}
+
+.np-topbar__brand:hover .np-topbar__logo-svg {
+  color: #fff;
+}
+
 .np-topbar__actions {
   display: flex;
   align-items: center;
