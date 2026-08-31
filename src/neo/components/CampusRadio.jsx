@@ -198,123 +198,8 @@ export default function CampusRadio() {
     }
   }, []);
 
-  // ------------------------------------------------------------
-  // 2. YouTube IFrame API Initialization
-  // ------------------------------------------------------------
-  useEffect(() => {
-    if (!window.YT) {
-      const tag = document.createElement("script");
-      tag.src = "https://www.youtube.com/iframe_api";
-      const firstScriptTag = document.getElementsByTagName("script")[0];
-      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-    }
 
-    const initPlayer = () => {
-      if (!window.YT || !window.YT.Player || !ytContainerRef.current) return;
-      if (ytPlayerRef.current) return;
 
-      try {
-        ytPlayerRef.current = new window.YT.Player(ytContainerRef.current, {
-          height: "200",
-          width: "200",
-          playerVars: {
-            autoplay: 1,
-            controls: 0,
-            disablekb: 1,
-            fs: 0,
-            modestbranding: 1,
-            rel: 0,
-            playsinline: 1, // Crucial for iOS / Mobile PWA background audio
-          },
-          events: {
-            onReady: (event) => {
-              try {
-                event.target.mute();
-                if (event.target.setPlaybackQuality) {
-                  event.target.setPlaybackQuality("small");
-                }
-                const track = radioState?.current_track;
-                if (track?.videoId) {
-                  activeVideoIdRef.current = track.videoId;
-                  const snap = stateSnapshotRef.current;
-                  const elapsed = Math.max(0, (Date.now() - snap.started_at) / 1000);
-                  event.target.loadVideoById({
-                    videoId: track.videoId,
-                    startSeconds: Math.floor(elapsed),
-                    suggestedQuality: "small",
-                  });
-                }
-              } catch (e) {}
-            },
-            onStateChange: (event) => {
-              try {
-                if (event.data === window.YT.PlayerState.PLAYING) {
-                  if (event.target.setPlaybackQuality) {
-                    event.target.setPlaybackQuality("small");
-                  }
-                  if (!isAudioActiveRef.current) {
-                    event.target.mute();
-                  } else {
-                    event.target.unMute();
-                    event.target.setVolume(100);
-                  }
-
-                  // 🔥 Enforce instant jump to server live timestamp (&start= / seekTo)
-                  const snap = stateSnapshotRef.current;
-                  if (snap.started_at > 0 && snap.duration_sec > 0) {
-                    const baseElapsed = (snap.server_time - snap.started_at) / 1000;
-                    const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
-                    const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
-                    const currentPlayTime = event.target.getCurrentTime() || 0;
-
-                    if (Math.abs(currentPlayTime - liveElapsed) > 3.0) {
-                      event.target.seekTo(liveElapsed, true);
-                    }
-                  }
-                } else if (event.data === window.YT.PlayerState.PAUSED) {
-                  // If mobile OS paused playback but user still wants sound on and app is visible, auto-resume
-                  if (isAudioActiveRef.current && document.visibilityState === "visible") {
-                    setTimeout(() => {
-                      if (isAudioActiveRef.current && ytPlayerRef.current) {
-                        try {
-                          ytPlayerRef.current.unMute?.();
-                          ytPlayerRef.current.setVolume?.(100);
-                          ytPlayerRef.current.playVideo?.();
-                        } catch (e) {}
-                      }
-                    }, 200);
-                  }
-                } else if (event.data === window.YT.PlayerState.ENDED) {
-                  handleTrackEnd();
-                }
-              } catch (e) {}
-            },
-          },
-        });
-      } catch (e) {
-        console.error("[RADIO] Player init exception:", e);
-      }
-    };
-
-    if (window.YT && window.YT.Player) {
-      initPlayer();
-    } else {
-      const prevCallback = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => {
-        if (prevCallback) prevCallback();
-        initPlayer();
-      };
-    }
-
-    return () => {
-      try {
-        if (ytPlayerRef.current?.destroy) {
-          ytPlayerRef.current.destroy();
-          ytPlayerRef.current = null;
-        }
-      } catch (e) {}
-    };
-  }, []);
 
   // ------------------------------------------------------------
   // 3. Mobile Foreground Resume & Visibility Handler
@@ -390,10 +275,121 @@ export default function CampusRadio() {
 
   // ------------------------------------------------------------
   // 5. Periodic Poll & Smooth Scrubber Ticking
+  // Fetch state FIRST, then init the player with correct live timestamp
   // ------------------------------------------------------------
   useEffect(() => {
-    fetchRadioState(true);
+    let playerInitialized = false;
 
+    const doInitPlayer = () => {
+      if (playerInitialized) return;
+      if (!window.YT || !window.YT.Player || !ytContainerRef.current) return;
+      if (ytPlayerRef.current) return;
+      playerInitialized = true;
+
+      try {
+        ytPlayerRef.current = new window.YT.Player(ytContainerRef.current, {
+          height: "200",
+          width: "200",
+          playerVars: {
+            autoplay: 1,
+            controls: 0,
+            disablekb: 1,
+            fs: 0,
+            modestbranding: 1,
+            rel: 0,
+            playsinline: 1,
+          },
+          events: {
+            onReady: (event) => {
+              try {
+                event.target.mute();
+                if (event.target.setPlaybackQuality) {
+                  event.target.setPlaybackQuality("small");
+                }
+                // stateSnapshotRef is already populated because fetchRadioState ran before initPlayer
+                const snap = stateSnapshotRef.current;
+                const vid = activeVideoIdRef.current;
+                if (vid && snap.started_at > 0 && snap.duration_sec > 0) {
+                  const baseElapsed = (snap.server_time - snap.started_at) / 1000;
+                  const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
+                  const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
+                  event.target.loadVideoById({
+                    videoId: vid,
+                    startSeconds: Math.floor(liveElapsed),
+                    suggestedQuality: "small",
+                  });
+                }
+              } catch (e) {}
+            },
+            onStateChange: (event) => {
+              try {
+                if (event.data === window.YT.PlayerState.PLAYING) {
+                  if (event.target.setPlaybackQuality) {
+                    event.target.setPlaybackQuality("small");
+                  }
+                  if (!isAudioActiveRef.current) {
+                    event.target.mute();
+                  } else {
+                    event.target.unMute();
+                    event.target.setVolume(100);
+                  }
+
+                  // Enforce sync to live timestamp on every PLAYING event
+                  const snap = stateSnapshotRef.current;
+                  if (snap.started_at > 0 && snap.duration_sec > 0) {
+                    const baseElapsed = (snap.server_time - snap.started_at) / 1000;
+                    const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
+                    const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
+                    const currentPlayTime = event.target.getCurrentTime() || 0;
+                    if (Math.abs(currentPlayTime - liveElapsed) > 3.0) {
+                      event.target.seekTo(liveElapsed, true);
+                    }
+                  }
+                } else if (event.data === window.YT.PlayerState.PAUSED) {
+                  if (isAudioActiveRef.current && document.visibilityState === "visible") {
+                    setTimeout(() => {
+                      if (isAudioActiveRef.current && ytPlayerRef.current) {
+                        try {
+                          ytPlayerRef.current.unMute?.();
+                          ytPlayerRef.current.setVolume?.(100);
+                          ytPlayerRef.current.playVideo?.();
+                        } catch (e) {}
+                      }
+                    }, 200);
+                  }
+                } else if (event.data === window.YT.PlayerState.ENDED) {
+                  handleTrackEnd();
+                }
+              } catch (e) {}
+            },
+          },
+        });
+      } catch (e) {
+        console.error("[RADIO] Player init exception:", e);
+      }
+    };
+
+    // Step 1: Fetch state first, THEN init player so onReady has correct live timestamp
+    fetchRadioState(true).then(() => {
+      if (window.YT && window.YT.Player) {
+        doInitPlayer();
+      } else {
+        // YT API not loaded yet — load it, init player when ready
+        if (!window.YT) {
+          const tag = document.createElement("script");
+          tag.src = "https://www.youtube.com/iframe_api";
+          const firstScriptTag = document.getElementsByTagName("script")[0];
+          firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        }
+        const prevCallback = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+          if (prevCallback) prevCallback();
+          doInitPlayer();
+        };
+      }
+    });
+
+    // Step 2: Keep polling state every 6s
     const stateInterval = setInterval(() => {
       fetchRadioState(false);
     }, 6000);
@@ -415,6 +411,12 @@ export default function CampusRadio() {
     return () => {
       clearInterval(stateInterval);
       clearInterval(tickInterval);
+      try {
+        if (ytPlayerRef.current?.destroy) {
+          ytPlayerRef.current.destroy();
+          ytPlayerRef.current = null;
+        }
+      } catch (e) {}
     };
   }, [fetchRadioState]);
 
