@@ -63,6 +63,8 @@ export default function CampusRadio() {
   const latestQueryRef = useRef("");
   const searchBoxRef = useRef(null);
   const stateSnapshotRef = useRef({ started_at: 0, duration_sec: 0, server_time: 0, local_fetch_at: 0 });
+  const audioCtxRef = useRef(null);       // Web Audio API context — keeps OS audio session alive in background
+  const silenceNodeRef = useRef(null);    // Silent oscillator node to prevent audio session from being killed
 
   // Keep audio active ref in sync
   useEffect(() => {
@@ -264,6 +266,20 @@ export default function CampusRadio() {
             : [],
         });
 
+        // Set playback state so OS knows we're actively streaming
+        navigator.mediaSession.playbackState = isAudioActive ? "playing" : "none";
+
+        // Give the OS a scrubber position (lock screen + Android media notification)
+        if (navigator.mediaSession.setPositionState && track.duration_sec > 0) {
+          try {
+            navigator.mediaSession.setPositionState({
+              duration: track.duration_sec,
+              playbackRate: 1.0,
+              position: Math.min(currentElapsed, track.duration_sec),
+            });
+          } catch (e) {}
+        }
+
         navigator.mediaSession.setActionHandler("play", () => {
           enableAudioPlayback();
         });
@@ -271,10 +287,22 @@ export default function CampusRadio() {
           setIsAudioActive(false);
           isAudioActiveRef.current = false;
           ytPlayerRef.current?.mute?.();
+          stopAudioKeepAlive();
+          navigator.mediaSession.playbackState = "paused";
         });
+        // Stop/previous/next are no-ops (it's a live radio)
+        navigator.mediaSession.setActionHandler("stop", () => {
+          setIsAudioActive(false);
+          isAudioActiveRef.current = false;
+          ytPlayerRef.current?.mute?.();
+          stopAudioKeepAlive();
+          navigator.mediaSession.playbackState = "none";
+        });
+        navigator.mediaSession.setActionHandler("previoustrack", null);
+        navigator.mediaSession.setActionHandler("nexttrack", null);
       } catch (e) {}
     }
-  }, [radioState?.current_track]);
+  }, [radioState?.current_track, isAudioActive, currentElapsed]);
 
   // ------------------------------------------------------------
   // 5. Periodic Poll & Smooth Scrubber Ticking
@@ -463,6 +491,11 @@ export default function CampusRadio() {
           ytPlayerRef.current.mute?.();
         } catch (e) {}
       }
+      // Stop Web Audio keepalive and tell OS we paused
+      stopAudioKeepAlive();
+      if ("mediaSession" in navigator) {
+        try { navigator.mediaSession.playbackState = "paused"; } catch (e) {}
+      }
       showNotice("Radio audio muted.");
       return;
     }
@@ -475,9 +508,60 @@ export default function CampusRadio() {
     }
   };
 
+  // ------------------------------------------------------------
+  // Web Audio API keepalive bridge
+  // A silent oscillator keeps the OS audio session alive in background
+  // Without this, iOS & Android kill the YouTube IFrame audio after ~30s
+  // ------------------------------------------------------------
+  const startAudioKeepAlive = () => {
+    try {
+      if (audioCtxRef.current && audioCtxRef.current.state !== "closed") return;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      audioCtxRef.current = ctx;
+
+      // Create a gain node at 0 volume (truly silent, but audio pipeline stays open)
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = 0.0001;
+      gainNode.connect(ctx.destination);
+
+      // Oscillator at inaudible frequency — just keeps the audio session registered
+      const osc = ctx.createOscillator();
+      osc.frequency.value = 1; // 1Hz — completely inaudible
+      osc.connect(gainNode);
+      osc.start(0);
+      silenceNodeRef.current = osc;
+
+      // iOS requires AudioContext to be resumed after a user gesture
+      if (ctx.state === "suspended") {
+        ctx.resume();
+      }
+    } catch (e) {
+      console.warn("[RADIO] AudioContext keepalive failed:", e);
+    }
+  };
+
+  const stopAudioKeepAlive = () => {
+    try {
+      if (silenceNodeRef.current) {
+        silenceNodeRef.current.stop?.();
+        silenceNodeRef.current = null;
+      }
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close?.();
+        audioCtxRef.current = null;
+      }
+    } catch (e) {}
+  };
+
   const enableAudioPlayback = () => {
     setIsAudioActive(true);
     isAudioActiveRef.current = true;
+
+    // Start Web Audio keepalive — MUST be called synchronously inside user gesture
+    startAudioKeepAlive();
+
     if (ytPlayerRef.current) {
       try {
         const snap = stateSnapshotRef.current;
@@ -494,6 +578,14 @@ export default function CampusRadio() {
         console.error("[RADIO] Playback error:", e);
       }
     }
+
+    // Tell the OS we are actively playing media
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.playbackState = "playing";
+      } catch (e) {}
+    }
+
     showNotice("Live audio connected 🎵");
   };
 
