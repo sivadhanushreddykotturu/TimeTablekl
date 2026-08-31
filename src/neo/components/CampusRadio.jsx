@@ -227,6 +227,19 @@ export default function CampusRadio() {
                     event.target.unMute();
                     event.target.setVolume(100);
                   }
+
+                  // 🔥 Enforce instant jump to server live timestamp (&start= / seekTo)
+                  const snap = stateSnapshotRef.current;
+                  if (snap.started_at > 0 && snap.duration_sec > 0) {
+                    const baseElapsed = (snap.server_time - snap.started_at) / 1000;
+                    const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
+                    const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
+                    const currentPlayTime = event.target.getCurrentTime() || 0;
+
+                    if (Math.abs(currentPlayTime - liveElapsed) > 3.0) {
+                      event.target.seekTo(liveElapsed, true);
+                    }
+                  }
                 } else if (event.data === window.YT.PlayerState.PAUSED) {
                   // If mobile OS paused playback but user still wants sound on and app is visible, auto-resume
                   if (isAudioActiveRef.current && document.visibilityState === "visible") {
@@ -427,6 +440,13 @@ export default function CampusRadio() {
     isAudioActiveRef.current = true;
     if (ytPlayerRef.current) {
       try {
+        const snap = stateSnapshotRef.current;
+        if (snap.started_at > 0 && snap.duration_sec > 0) {
+          const baseElapsed = (snap.server_time - snap.started_at) / 1000;
+          const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
+          const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
+          ytPlayerRef.current.seekTo?.(liveElapsed, true);
+        }
         ytPlayerRef.current.unMute?.();
         ytPlayerRef.current.setVolume?.(100);
         ytPlayerRef.current.playVideo?.();
