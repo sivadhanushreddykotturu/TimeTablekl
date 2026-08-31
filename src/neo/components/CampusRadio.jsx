@@ -175,13 +175,16 @@ export default function CampusRadio() {
                 console.warn("[RADIO] Load track warning:", e);
               }
             } else {
-              // Drift correction: resync if audio drifted by > 3.5 seconds
-              try {
-                const currentPlayTime = ytPlayerRef.current.getCurrentTime?.() || 0;
-                if (Math.abs(currentPlayTime - elapsed) > 3.5) {
-                  ytPlayerRef.current.seekTo?.(elapsed, true);
-                }
-              } catch (e) {}
+              // Drift correction: only resync when tab is visible
+              // Continuous seekTo calls in background tabs cause Chrome to abort the audio stream
+              if (document.visibilityState === "visible") {
+                try {
+                  const currentPlayTime = ytPlayerRef.current.getCurrentTime?.() || 0;
+                  if (Math.abs(currentPlayTime - elapsed) > 5.0) {
+                    ytPlayerRef.current.seekTo?.(elapsed, true);
+                  }
+                } catch (e) {}
+              }
             }
           }
         } else {
@@ -334,19 +337,23 @@ export default function CampusRadio() {
                     event.target.setVolume(100);
                   }
 
-                  // Enforce sync to live timestamp on every PLAYING event
-                  const snap = stateSnapshotRef.current;
-                  if (snap.started_at > 0 && snap.duration_sec > 0) {
-                    const baseElapsed = (snap.server_time - snap.started_at) / 1000;
-                    const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
-                    const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
-                    const currentPlayTime = event.target.getCurrentTime() || 0;
-                    if (Math.abs(currentPlayTime - liveElapsed) > 3.0) {
-                      event.target.seekTo(liveElapsed, true);
+                  // Only perform drift seek while tab is active in foreground
+                  // Seeking in background tabs causes Chrome to abort audio buffer & pause
+                  if (document.visibilityState === "visible") {
+                    const snap = stateSnapshotRef.current;
+                    if (snap.started_at > 0 && snap.duration_sec > 0) {
+                      const baseElapsed = (snap.server_time - snap.started_at) / 1000;
+                      const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
+                      const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
+                      const currentPlayTime = event.target.getCurrentTime() || 0;
+                      if (Math.abs(currentPlayTime - liveElapsed) > 4.0) {
+                        event.target.seekTo(liveElapsed, true);
+                      }
                     }
                   }
                 } else if (event.data === window.YT.PlayerState.PAUSED) {
-                  if (isAudioActiveRef.current && document.visibilityState === "visible") {
+                  // If user has sound ON, auto-resume even in background tabs
+                  if (isAudioActiveRef.current) {
                     setTimeout(() => {
                       if (isAudioActiveRef.current && ytPlayerRef.current) {
                         try {
@@ -355,7 +362,7 @@ export default function CampusRadio() {
                           ytPlayerRef.current.playVideo?.();
                         } catch (e) {}
                       }
-                    }, 200);
+                    }, 100);
                   }
                 } else if (event.data === window.YT.PlayerState.ENDED) {
                   handleTrackEnd();
