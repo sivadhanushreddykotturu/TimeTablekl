@@ -812,13 +812,23 @@ export default function CampusRadio() {
                     {item.duration_text && (
                       <span style={{ opacity: 0.6 }}> · {item.duration_text}</span>
                     )}
+                    {item.is_locked && (
+                      <span className="np-radio-pill np-radio-pill--live" style={{ marginLeft: "6px", fontSize: "10px", padding: "1px 6px" }}>
+                        🔒 playing next
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <button
                   type="button"
                   className={`np-radio-queue__vote-btn ${item.user_voted ? "is-voted" : ""}`}
-                  onClick={() => handleVote(item.queue_id, item.user_voted)}
+                  onClick={() => {
+                    if (item.is_locked) {
+                      showNotice("This song is locked in & playing next!");
+                    }
+                    handleVote(item.queue_id, item.user_voted);
+                  }}
                   aria-label={`Upvote ${item.title}`}
                 >
                   <FiChevronUp size={15} />
