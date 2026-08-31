@@ -190,6 +190,9 @@ export default function CampusRadio() {
     if (audio.canPlayType("application/vnd.apple.mpegurl")) {
       // Native iOS Safari / WebKit
       audio.src = hlsUrl;
+      if (isAudioActiveRef.current) {
+        audio.play().catch((e) => console.warn("[RADIO HLS] iOS play error:", e));
+      }
     } else if (Hls.isSupported()) {
       // Android Chrome / Desktop
       if (hlsRef.current) {
@@ -205,17 +208,26 @@ export default function CampusRadio() {
       hls.attachMedia(audio);
       hlsRef.current = hls;
 
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (isAudioActiveRef.current) {
+          audio.play().catch((e) => console.warn("[RADIO HLS] Autoplay error:", e));
+        }
+      });
+
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              hls.startLoad();
+              setTimeout(() => {
+                if (hlsRef.current) hlsRef.current.startLoad();
+              }, 2500);
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               hls.recoverMediaError();
               break;
             default:
               hls.destroy();
+              hlsRef.current = null;
               break;
           }
         }
