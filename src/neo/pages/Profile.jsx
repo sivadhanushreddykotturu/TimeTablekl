@@ -43,7 +43,7 @@ export default function NeoProfile() {
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [radioEnabled, setRadioEnabled] = useState(
-    () => localStorage.getItem("radio_enabled") !== "false"
+    () => localStorage.getItem("radio_enabled") === "true"
   );
   const [timeFormat, setTimeFormat] = useState(
     () => localStorage.getItem("time_format") || "12"

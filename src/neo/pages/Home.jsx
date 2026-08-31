@@ -169,13 +169,13 @@ export default function NeoHome() {
   const [resyncChanges, setResyncChanges] = useState([]);
   const [autoSyncing, setAutoSyncing] = useState(false);
   const [radioEnabled, setRadioEnabled] = useState(
-    () => localStorage.getItem("radio_enabled") !== "false"
+    () => localStorage.getItem("radio_enabled") === "true"
   );
   const previousTimetableRef = useRef(null);
 
   useEffect(() => {
     const checkRadioEnabled = () => {
-      setRadioEnabled(localStorage.getItem("radio_enabled") !== "false");
+      setRadioEnabled(localStorage.getItem("radio_enabled") === "true");
     };
     checkRadioEnabled();
     window.addEventListener("focus", checkRadioEnabled);
