@@ -3252,98 +3252,114 @@ body.np-body button.np-font-card--active {
   font-weight: 700;
 }
 
-/* Now Playing Card */
+/* Now Playing Card (Dimmed to keep timetable as the primary hero) */
 .np-radio-card {
   position: relative;
-  background: var(--np-purple);
+  background: var(--np-carbon);
   background-image:
-    linear-gradient(rgba(244, 242, 234, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(244, 242, 234, 0.06) 1px, transparent 1px);
-  background-size: 30px 30px;
-  border: 1px solid #000;
-  box-shadow: 6px 6px 0 0 var(--np-pink);
-  padding: 18px;
-  margin: 2px 6px 14px 0;
+    linear-gradient(rgba(244, 242, 234, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(244, 242, 234, 0.025) 1px, transparent 1px);
+  background-size: 24px 24px;
+  border: 1px solid var(--np-line);
+  box-shadow: 4px 4px 0 0 rgba(101, 51, 244, 0.5);
+  padding: 16px 16px 14px;
+  margin: 2px 4px 14px 0;
   border-radius: 0;
-  color: var(--np-purple-text);
+  color: var(--np-cream);
   box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.np-radio-card.is-playing {
+  border-color: rgba(101, 51, 244, 0.65);
+  box-shadow: 4px 4px 0 0 var(--np-purple);
 }
 
 .np-radio-card.is-idle {
-  background: var(--np-carbon);
+  background: var(--np-well);
   background-image: none;
   border-color: var(--np-line);
-  box-shadow: 6px 6px 0 0 var(--np-purple);
+  box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.6);
 }
 
 .np-radio-card__top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .np-radio-card__badge {
-  font: 700 10px/1 var(--np-font-ui);
-  letter-spacing: 0.3em;
+  font: 700 9.5px/1 var(--np-font-ui);
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: var(--np-purple-text);
+  color: var(--np-muted);
+}
+
+.np-radio-card.is-playing .np-radio-card__badge {
+  color: var(--np-purple);
+  opacity: 0.9;
 }
 
 .np-radio-card.is-idle .np-radio-card__badge {
-  color: var(--np-muted);
+  color: var(--np-faint);
 }
 
 .np-radio-card__flag {
   background: transparent;
   border: none;
   font: 700 9px/1 var(--np-font-ui);
-  letter-spacing: 0.2em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--np-purple-text);
-  opacity: 0.7;
+  color: var(--np-faint);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 2px 4px;
   border-radius: 0;
-  transition: opacity 0.15s ease;
+  transition: color 0.15s ease, opacity 0.15s ease;
 }
 
 .np-radio-card__flag:hover {
-  opacity: 1;
   color: var(--np-pink);
+  opacity: 1;
 }
 
 .np-radio-card__title {
   font-family: var(--np-font-display);
-  font-size: clamp(18px, 5.2vw, 24px);
-  line-height: 1.15;
-  color: var(--np-purple-text);
+  font-size: clamp(16px, 4.6vw, 20px);
+  line-height: 1.2;
+  color: var(--np-cream);
   word-break: break-word;
   text-transform: lowercase;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .np-radio-card__meta {
-  font: 700 12px/1.2 var(--np-font-ui);
-  letter-spacing: 0.04em;
-  color: var(--np-purple-text);
-  opacity: 0.9;
+  font: 500 11.5px/1.2 var(--np-font-ui);
+  letter-spacing: 0.02em;
+  color: var(--np-muted);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+.np-radio-card__artist {
+  color: var(--np-muted);
 }
 
 .np-radio-card__sep {
-  opacity: 0.5;
+  opacity: 0.4;
+  color: var(--np-faint);
 }
 
 .np-radio-card__user {
   color: var(--np-acid);
+  font-weight: 600;
+  font-size: 11px;
 }
 
 .np-radio-card__progress-wrap {
@@ -3353,7 +3369,8 @@ body.np-body button.np-font-card--active {
 .np-radio-card__progress-track {
   width: 100%;
   height: 3px;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--np-well);
+  border: 1px solid rgba(244, 242, 234, 0.04);
   position: relative;
   overflow: hidden;
   border-radius: 0;
@@ -3373,37 +3390,36 @@ body.np-body button.np-font-card--active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font: 700 10px/1 var(--np-font-ui);
-  letter-spacing: 0.1em;
-  color: var(--np-purple-text);
-  opacity: 0.8;
-  margin-top: 6px;
+  font: 600 9.5px/1 var(--np-font-ui);
+  letter-spacing: 0.08em;
+  color: var(--np-faint);
+  margin-top: 5px;
   font-variant-numeric: tabular-nums;
 }
 
 .np-radio-card__idle-state {
-  padding: 14px 6px;
+  padding: 12px 6px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .np-radio-card__idle-icon {
-  color: var(--np-muted);
-  margin-bottom: 4px;
+  color: var(--np-faint);
+  margin-bottom: 2px;
 }
 
 .np-radio-card__idle-text {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--np-muted);
   text-transform: lowercase;
 }
 
 .np-radio-card__idle-sub {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--np-faint);
   text-transform: lowercase;
 }
