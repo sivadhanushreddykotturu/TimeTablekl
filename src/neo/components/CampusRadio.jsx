@@ -94,12 +94,43 @@ export default function CampusRadio() {
     };
   }, []);
 
+  // JWT token manager
+  const getAuthToken = useCallback(async () => {
+    try {
+      const existingToken = localStorage.getItem("radio_jwt");
+      if (existingToken) {
+        try {
+          const payload = JSON.parse(atob(existingToken.split(".")[1]));
+          if (payload.exp && payload.exp * 1000 > Date.now() + 60000) {
+            return existingToken;
+          }
+        } catch (e) {}
+      }
+
+      const formData = getRadioFormData(studentId, password);
+      const resp = await fetch(API_CONFIG.RADIO_AUTH_URL, {
+        method: "POST",
+        body: formData,
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.success && data.token) {
+          localStorage.setItem("radio_jwt", data.token);
+          return data.token;
+        }
+      }
+    } catch (e) {}
+    return localStorage.getItem("radio_jwt") || "";
+  }, [studentId, password]);
+
   // ------------------------------------------------------------
   // 1. Fetch synchronized radio state
   // ------------------------------------------------------------
   const fetchRadioState = useCallback(async (isInitial = false) => {
     try {
-      const resp = await fetch(API_CONFIG.RADIO_STATE_URL);
+      const token = localStorage.getItem("radio_jwt") || "";
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const resp = await fetch(API_CONFIG.RADIO_STATE_URL, { headers });
       if (!resp.ok) throw new Error("Failed to load radio state");
       const data = await resp.json();
 
@@ -522,6 +553,8 @@ export default function CampusRadio() {
     setShowDropdown(false);
 
     try {
+      const token = await getAuthToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const formData = getRadioFormData(studentId, password, {
         videoId: song.videoId,
         title: song.title,
@@ -533,6 +566,7 @@ export default function CampusRadio() {
 
       const resp = await fetch(API_CONFIG.RADIO_QUEUE_URL, {
         method: "POST",
+        headers,
         body: formData,
       });
 
@@ -604,12 +638,15 @@ export default function CampusRadio() {
     });
 
     try {
+      const token = await getAuthToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const formData = getRadioFormData(studentId, password, {
         queue_id: queueId,
       });
 
       const resp = await fetch(API_CONFIG.RADIO_VOTE_URL, {
         method: "POST",
+        headers,
         body: formData,
       });
 
@@ -638,12 +675,15 @@ export default function CampusRadio() {
     setIsSubmittingReport(true);
 
     try {
+      const token = await getAuthToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const formData = getRadioFormData(studentId, password, {
         reason: reportReason,
       });
 
       const resp = await fetch(API_CONFIG.RADIO_REPORT_URL, {
         method: "POST",
+        headers,
         body: formData,
       });
 
