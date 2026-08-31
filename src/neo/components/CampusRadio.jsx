@@ -30,6 +30,10 @@ const REPORT_REASONS = [
   { id: "wrong_time", label: "wrong duration" },
 ];
 
+// Compact 0.1s silent WAV audio data URI to maintain native mobile background audio playback lock
+const SILENT_WAV_B64 =
+  "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+
 export default function CampusRadio() {
   const [radioState, setRadioState] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,6 +69,7 @@ export default function CampusRadio() {
   const stateSnapshotRef = useRef({ started_at: 0, duration_sec: 0, server_time: 0, local_fetch_at: 0 });
   const audioCtxRef = useRef(null);       // Web Audio API context — keeps OS audio session alive in background
   const silenceNodeRef = useRef(null);    // Silent oscillator node to prevent audio session from being killed
+  const bgAudioRef = useRef(null);        // HTML5 <audio> element to hold native OS audio wakelock in background
 
   // Keep audio active ref in sync
   useEffect(() => {
@@ -518,33 +523,44 @@ export default function CampusRadio() {
   };
 
   // ------------------------------------------------------------
-  // Web Audio API keepalive bridge
-  // A silent oscillator keeps the OS audio session alive in background
-  // Without this, iOS & Android kill the YouTube IFrame audio after ~30s
+  // Web Audio + HTML5 Audio keepalive bridge
+  // An inaudible HTML5 audio loop + WebAudio oscillator locks the native
+  // mobile OS audio session in background so Android/iOS don't kill playback
   // ------------------------------------------------------------
   const startAudioKeepAlive = () => {
+    // 1. Native HTML5 <audio> element: holds Android / iOS audio wakelock
     try {
-      if (audioCtxRef.current && audioCtxRef.current.state !== "closed") return;
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      audioCtxRef.current = ctx;
+      if (!bgAudioRef.current) {
+        const audio = new Audio(SILENT_WAV_B64);
+        audio.loop = true;
+        audio.preload = "auto";
+        audio.volume = 0.01;
+        bgAudioRef.current = audio;
+      }
+      bgAudioRef.current.play().catch(() => {});
+    } catch (e) {}
 
-      // Create a gain node at 0 volume (truly silent, but audio pipeline stays open)
-      const gainNode = ctx.createGain();
-      gainNode.gain.value = 0.0001;
-      gainNode.connect(ctx.destination);
+    // 2. WebAudio Context: keeps audio engine awake in PWA
+    try {
+      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          audioCtxRef.current = ctx;
 
-      // Oscillator at inaudible frequency — just keeps the audio session registered
-      const osc = ctx.createOscillator();
-      osc.frequency.value = 1; // 1Hz — completely inaudible
-      osc.connect(gainNode);
-      osc.start(0);
-      silenceNodeRef.current = osc;
+          const gainNode = ctx.createGain();
+          gainNode.gain.value = 0.0001;
+          gainNode.connect(ctx.destination);
 
-      // iOS requires AudioContext to be resumed after a user gesture
-      if (ctx.state === "suspended") {
-        ctx.resume();
+          const osc = ctx.createOscillator();
+          osc.frequency.value = 1; // 1Hz inaudible
+          osc.connect(gainNode);
+          osc.start(0);
+          silenceNodeRef.current = osc;
+        }
+      }
+      if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume().catch(() => {});
       }
     } catch (e) {
       console.warn("[RADIO] AudioContext keepalive failed:", e);
@@ -553,6 +569,9 @@ export default function CampusRadio() {
 
   const stopAudioKeepAlive = () => {
     try {
+      if (bgAudioRef.current) {
+        bgAudioRef.current.pause();
+      }
       if (silenceNodeRef.current) {
         silenceNodeRef.current.stop?.();
         silenceNodeRef.current = null;
