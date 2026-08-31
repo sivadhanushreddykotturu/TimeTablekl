@@ -56,7 +56,6 @@ export default function CampusRadio() {
   const [reportReason, setReportReason] = useState("broken");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [currentElapsed, setCurrentElapsed] = useState(0);
-  const [showHistory, setShowHistory] = useState(false);
 
   // Search & add
   const [searchQuery, setSearchQuery] = useState("");
@@ -1103,50 +1102,6 @@ export default function CampusRadio() {
           </div>
         )}
       </div>
-
-      {/* Recently Played History Section */}
-      {recentHistory.length > 0 && (
-        <div className="np-radio-history">
-          <button
-            type="button"
-            className="np-radio-history__toggle"
-            onClick={() => setShowHistory((prev) => !prev)}
-            aria-label="Toggle recently played tracks"
-          >
-            <div className="np-radio-history__title">
-              <FiClock size={12} />
-              <span>recently played ({recentHistory.length})</span>
-            </div>
-            <div className="np-radio-history__icon">
-              {showHistory ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
-            </div>
-          </button>
-
-          {showHistory && (
-            <div className="np-radio-history__list">
-              {recentHistory.map((item, idx) => (
-                <div key={`${item.videoId}-${item.played_at || idx}`} className="np-radio-history__item">
-                  <span className="np-radio-history__idx">{idx + 1}</span>
-                  <div className="np-radio-history__details">
-                    <div className="np-radio-history__song">{item.title}</div>
-                    <div className="np-radio-history__meta">
-                      <span>{item.artist}</span>
-                      <span className="np-radio-history__sep">·</span>
-                      <span>added by {item.added_by || "anonymous"}</span>
-                      {item.played_at && (
-                        <>
-                          <span className="np-radio-history__sep">·</span>
-                          <span className="np-radio-history__time">{formatTimeAgo(item.played_at)}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Classroom Safety Confirmation Modal */}
       <NeoModal
