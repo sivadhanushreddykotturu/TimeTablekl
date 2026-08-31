@@ -269,17 +269,6 @@ export default function CampusRadio() {
         // Set playback state so OS knows we're actively streaming
         navigator.mediaSession.playbackState = isAudioActive ? "playing" : "none";
 
-        // Give the OS a scrubber position (lock screen + Android media notification)
-        if (navigator.mediaSession.setPositionState && track.duration_sec > 0) {
-          try {
-            navigator.mediaSession.setPositionState({
-              duration: track.duration_sec,
-              playbackRate: 1.0,
-              position: Math.min(currentElapsed, track.duration_sec),
-            });
-          } catch (e) {}
-        }
-
         navigator.mediaSession.setActionHandler("play", () => {
           enableAudioPlayback();
         });
@@ -290,7 +279,6 @@ export default function CampusRadio() {
           stopAudioKeepAlive();
           navigator.mediaSession.playbackState = "paused";
         });
-        // Stop/previous/next are no-ops (it's a live radio)
         navigator.mediaSession.setActionHandler("stop", () => {
           setIsAudioActive(false);
           isAudioActiveRef.current = false;
@@ -302,7 +290,22 @@ export default function CampusRadio() {
         navigator.mediaSession.setActionHandler("nexttrack", null);
       } catch (e) {}
     }
-  }, [radioState?.current_track, isAudioActive, currentElapsed]);
+  // Only re-run when track or audio active state changes — NOT on every 250ms tick
+  }, [radioState?.current_track, isAudioActive]);
+
+  // Update lock screen scrubber position on each state poll (~6s), not every tick
+  useEffect(() => {
+    if ("mediaSession" in navigator && navigator.mediaSession.setPositionState
+        && radioState?.current_track?.duration_sec > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: radioState.current_track.duration_sec,
+          playbackRate: 1.0,
+          position: Math.min(currentElapsed, radioState.current_track.duration_sec),
+        });
+      } catch (e) {}
+    }
+  }, [radioState?.current_track?.videoId, Math.floor(currentElapsed / 5)]);
 
   // ------------------------------------------------------------
   // 5. Periodic Poll & Smooth Scrubber Ticking
@@ -380,13 +383,19 @@ export default function CampusRadio() {
                     }
                   }
                 } else if (event.data === window.YT.PlayerState.PAUSED) {
-                  // If user has sound ON, auto-resume even in background tabs
+                  // If user has sound ON, resume playback
+                  // In background tabs: ONLY call playVideo() — calling unMute/setVolume/seekTo
+                  // causes Chrome to abort the audio buffer and restart from scratch (the "cancelled" in DevTools)
                   if (isAudioActiveRef.current) {
                     setTimeout(() => {
                       if (isAudioActiveRef.current && ytPlayerRef.current) {
                         try {
-                          ytPlayerRef.current.unMute?.();
-                          ytPlayerRef.current.setVolume?.(100);
+                          if (document.visibilityState === "visible") {
+                            // Foreground: full restore
+                            ytPlayerRef.current.unMute?.();
+                            ytPlayerRef.current.setVolume?.(100);
+                          }
+                          // Background: just resume playback, don't touch volume state
                           ytPlayerRef.current.playVideo?.();
                         } catch (e) {}
                       }
