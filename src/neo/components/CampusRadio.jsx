@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   FiVolume2,
   FiVolumeX,
@@ -225,6 +225,20 @@ export default function CampusRadio() {
                     event.target.mute();
                   } else {
                     event.target.unMute();
+                    event.target.setVolume(100);
+                  }
+                } else if (event.data === window.YT.PlayerState.PAUSED) {
+                  // If mobile OS paused playback but user still wants sound on and app is visible, auto-resume
+                  if (isAudioActiveRef.current && document.visibilityState === "visible") {
+                    setTimeout(() => {
+                      if (isAudioActiveRef.current && ytPlayerRef.current) {
+                        try {
+                          ytPlayerRef.current.unMute?.();
+                          ytPlayerRef.current.setVolume?.(100);
+                          ytPlayerRef.current.playVideo?.();
+                        } catch (e) {}
+                      }
+                    }, 200);
                   }
                 } else if (event.data === window.YT.PlayerState.ENDED) {
                   handleTrackEnd();
@@ -259,7 +273,79 @@ export default function CampusRadio() {
   }, []);
 
   // ------------------------------------------------------------
-  // 3. Periodic Poll & Smooth Scrubber Ticking
+  // 3. Mobile Foreground Resume & Visibility Handler
+  // ------------------------------------------------------------
+  useEffect(() => {
+    const handleForegroundResume = () => {
+      if (document.visibilityState === "visible") {
+        fetchRadioState(false);
+
+        if (isAudioActiveRef.current && ytPlayerRef.current) {
+          try {
+            ytPlayerRef.current.unMute?.();
+            ytPlayerRef.current.setVolume?.(100);
+            ytPlayerRef.current.playVideo?.();
+
+            const snap = stateSnapshotRef.current;
+            if (snap.started_at > 0 && snap.duration_sec > 0) {
+              const baseElapsed = (snap.server_time - snap.started_at) / 1000;
+              const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
+              const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
+              ytPlayerRef.current.seekTo?.(liveElapsed, true);
+            }
+          } catch (e) {
+            console.warn("[RADIO] Foreground auto-resume warning:", e);
+          }
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleForegroundResume);
+    window.addEventListener("focus", handleForegroundResume);
+    window.addEventListener("pageshow", handleForegroundResume);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleForegroundResume);
+      window.removeEventListener("focus", handleForegroundResume);
+      window.removeEventListener("pageshow", handleForegroundResume);
+    };
+  }, [fetchRadioState]);
+
+  // ------------------------------------------------------------
+  // 4. Media Session API for Lock Screen & Background Control
+  // ------------------------------------------------------------
+  useEffect(() => {
+    if ("mediaSession" in navigator && radioState?.current_track) {
+      const track = radioState.current_track;
+      try {
+        navigator.mediaSession.metadata = new window.MediaMetadata({
+          title: track.title || "KL Campus Radio",
+          artist: `${track.artist || "Live Stream"} (added by ${track.added_by || "Student"})`,
+          album: "KL Timetable Live Radio",
+          artwork: track.thumbnail
+            ? [
+                { src: track.thumbnail, sizes: "96x96", type: "image/jpeg" },
+                { src: track.thumbnail, sizes: "128x128", type: "image/jpeg" },
+                { src: track.thumbnail, sizes: "256x256", type: "image/jpeg" },
+                { src: track.thumbnail, sizes: "512x512", type: "image/jpeg" },
+              ]
+            : [],
+        });
+
+        navigator.mediaSession.setActionHandler("play", () => {
+          enableAudioPlayback();
+        });
+        navigator.mediaSession.setActionHandler("pause", () => {
+          setIsAudioActive(false);
+          isAudioActiveRef.current = false;
+          ytPlayerRef.current?.mute?.();
+        });
+      } catch (e) {}
+    }
+  }, [radioState?.current_track]);
+
+  // ------------------------------------------------------------
+  // 5. Periodic Poll & Smooth Scrubber Ticking
   // ------------------------------------------------------------
   useEffect(() => {
     fetchRadioState(true);
