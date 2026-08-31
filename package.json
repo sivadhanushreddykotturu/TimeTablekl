@@ -23,6 +23,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
     "gtag": "^1.0.1",
+    "hls.js": "^1.7.1",
     "html2canvas": "^1.4.1",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.577.0",

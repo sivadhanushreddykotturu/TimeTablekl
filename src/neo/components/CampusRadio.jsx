@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import Hls from "hls.js";
 import {
   FiVolume2,
   FiVolumeX,
@@ -43,10 +44,6 @@ const REPORT_REASONS = [
   { id: "wrong_time", label: "wrong duration" },
 ];
 
-// Compact 0.1s silent WAV audio data URI to maintain native mobile background audio playback lock
-const SILENT_WAV_B64 =
-  "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
-
 export default function CampusRadio() {
   const [radioState, setRadioState] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,19 +67,15 @@ export default function CampusRadio() {
   // Cooldown countdown
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
-  // YouTube player ref & tracking
-  const ytPlayerRef = useRef(null);
-  const ytContainerRef = useRef(null);
-  const activeVideoIdRef = useRef("");
+  // Native HTML5 Audio & Hls.js player refs
+  const audioRef = useRef(null);
+  const hlsRef = useRef(null);
   const isAudioActiveRef = useRef(false);
   const searchDebounceRef = useRef(null);
   const searchAbortRef = useRef(null);
   const latestQueryRef = useRef("");
   const searchBoxRef = useRef(null);
   const stateSnapshotRef = useRef({ started_at: 0, duration_sec: 0, server_time: 0, local_fetch_at: 0 });
-  const audioCtxRef = useRef(null);       // Web Audio API context — keeps OS audio session alive in background
-  const silenceNodeRef = useRef(null);    // Silent oscillator node to prevent audio session from being killed
-  const bgAudioRef = useRef(null);        // HTML5 <audio> element to hold native OS audio wakelock in background
 
   // Keep audio active ref in sync
   useEffect(() => {
@@ -171,45 +164,8 @@ export default function CampusRadio() {
         if (data.status === "playing" && startedAt > 0 && duration > 0 && data.current_track?.videoId) {
           const elapsed = Math.min(duration, Math.max(0, (serverTime - startedAt) / 1000));
           setCurrentElapsed(elapsed);
-
-          const trackVid = data.current_track.videoId;
-
-          // If YouTube player is initialized
-          if (ytPlayerRef.current) {
-            if (activeVideoIdRef.current !== trackVid) {
-              activeVideoIdRef.current = trackVid;
-              try {
-                ytPlayerRef.current.loadVideoById({
-                  videoId: trackVid,
-                  startSeconds: Math.floor(elapsed),
-                  suggestedQuality: "small",
-                });
-                if (!isAudioActiveRef.current) {
-                  ytPlayerRef.current.mute?.();
-                } else {
-                  ytPlayerRef.current.unMute?.();
-                  ytPlayerRef.current.setVolume?.(100);
-                  ytPlayerRef.current.playVideo?.();
-                }
-              } catch (e) {
-                console.warn("[RADIO] Load track warning:", e);
-              }
-            } else {
-              // Drift correction: only resync when tab is visible
-              // Continuous seekTo calls in background tabs cause Chrome to abort the audio stream
-              if (document.visibilityState === "visible") {
-                try {
-                  const currentPlayTime = ytPlayerRef.current.getCurrentTime?.() || 0;
-                  if (Math.abs(currentPlayTime - elapsed) > 5.0) {
-                    ytPlayerRef.current.seekTo?.(elapsed, true);
-                  }
-                } catch (e) {}
-              }
-            }
-          }
         } else {
           setCurrentElapsed(0);
-          activeVideoIdRef.current = "";
         }
       }
     } catch (err) {
@@ -221,50 +177,54 @@ export default function CampusRadio() {
     }
   }, []);
 
-
-
-
   // ------------------------------------------------------------
-  // 3. Mobile Foreground Resume & Visibility Handler
+  // 2. Dual Engine HLS Live Radio Stream Initializer
+  // - iOS Safari / WebKit: Native <audio src="stream.m3u8">
+  // - Android Chrome / Desktop: hls.js buffer engine
   // ------------------------------------------------------------
-  useEffect(() => {
-    const handleForegroundResume = () => {
-      if (document.visibilityState === "visible") {
-        fetchRadioState(false);
+  const initHlsPlayer = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const hlsUrl = API_CONFIG.RADIO_HLS_STREAM_URL;
 
-        if (isAudioActiveRef.current && ytPlayerRef.current) {
-          try {
-            ytPlayerRef.current.unMute?.();
-            ytPlayerRef.current.setVolume?.(100);
-            ytPlayerRef.current.playVideo?.();
+    if (audio.canPlayType("application/vnd.apple.mpegurl")) {
+      // Native iOS Safari / WebKit
+      audio.src = hlsUrl;
+    } else if (Hls.isSupported()) {
+      // Android Chrome / Desktop
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+      const hls = new Hls({
+        liveSyncDurationCount: 3,
+        maxLiveSyncPlaybackRate: 1.1,
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(audio);
+      hlsRef.current = hls;
 
-            const snap = stateSnapshotRef.current;
-            if (snap.started_at > 0 && snap.duration_sec > 0) {
-              const baseElapsed = (snap.server_time - snap.started_at) / 1000;
-              const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
-              const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
-              ytPlayerRef.current.seekTo?.(liveElapsed, true);
-            }
-          } catch (e) {
-            console.warn("[RADIO] Foreground auto-resume warning:", e);
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls.recoverMediaError();
+              break;
+            default:
+              hls.destroy();
+              break;
           }
         }
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleForegroundResume);
-    window.addEventListener("focus", handleForegroundResume);
-    window.addEventListener("pageshow", handleForegroundResume);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleForegroundResume);
-      window.removeEventListener("focus", handleForegroundResume);
-      window.removeEventListener("pageshow", handleForegroundResume);
-    };
-  }, [fetchRadioState]);
+      });
+    }
+  }, []);
 
   // ------------------------------------------------------------
-  // 4. Media Session API for Lock Screen & Background Control
+  // 3. Media Session API for Lock Screen & Background Control
   // ------------------------------------------------------------
   useEffect(() => {
     if ("mediaSession" in navigator && radioState?.current_track) {
@@ -284,7 +244,6 @@ export default function CampusRadio() {
             : [],
         });
 
-        // Set playback state so OS knows we're actively streaming
         navigator.mediaSession.playbackState = isAudioActive ? "playing" : "none";
 
         navigator.mediaSession.setActionHandler("play", () => {
@@ -293,165 +252,27 @@ export default function CampusRadio() {
         navigator.mediaSession.setActionHandler("pause", () => {
           setIsAudioActive(false);
           isAudioActiveRef.current = false;
-          ytPlayerRef.current?.mute?.();
-          stopAudioKeepAlive();
+          audioRef.current?.pause();
           navigator.mediaSession.playbackState = "paused";
         });
         navigator.mediaSession.setActionHandler("stop", () => {
           setIsAudioActive(false);
           isAudioActiveRef.current = false;
-          ytPlayerRef.current?.mute?.();
-          stopAudioKeepAlive();
+          audioRef.current?.pause();
           navigator.mediaSession.playbackState = "none";
         });
         navigator.mediaSession.setActionHandler("previoustrack", null);
         navigator.mediaSession.setActionHandler("nexttrack", null);
       } catch (e) {}
     }
-  // Only re-run when track or audio active state changes — NOT on every 250ms tick
   }, [radioState?.current_track, isAudioActive]);
 
-  // Update lock screen scrubber position on each state poll (~6s), not every tick
-  useEffect(() => {
-    if ("mediaSession" in navigator && navigator.mediaSession.setPositionState
-        && radioState?.current_track?.duration_sec > 0) {
-      try {
-        navigator.mediaSession.setPositionState({
-          duration: radioState.current_track.duration_sec,
-          playbackRate: 1.0,
-          position: Math.min(currentElapsed, radioState.current_track.duration_sec),
-        });
-      } catch (e) {}
-    }
-  }, [radioState?.current_track?.videoId, Math.floor(currentElapsed / 5)]);
-
   // ------------------------------------------------------------
-  // 5. Periodic Poll & Smooth Scrubber Ticking
-  // Fetch state FIRST, then init the player with correct live timestamp
+  // 4. Periodic Poll & Smooth Scrubber Ticking
   // ------------------------------------------------------------
   useEffect(() => {
-    let playerInitialized = false;
+    fetchRadioState(true);
 
-    const doInitPlayer = () => {
-      if (playerInitialized) return;
-      if (!window.YT || !window.YT.Player || !ytContainerRef.current) return;
-      if (ytPlayerRef.current) return;
-      playerInitialized = true;
-
-      try {
-        ytPlayerRef.current = new window.YT.Player(ytContainerRef.current, {
-          height: "200",
-          width: "200",
-          playerVars: {
-            autoplay: 1,
-            controls: 0,
-            disablekb: 1,
-            fs: 0,
-            modestbranding: 1,
-            rel: 0,
-            playsinline: 1,
-          },
-          events: {
-            onReady: (event) => {
-              try {
-                event.target.mute();
-                if (event.target.setPlaybackQuality) {
-                  event.target.setPlaybackQuality("small");
-                }
-                // stateSnapshotRef is already populated because fetchRadioState ran before initPlayer
-                const snap = stateSnapshotRef.current;
-                const vid = activeVideoIdRef.current;
-                if (vid && snap.started_at > 0 && snap.duration_sec > 0) {
-                  const baseElapsed = (snap.server_time - snap.started_at) / 1000;
-                  const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
-                  const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
-                  event.target.loadVideoById({
-                    videoId: vid,
-                    startSeconds: Math.floor(liveElapsed),
-                    suggestedQuality: "small",
-                  });
-                }
-              } catch (e) {}
-            },
-            onStateChange: (event) => {
-              try {
-                if (event.data === window.YT.PlayerState.PLAYING) {
-                  if (event.target.setPlaybackQuality) {
-                    event.target.setPlaybackQuality("small");
-                  }
-                  if (!isAudioActiveRef.current) {
-                    event.target.mute();
-                  } else {
-                    event.target.unMute();
-                    event.target.setVolume(100);
-                  }
-
-                  // Only perform drift seek while tab is active in foreground
-                  // Seeking in background tabs causes Chrome to abort audio buffer & pause
-                  if (document.visibilityState === "visible") {
-                    const snap = stateSnapshotRef.current;
-                    if (snap.started_at > 0 && snap.duration_sec > 0) {
-                      const baseElapsed = (snap.server_time - snap.started_at) / 1000;
-                      const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
-                      const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
-                      const currentPlayTime = event.target.getCurrentTime() || 0;
-                      if (Math.abs(currentPlayTime - liveElapsed) > 4.0) {
-                        event.target.seekTo(liveElapsed, true);
-                      }
-                    }
-                  }
-                } else if (event.data === window.YT.PlayerState.PAUSED) {
-                  // If user has sound ON, resume playback
-                  // In background tabs: ONLY call playVideo() — calling unMute/setVolume/seekTo
-                  // causes Chrome to abort the audio buffer and restart from scratch (the "cancelled" in DevTools)
-                  if (isAudioActiveRef.current) {
-                    setTimeout(() => {
-                      if (isAudioActiveRef.current && ytPlayerRef.current) {
-                        try {
-                          if (document.visibilityState === "visible") {
-                            // Foreground: full restore
-                            ytPlayerRef.current.unMute?.();
-                            ytPlayerRef.current.setVolume?.(100);
-                          }
-                          // Background: just resume playback, don't touch volume state
-                          ytPlayerRef.current.playVideo?.();
-                        } catch (e) {}
-                      }
-                    }, 100);
-                  }
-                } else if (event.data === window.YT.PlayerState.ENDED) {
-                  handleTrackEnd();
-                }
-              } catch (e) {}
-            },
-          },
-        });
-      } catch (e) {
-        console.error("[RADIO] Player init exception:", e);
-      }
-    };
-
-    // Step 1: Fetch state first, THEN init player so onReady has correct live timestamp
-    fetchRadioState(true).then(() => {
-      if (window.YT && window.YT.Player) {
-        doInitPlayer();
-      } else {
-        // YT API not loaded yet — load it, init player when ready
-        if (!window.YT) {
-          const tag = document.createElement("script");
-          tag.src = "https://www.youtube.com/iframe_api";
-          const firstScriptTag = document.getElementsByTagName("script")[0];
-          firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-        }
-        const prevCallback = window.onYouTubeIframeAPIReady;
-        window.onYouTubeIframeAPIReady = () => {
-          if (prevCallback) prevCallback();
-          doInitPlayer();
-        };
-      }
-    });
-
-    // Step 2: Keep polling state every 6s
     const stateInterval = setInterval(() => {
       fetchRadioState(false);
     }, 6000);
@@ -473,12 +294,10 @@ export default function CampusRadio() {
     return () => {
       clearInterval(stateInterval);
       clearInterval(tickInterval);
-      try {
-        if (ytPlayerRef.current?.destroy) {
-          ytPlayerRef.current.destroy();
-          ytPlayerRef.current = null;
-        }
-      } catch (e) {}
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
     };
   }, [fetchRadioState]);
 
@@ -492,7 +311,7 @@ export default function CampusRadio() {
   }, [cooldownSeconds]);
 
   // ------------------------------------------------------------
-  // 4. Track Advance Trigger
+  // 5. Track Advance Trigger
   // ------------------------------------------------------------
   const handleTrackEnd = async () => {
     try {
@@ -507,23 +326,19 @@ export default function CampusRadio() {
   };
 
   // ------------------------------------------------------------
-  // 5. Audio Toggle with Active Classroom Confirmation Check
+  // 6. Audio Toggle (Live Radio Stream Activation)
   // ------------------------------------------------------------
   const handleAudioToggleClick = () => {
     if (isAudioActive) {
       setIsAudioActive(false);
       isAudioActiveRef.current = false;
-      if (ytPlayerRef.current) {
-        try {
-          ytPlayerRef.current.mute?.();
-        } catch (e) {}
+      if (audioRef.current) {
+        audioRef.current.pause();
       }
-      // Stop Web Audio keepalive and tell OS we paused
-      stopAudioKeepAlive();
       if ("mediaSession" in navigator) {
         try { navigator.mediaSession.playbackState = "paused"; } catch (e) {}
       }
-      showNotice("Radio audio muted.");
+      showNotice("Radio audio paused.");
       return;
     }
 
@@ -535,99 +350,27 @@ export default function CampusRadio() {
     }
   };
 
-  // ------------------------------------------------------------
-  // Web Audio + HTML5 Audio keepalive bridge
-  // An inaudible HTML5 audio loop + WebAudio oscillator locks the native
-  // mobile OS audio session in background so Android/iOS don't kill playback
-  // ------------------------------------------------------------
-  const startAudioKeepAlive = () => {
-    // 1. Native HTML5 <audio> element: holds Android / iOS audio wakelock
-    try {
-      if (!bgAudioRef.current) {
-        const audio = new Audio(SILENT_WAV_B64);
-        audio.loop = true;
-        audio.preload = "auto";
-        audio.volume = 0.01;
-        bgAudioRef.current = audio;
-      }
-      bgAudioRef.current.play().catch(() => {});
-    } catch (e) {}
-
-    // 2. WebAudio Context: keeps audio engine awake in PWA
-    try {
-      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) {
-          const ctx = new AudioCtx();
-          audioCtxRef.current = ctx;
-
-          const gainNode = ctx.createGain();
-          gainNode.gain.value = 0.0001;
-          gainNode.connect(ctx.destination);
-
-          const osc = ctx.createOscillator();
-          osc.frequency.value = 1; // 1Hz inaudible
-          osc.connect(gainNode);
-          osc.start(0);
-          silenceNodeRef.current = osc;
-        }
-      }
-      if (audioCtxRef.current && audioCtxRef.current.state === "suspended") {
-        audioCtxRef.current.resume().catch(() => {});
-      }
-    } catch (e) {
-      console.warn("[RADIO] AudioContext keepalive failed:", e);
-    }
-  };
-
-  const stopAudioKeepAlive = () => {
-    try {
-      if (bgAudioRef.current) {
-        bgAudioRef.current.pause();
-      }
-      if (silenceNodeRef.current) {
-        silenceNodeRef.current.stop?.();
-        silenceNodeRef.current = null;
-      }
-      if (audioCtxRef.current) {
-        audioCtxRef.current.close?.();
-        audioCtxRef.current = null;
-      }
-    } catch (e) {}
-  };
-
   const enableAudioPlayback = () => {
     setIsAudioActive(true);
     isAudioActiveRef.current = true;
 
-    // Start Web Audio keepalive — MUST be called synchronously inside user gesture
-    startAudioKeepAlive();
-
-    if (ytPlayerRef.current) {
-      try {
-        const snap = stateSnapshotRef.current;
-        if (snap.started_at > 0 && snap.duration_sec > 0) {
-          const baseElapsed = (snap.server_time - snap.started_at) / 1000;
-          const localDelta = (Date.now() - snap.local_fetch_at) / 1000;
-          const liveElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localDelta));
-          ytPlayerRef.current.seekTo?.(liveElapsed, true);
-        }
-        ytPlayerRef.current.unMute?.();
-        ytPlayerRef.current.setVolume?.(100);
-        ytPlayerRef.current.playVideo?.();
-      } catch (e) {
-        console.error("[RADIO] Playback error:", e);
+    const audio = audioRef.current;
+    if (audio) {
+      if (!audio.src && !hlsRef.current) {
+        initHlsPlayer();
       }
+      audio.play().catch((e) => {
+        console.warn("[RADIO HLS] Play error:", e);
+      });
     }
 
-    // Tell the OS we are actively playing media
     if ("mediaSession" in navigator) {
       try {
         navigator.mediaSession.playbackState = "playing";
       } catch (e) {}
     }
 
-    showNotice("Live audio connected 🎵");
+    showNotice("Live radio connected 🎵");
   };
 
   const handleConfirmClassSafety = () => {
@@ -853,24 +596,8 @@ export default function CampusRadio() {
 
   return (
     <section className="np-radio-panel">
-      {/* Invisible YouTube Audio Bridge (Maintains continuous media pipeline) */}
-      <div
-        id="radio-youtube-wrapper"
-        style={{
-          position: "fixed",
-          bottom: "0px",
-          right: "0px",
-          width: "200px",
-          height: "200px",
-          opacity: 0.001,
-          pointerEvents: "none",
-          zIndex: -1,
-          overflow: "hidden",
-        }}
-        aria-hidden="true"
-      >
-        <div ref={ytContainerRef} id="youtube-player" />
-      </div>
+      {/* Native HTML5 Audio Element for HLS Live Streaming */}
+      <audio ref={audioRef} preload="none" playsInline style={{ display: "none" }} />
 
       {/* Section Header */}
       <div className="np-radio-head">

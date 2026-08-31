@@ -29,6 +29,7 @@ export const API_CONFIG = {
   RADIO_REPORT_URL: import.meta.env.VITE_RADIO_REPORT_URL || "https://timetablekl-back.duckdns.org/api/radio/report",
   RADIO_AUTH_URL: import.meta.env.VITE_RADIO_AUTH_URL || "https://timetablekl-back.duckdns.org/api/radio/auth",
   RADIO_ADVANCE_URL: import.meta.env.VITE_RADIO_ADVANCE_URL || "https://timetablekl-back.duckdns.org/api/radio/advance",
+  RADIO_HLS_STREAM_URL: import.meta.env.VITE_RADIO_HLS_STREAM_URL || "https://timetablekl-back.duckdns.org/api/radio/hls/stream.m3u8",
 };
 
 // Semester mapping
