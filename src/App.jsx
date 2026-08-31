@@ -19,7 +19,6 @@ import GradesPage from "./neo/pages/Grades.jsx";
 import ProfilePage from "./neo/pages/Profile.jsx";
 import RegisterPage from "./pages/Register.jsx";
 import ExamPage from "./neo/pages/Exam.jsx";
-import FlappyBirdPage from "./neo/pages/FlappyBirdPage.jsx";
 import Customization from "./neo/pages/Customization.jsx";
 import { ToasterProvider } from "./components/Toast.jsx";
 import { loadAndApplyTheme } from "./neo/utils/themeEngine";
@@ -70,8 +69,8 @@ function App() {
                 <Route path="/customize" element={<Customization />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/exam" element={<ExamPage />} />
-                <Route path="/games" element={<FlappyBirdPage />} />
-                <Route path="/games/flappy-bird" element={<FlappyBirdPage />} />
+                <Route path="/games" element={<HomePage />} />
+                <Route path="/games/flappy-bird" element={<HomePage />} />
                 <Route path="/kl-calculator" element={<CalculatorPage />} />
               </Routes>
               </Suspense>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import NeoShell, { NeoModal } from "../Shell.jsx";
-import DinoGame from "../DinoGame.jsx";
+import CampusRadio from "../components/CampusRadio.jsx";
 import ClassTimer, { ClassTimerReadout, ClassProgressBar } from "../components/ClassTimer.jsx";
 import AnnouncementBanner from "../components/AnnouncementBanner.jsx";
 import Toast from "../../components/Toast.jsx";
@@ -168,8 +168,19 @@ export default function NeoHome() {
   const [showChangesPopup, setShowChangesPopup] = useState(false);
   const [resyncChanges, setResyncChanges] = useState([]);
   const [autoSyncing, setAutoSyncing] = useState(false);
-  const [gameRunning, setGameRunning] = useState(false);
+  const [radioEnabled, setRadioEnabled] = useState(
+    () => localStorage.getItem("radio_enabled") !== "false"
+  );
   const previousTimetableRef = useRef(null);
+
+  useEffect(() => {
+    const checkRadioEnabled = () => {
+      setRadioEnabled(localStorage.getItem("radio_enabled") !== "false");
+    };
+    checkRadioEnabled();
+    window.addEventListener("focus", checkRadioEnabled);
+    return () => window.removeEventListener("focus", checkRadioEnabled);
+  }, []);
 
   useEffect(() => {
     const { current: cur, next: nxt } = findCurrentAndNextClass(timetable);
@@ -267,8 +278,8 @@ export default function NeoHome() {
   });
 
   return (
-    <NeoShell onRefresh={handleRefresh} refreshMode="direct" autoSyncing={autoSyncing} chromeDimmed={gameRunning}>
-      <div className={gameRunning ? "np-gaming-dim" : ""} style={{ transition: "opacity 0.3s ease" }}>
+    <NeoShell onRefresh={handleRefresh} refreshMode="direct" autoSyncing={autoSyncing}>
+      <div>
       <div className="np-pagehead">
         <span className="np-eyebrow">today · {todayLabel}</span>
         <div className="np-pagehead__row">
@@ -316,9 +327,9 @@ export default function NeoHome() {
 
       </div>
 
-      {/* minimal dino runner for the dead time (toggleable in profile) */}
-      {localStorage.getItem("games_enabled") !== "false" && (
-        <DinoGame onPhaseChange={(p) => setGameRunning(p === "run")} />
+      {/* synchronized campus radio (toggleable in profile) */}
+      {radioEnabled && (
+        <CampusRadio />
       )}
 
       {/* announcement banner (always visible even if games are disabled) */}

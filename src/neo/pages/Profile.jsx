@@ -8,7 +8,7 @@ import {
   FiGithub,
   FiLinkedin,
   FiRefreshCw,
-  FiPlay,
+  FiRadio,
   FiClock,
   FiDroplet,
 } from "react-icons/fi";
@@ -42,8 +42,8 @@ export default function NeoProfile() {
   );
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [gamesEnabled, setGamesEnabled] = useState(
-    () => localStorage.getItem("games_enabled") !== "false"
+  const [radioEnabled, setRadioEnabled] = useState(
+    () => localStorage.getItem("radio_enabled") !== "false"
   );
   const [timeFormat, setTimeFormat] = useState(
     () => localStorage.getItem("time_format") || "12"
@@ -275,17 +275,17 @@ export default function NeoProfile() {
       <button
         className="np-linkrow"
         onClick={() =>
-          setGamesEnabled((prev) => {
-            localStorage.setItem("games_enabled", String(!prev));
+          setRadioEnabled((prev) => {
+            localStorage.setItem("radio_enabled", String(!prev));
             return !prev;
           })
         }
       >
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <FiPlay size={15} /> break-time games
+          <FiRadio size={15} /> campus radio
         </span>
-        <span className={`np-toggle${gamesEnabled ? " np-toggle--on" : ""}`}>
-          {gamesEnabled ? "on" : "off"}
+        <span className={`np-toggle${radioEnabled ? " np-toggle--on" : ""}`}>
+          {radioEnabled ? "on" : "off"}
         </span>
       </button>
 

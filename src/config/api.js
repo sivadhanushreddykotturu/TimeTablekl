@@ -21,10 +21,14 @@ export const API_CONFIG = {
   // Per-course marks scorecard (lazy-load via target_href)
   MARKS_DETAIL_URL: import.meta.env.VITE_MARKS_DETAIL_URL,
 
-  // Game endpoints
-  GAME_START_URL: import.meta.env.VITE_GAME_START_URL || "https://render-testb.onrender.com/api/game/start",
-  GAME_SUBMIT_URL: import.meta.env.VITE_GAME_SUBMIT_URL || "https://render-testb.onrender.com/api/game/submit",
-  GAME_LEADERBOARD_URL: import.meta.env.VITE_GAME_LEADERBOARD_URL || "https://render-testb.onrender.com/api/game/leaderboard",
+  // Campus Radio endpoints
+  RADIO_STATE_URL: import.meta.env.VITE_RADIO_STATE_URL || "https://timetablekl-back.duckdns.org/api/radio/state",
+  RADIO_SEARCH_URL: import.meta.env.VITE_RADIO_SEARCH_URL || "https://timetablekl-back.duckdns.org/api/radio/search",
+  RADIO_QUEUE_URL: import.meta.env.VITE_RADIO_QUEUE_URL || "https://timetablekl-back.duckdns.org/api/radio/queue",
+  RADIO_VOTE_URL: import.meta.env.VITE_RADIO_VOTE_URL || "https://timetablekl-back.duckdns.org/api/radio/vote",
+  RADIO_REPORT_URL: import.meta.env.VITE_RADIO_REPORT_URL || "https://timetablekl-back.duckdns.org/api/radio/report",
+  RADIO_AUTH_URL: import.meta.env.VITE_RADIO_AUTH_URL || "https://timetablekl-back.duckdns.org/api/radio/auth",
+  RADIO_ADVANCE_URL: import.meta.env.VITE_RADIO_ADVANCE_URL || "https://timetablekl-back.duckdns.org/api/radio/advance",
 };
 
 // Semester mapping
@@ -136,6 +140,23 @@ export const getMarksDetailFormData = (username, password, targetHref, options =
   form.append("username", username);
   form.append("password", password);
   form.append("target_href", targetHref);
+
+  _appendSessionCookies(form, options);
+
+  return form;
+};
+
+// Helper function to get form data for Radio actions (queue, vote, report)
+export const getRadioFormData = (username, password, extraFields = {}, options = {}) => {
+  const form = new FormData();
+  if (username) form.append("username", username);
+  if (password) form.append("password", password);
+
+  Object.entries(extraFields).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      form.append(key, String(value));
+    }
+  });
 
   _appendSessionCookies(form, options);
 
