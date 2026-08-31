@@ -3,12 +3,14 @@ import {
   FiVolume2,
   FiVolumeX,
   FiChevronUp,
+  FiChevronDown,
   FiPlus,
   FiFlag,
   FiMusic,
   FiLoader,
   FiSearch,
   FiCheck,
+  FiClock,
 } from "react-icons/fi";
 import { API_CONFIG, getRadioFormData } from "../../config/api.js";
 import { getCredentials } from "../../../utils/storage.js";
@@ -21,6 +23,17 @@ function formatTime(seconds) {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+}
+
+// Format timestamp into relative time (e.g. 3m ago, 25m ago)
+function formatTimeAgo(timestampSec) {
+  if (!timestampSec) return "";
+  const diffSec = Math.max(0, Math.floor(Date.now() / 1000 - timestampSec));
+  if (diffSec < 60) return "just now";
+  const mins = Math.floor(diffSec / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  return `${hours}h ago`;
 }
 
 const REPORT_REASONS = [
@@ -43,6 +56,7 @@ export default function CampusRadio() {
   const [reportReason, setReportReason] = useState("broken");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [currentElapsed, setCurrentElapsed] = useState(0);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Search & add
   const [searchQuery, setSearchQuery] = useState("");
@@ -836,6 +850,7 @@ export default function CampusRadio() {
   const durationSec = currentTrack?.duration_sec || 0;
   const progressPercent = durationSec > 0 ? Math.min(100, (currentElapsed / durationSec) * 100) : 0;
   const queueList = radioState?.queue || [];
+  const recentHistory = radioState?.recent_history || [];
 
   return (
     <section className="np-radio-panel">
@@ -986,33 +1001,58 @@ export default function CampusRadio() {
               </button>
             </div>
             <div className="np-radio-dropdown__list">
-              {searchResults.map((item) => (
-                <div
-                  key={item.videoId}
-                  className="np-radio-dropdown__item"
-                  onClick={() => handleAddSong(item)}
-                >
-                  <img
-                    src={item.thumbnail}
-                    alt=""
-                    className="np-radio-dropdown__thumb"
-                    loading="lazy"
-                  />
-                  <div className="np-radio-dropdown__info">
-                    <div className="np-radio-dropdown__title">{item.title}</div>
-                    <div className="np-radio-dropdown__meta">
-                      {item.artist} · {item.duration_text || formatTime(item.duration_sec)}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="np-radio-dropdown__btn"
-                    aria-label="Queue song"
+              {searchResults.map((item) => {
+                const isRecentlyPlayed = recentHistory.some((h) => h.videoId === item.videoId);
+                const isCurrentTrack = isRadioPlaying && currentTrack?.videoId === item.videoId;
+                const isAlreadyInQueue = queueList.some((q) => q.videoId === item.videoId);
+                const isBlocked = isRecentlyPlayed || isCurrentTrack || isAlreadyInQueue;
+
+                return (
+                  <div
+                    key={item.videoId}
+                    className={`np-radio-dropdown__item ${isBlocked ? "is-blocked" : ""}`}
+                    onClick={() => {
+                      if (isCurrentTrack) {
+                        showNotice("This song is currently playing live on air!");
+                        return;
+                      }
+                      if (isAlreadyInQueue) {
+                        showNotice("This song is already up next in the queue!");
+                        return;
+                      }
+                      if (isRecentlyPlayed) {
+                        showNotice("This song was played recently. It unlocks 45m after playing.");
+                        return;
+                      }
+                      handleAddSong(item);
+                    }}
                   >
-                    <FiPlus size={13} />
-                  </button>
-                </div>
-              ))}
+                    <img
+                      src={item.thumbnail}
+                      alt=""
+                      className="np-radio-dropdown__thumb"
+                      loading="lazy"
+                    />
+                    <div className="np-radio-dropdown__info">
+                      <div className="np-radio-dropdown__title">{item.title}</div>
+                      <div className="np-radio-dropdown__meta">
+                        <span>{item.artist} · {item.duration_text || formatTime(item.duration_sec)}</span>
+                        {isCurrentTrack && <span className="np-radio-pill np-radio-pill--live">playing now</span>}
+                        {isAlreadyInQueue && <span className="np-radio-pill">in queue</span>}
+                        {isRecentlyPlayed && !isCurrentTrack && <span className="np-radio-pill np-radio-pill--recent">played recently</span>}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="np-radio-dropdown__btn"
+                      aria-label="Queue song"
+                      disabled={isBlocked}
+                    >
+                      <FiPlus size={13} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1063,6 +1103,50 @@ export default function CampusRadio() {
           </div>
         )}
       </div>
+
+      {/* Recently Played History Section */}
+      {recentHistory.length > 0 && (
+        <div className="np-radio-history">
+          <button
+            type="button"
+            className="np-radio-history__toggle"
+            onClick={() => setShowHistory((prev) => !prev)}
+            aria-label="Toggle recently played tracks"
+          >
+            <div className="np-radio-history__title">
+              <FiClock size={12} />
+              <span>recently played ({recentHistory.length})</span>
+            </div>
+            <div className="np-radio-history__icon">
+              {showHistory ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+            </div>
+          </button>
+
+          {showHistory && (
+            <div className="np-radio-history__list">
+              {recentHistory.map((item, idx) => (
+                <div key={`${item.videoId}-${item.played_at || idx}`} className="np-radio-history__item">
+                  <span className="np-radio-history__idx">{idx + 1}</span>
+                  <div className="np-radio-history__details">
+                    <div className="np-radio-history__song">{item.title}</div>
+                    <div className="np-radio-history__meta">
+                      <span>{item.artist}</span>
+                      <span className="np-radio-history__sep">·</span>
+                      <span>added by {item.added_by || "anonymous"}</span>
+                      {item.played_at && (
+                        <>
+                          <span className="np-radio-history__sep">·</span>
+                          <span className="np-radio-history__time">{formatTimeAgo(item.played_at)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Classroom Safety Confirmation Modal */}
       <NeoModal
