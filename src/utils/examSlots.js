@@ -4,9 +4,9 @@ const minutes = (hours, mins) => hours * 60 + mins;
 
 export const DEFAULT_RAW_SLOTS = {
     MN: { start: "07:30", end: "09:00" },
-    AM: { start: "09:30", end: "11:00" },
+    AM: { start: "09:45", end: "11:15" },
     FN: { start: "11:30", end: "13:00" },
-    PM: { start: "13:45", end: "15:15" },
+    PM: { start: "13:30", end: "15:00" },
     EN: { start: "15:30", end: "17:00" },
 };
 

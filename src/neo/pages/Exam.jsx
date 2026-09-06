@@ -46,7 +46,7 @@ function findTodayAndNextExam(seatingPlan, slotDetails) {
     if (dateA.getTime() !== dateB.getTime()) {
       return dateA.getTime() - dateB.getTime();
     }
-    const timeOrder = { AM: 1, MN: 1, MO: 1, FN: 2, PM: 3, EN: 4, AN: 5 };
+    const timeOrder = { MN: 1, MO: 1, AM: 2, FN: 3, PM: 4, EN: 5, AN: 6 };
     const slotA = (a.time_slot || "").toUpperCase();
     const slotB = (b.time_slot || "").toUpperCase();
     return (timeOrder[slotA] || 0) - (timeOrder[slotB] || 0);
