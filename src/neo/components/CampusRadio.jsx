@@ -75,7 +75,9 @@ export default function CampusRadio() {
   const searchAbortRef = useRef(null);
   const latestQueryRef = useRef("");
   const searchBoxRef = useRef(null);
-  const stateSnapshotRef = useRef({ started_at: 0, duration_sec: 0, server_time: 0, local_fetch_at: 0 });
+  const stateSnapshotRef = useRef({ videoId: "", started_at: 0, duration_sec: 0, server_time: 0, local_fetch_at: 0 });
+  const hasRolledRef = useRef(false);
+  const handleTrackEndRef = useRef(null);
 
   // Keep audio active ref in sync
   useEffect(() => {
@@ -213,15 +215,21 @@ export default function CampusRadio() {
     const duration = data.current_track?.duration_sec || 0;
     const startedAt = data.started_at || 0;
     const serverTime = data.server_time || nowLocal;
+    const currentVid = data.current_track?.videoId;
+
+    if (currentVid && currentVid !== stateSnapshotRef.current.videoId) {
+      hasRolledRef.current = false;
+    }
 
     stateSnapshotRef.current = {
+      videoId: currentVid || "",
       started_at: startedAt,
       duration_sec: duration,
       server_time: serverTime,
       local_fetch_at: nowLocal,
     };
 
-    if (data.status === "playing" && startedAt > 0 && duration > 0 && data.current_track?.videoId) {
+    if (data.status === "playing" && startedAt > 0 && duration > 0 && currentVid) {
       const elapsed = Math.min(duration, Math.max(0, (serverTime - startedAt) / 1000));
       setCurrentElapsed(elapsed);
       if (isAudioActiveRef.current) {
@@ -253,6 +261,63 @@ export default function CampusRadio() {
       if (isInitial) setIsLoading(false);
     }
   }, [applyRadioState]);
+
+  // ------------------------------------------------------------
+  // 3. Seamless Track Continuity (Optimistic Roll & Lock Screen Preservation)
+  // ------------------------------------------------------------
+  const handleTrackEnd = useCallback(() => {
+    if (hasRolledRef.current) return;
+    hasRolledRef.current = true;
+
+    setRadioState((prev) => {
+      if (prev?.next_track) {
+        const nextT = prev.next_track;
+        console.log("[RADIO AUDIO] ⏭ Track ended, rolling seamlessly into:", nextT.title);
+        const now = Date.now();
+        setCurrentElapsed(0);
+        setBufferedPercent(0);
+        stateSnapshotRef.current = {
+          videoId: nextT.videoId,
+          started_at: now,
+          duration_sec: nextT.duration_sec || 0,
+          server_time: now,
+          local_fetch_at: now,
+        };
+
+        if (isAudioActiveRef.current) {
+          const audio = audioRef.current;
+          if (audio) {
+            const nextSrc = getTrackAudioUrl(nextT);
+            if (nextSrc) {
+              audio.src = nextSrc;
+              audio.currentTime = 0;
+              audio.play().catch((e) => console.warn("[RADIO AUDIO] Seamless roll error:", e));
+            }
+          }
+        }
+
+        // Re-sync with backend in 2.5s to get next locked song and refreshed queue
+        setTimeout(() => fetchRadioState(false), 2500);
+
+        return {
+          ...prev,
+          current_track: nextT,
+          next_track: null,
+          started_at: now,
+          server_time: now,
+          elapsed_ms: 0,
+        };
+      } else {
+        console.log("[RADIO AUDIO] ⏭ Track ended, querying server for next track...");
+        fetchRadioState(false);
+        return prev;
+      }
+    });
+  }, [getTrackAudioUrl, fetchRadioState]);
+
+  useEffect(() => {
+    handleTrackEndRef.current = handleTrackEnd;
+  }, [handleTrackEnd]);
 
   // ------------------------------------------------------------
   // 3. Media Session API for Lock Screen & Background Control
@@ -327,6 +392,7 @@ export default function CampusRadio() {
         es.addEventListener("track_start", (e) => {
           try {
             const data = JSON.parse(e.data);
+            hasRolledRef.current = false;
             setBufferedPercent(0);
             applyRadioState(data);
             console.log("[RADIO SSE] 🎵 New track started:", data.current_track?.title);
@@ -396,8 +462,14 @@ export default function CampusRadio() {
       if (snap.started_at > 0 && snap.duration_sec > 0) {
         const localElapsedDelta = (Date.now() - snap.local_fetch_at) / 1000;
         const baseElapsed = (snap.server_time - snap.started_at) / 1000;
-        const totalElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localElapsedDelta));
+        const rawElapsed = baseElapsed + localElapsedDelta;
+        const totalElapsed = Math.min(snap.duration_sec, Math.max(0, rawElapsed));
         setCurrentElapsed(totalElapsed);
+
+        // Fallback transition if audio ended or background throttle delayed onEnded
+        if (rawElapsed >= snap.duration_sec + 1.0 && !hasRolledRef.current) {
+          handleTrackEndRef.current?.();
+        }
       }
     }, 250);
 
@@ -433,22 +505,6 @@ export default function CampusRadio() {
     return () => clearInterval(timer);
   }, [cooldownSeconds]);
 
-  // ------------------------------------------------------------
-  // 5. Background Seamless Track Continuity (Keeps iOS/Android Audio Session Alive)
-  // ------------------------------------------------------------
-  const handleTrackEnd = () => {
-    if (radioState?.next_track && isAudioActiveRef.current) {
-      const audio = audioRef.current;
-      if (audio) {
-        const nextSrc = getTrackAudioUrl(radioState.next_track);
-        if (nextSrc) {
-          audio.src = nextSrc;
-          audio.currentTime = 0;
-          audio.play().catch((e) => console.warn("[RADIO AUDIO] Background roll error:", e));
-        }
-      }
-    }
-  };
 
   // ------------------------------------------------------------
   // 6. Audio Toggle (Live Radio Stream Activation)
