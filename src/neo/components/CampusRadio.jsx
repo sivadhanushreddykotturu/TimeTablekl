@@ -199,10 +199,14 @@ export default function CampusRadio() {
         hlsRef.current.destroy();
       }
       const hls = new Hls({
-        liveSyncDurationCount: 3,
-        maxLiveSyncPlaybackRate: 1.1,
         enableWorker: true,
-        lowLatencyMode: true,
+        lowLatencyMode: false,
+        backBufferLength: 60,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        liveSyncDurationCount: 4,
+        liveMaxLatencyDurationCount: 8,
+        maxLiveSyncPlaybackRate: 1.0,
       });
       hls.loadSource(hlsUrl);
       hls.attachMedia(audio);
