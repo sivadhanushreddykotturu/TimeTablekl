@@ -375,14 +375,22 @@ export default function CampusRadio() {
 
     connectSSE();
 
-    // 3. Slow safety fallback poll (every 45s) only if SSE is disconnected
+    // 3. Fast re-sync when student unlocks phone or returns to PWA
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchRadioState(false);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // 4. Slow safety fallback poll (every 45s) only if SSE is disconnected
     const safetyPollInterval = setInterval(() => {
       if (!sseConnected || document.visibilityState === "visible") {
         fetchRadioState(false);
       }
     }, 45000);
 
-    // 4. Local scrubber tick interval (ZERO advance network calls)
+    // 5. Local scrubber tick interval (ZERO advance network calls)
     const tickInterval = setInterval(() => {
       const snap = stateSnapshotRef.current;
       if (snap.started_at > 0 && snap.duration_sec > 0) {
@@ -400,6 +408,7 @@ export default function CampusRadio() {
       }
       clearInterval(safetyPollInterval);
       clearInterval(tickInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [fetchRadioState, applyRadioState, preloadNextTrack]);
 
@@ -425,10 +434,20 @@ export default function CampusRadio() {
   }, [cooldownSeconds]);
 
   // ------------------------------------------------------------
-  // 5. Track Advance Handler (No-op on client; server HLS daemon is single authority)
+  // 5. Background Seamless Track Continuity (Keeps iOS/Android Audio Session Alive)
   // ------------------------------------------------------------
   const handleTrackEnd = () => {
-    // Intentionally no-op to eliminate runaway client advance requests
+    if (radioState?.next_track && isAudioActiveRef.current) {
+      const audio = audioRef.current;
+      if (audio) {
+        const nextSrc = getTrackAudioUrl(radioState.next_track);
+        if (nextSrc) {
+          audio.src = nextSrc;
+          audio.currentTime = 0;
+          audio.play().catch((e) => console.warn("[RADIO AUDIO] Background roll error:", e));
+        }
+      }
+    }
   };
 
   // ------------------------------------------------------------
@@ -713,6 +732,7 @@ export default function CampusRadio() {
         preload="auto"
         playsInline
         onProgress={handleAudioProgress}
+        onEnded={handleTrackEnd}
         style={{ display: "none" }}
       />
       <audio
