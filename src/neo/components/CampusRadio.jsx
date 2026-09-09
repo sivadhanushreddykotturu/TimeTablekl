@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import Hls from "hls.js";
 import {
   FiVolume2,
   FiVolumeX,
@@ -53,6 +52,7 @@ export default function CampusRadio() {
   const [reportReason, setReportReason] = useState("broken");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [currentElapsed, setCurrentElapsed] = useState(0);
+  const [bufferedPercent, setBufferedPercent] = useState(0);
 
   // Search & add
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,9 +67,9 @@ export default function CampusRadio() {
   // Cooldown countdown
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
-  // Native HTML5 Audio & Hls.js player refs
+  // Native HTML5 Audio players (Primary player & Gapless background preloader)
   const audioRef = useRef(null);
-  const hlsRef = useRef(null);
+  const preloadAudioRef = useRef(null);
   const isAudioActiveRef = useRef(false);
   const searchDebounceRef = useRef(null);
   const searchAbortRef = useRef(null);
@@ -139,6 +139,73 @@ export default function CampusRadio() {
   // ------------------------------------------------------------
   // 1. Fetch & Apply Synchronized Radio State
   // ------------------------------------------------------------
+  // ------------------------------------------------------------
+  // 1. Audio URL Resolver & Native Streaming Player
+  // ------------------------------------------------------------
+  const getTrackAudioUrl = useCallback((track) => {
+    if (!track) return "";
+    if (track.audio_url) {
+      if (track.audio_url.startsWith("http")) return track.audio_url;
+      const base = API_CONFIG.RADIO_STATE_URL.replace(/\/api\/radio\/state$/, "").replace(/\/radio\/state$/, "");
+      return `${base}${track.audio_url}`;
+    }
+    if (track.videoId) {
+      return `${API_CONFIG.RADIO_AUDIO_BASE_URL}/${track.videoId}.m4a`;
+    }
+    return "";
+  }, []);
+
+  const preloadNextTrack = useCallback((nextTrack) => {
+    const preloadAudio = preloadAudioRef.current;
+    if (!preloadAudio || !nextTrack) return;
+    const nextSrc = getTrackAudioUrl(nextTrack);
+    if (nextSrc && preloadAudio.src !== nextSrc && !preloadAudio.src.endsWith(nextSrc)) {
+      preloadAudio.src = nextSrc;
+      preloadAudio.preload = "auto";
+      preloadAudio.load();
+      console.log("[RADIO PRELOAD] 🚀 Pre-caching next song in background:", nextTrack.title);
+    }
+  }, [getTrackAudioUrl]);
+
+  const syncAudioPlayback = useCallback((track, startedAt, serverTime) => {
+    const audio = audioRef.current;
+    if (!audio || !track || !isAudioActiveRef.current) return;
+
+    const targetSrc = getTrackAudioUrl(track);
+    if (!targetSrc) return;
+
+    const now = Date.now();
+    const sTime = serverTime || now;
+    const sAt = startedAt || now;
+    const elapsedSec = Math.max(0, (sTime - sAt) / 1000);
+    const duration = track.duration_sec || 180;
+
+    // Check if audio src needs changing
+    if (audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
+      audio.src = targetSrc;
+      audio.load();
+      audio.onloadedmetadata = () => {
+        if (isAudioActiveRef.current) {
+          const initialOffset = Math.min(duration - 1, Math.max(0, elapsedSec));
+          audio.currentTime = initialOffset;
+          audio.play().catch((e) => console.warn("[RADIO AUDIO] Play error:", e));
+        }
+      };
+    } else {
+      // If already playing this track, ensure sync drift is minimal (< 2.5s)
+      const drift = Math.abs(audio.currentTime - elapsedSec);
+      if (drift > 2.5 && elapsedSec < duration) {
+        audio.currentTime = elapsedSec;
+      }
+      if (audio.paused && isAudioActiveRef.current) {
+        audio.play().catch((e) => console.warn("[RADIO AUDIO] Play error:", e));
+      }
+    }
+  }, [getTrackAudioUrl]);
+
+  // ------------------------------------------------------------
+  // 2. Apply Synchronized Radio State
+  // ------------------------------------------------------------
   const applyRadioState = useCallback((data) => {
     if (!data || !data.success) return;
     setRadioState(data);
@@ -157,10 +224,18 @@ export default function CampusRadio() {
     if (data.status === "playing" && startedAt > 0 && duration > 0 && data.current_track?.videoId) {
       const elapsed = Math.min(duration, Math.max(0, (serverTime - startedAt) / 1000));
       setCurrentElapsed(elapsed);
+      if (isAudioActiveRef.current) {
+        syncAudioPlayback(data.current_track, startedAt, serverTime);
+      }
     } else {
       setCurrentElapsed(0);
+      setBufferedPercent(0);
     }
-  }, []);
+
+    if (data.next_track) {
+      preloadNextTrack(data.next_track);
+    }
+  }, [syncAudioPlayback, preloadNextTrack]);
 
   const fetchRadioState = useCallback(async (isInitial = false) => {
     try {
@@ -178,68 +253,6 @@ export default function CampusRadio() {
       if (isInitial) setIsLoading(false);
     }
   }, [applyRadioState]);
-
-  // ------------------------------------------------------------
-  // 2. Dual Engine HLS Live Radio Stream Initializer
-  // - iOS Safari / WebKit: Native <audio src="stream.m3u8">
-  // - Android Chrome / Desktop: hls.js buffer engine
-  // ------------------------------------------------------------
-  const initHlsPlayer = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const hlsUrl = API_CONFIG.RADIO_HLS_STREAM_URL;
-
-    if (audio.canPlayType("application/vnd.apple.mpegurl")) {
-      // Native iOS Safari / WebKit
-      audio.src = hlsUrl;
-      if (isAudioActiveRef.current) {
-        audio.play().catch((e) => console.warn("[RADIO HLS] iOS play error:", e));
-      }
-    } else if (Hls.isSupported()) {
-      // Android Chrome / Desktop
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-      }
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 60,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        liveSyncDurationCount: 4,
-        liveMaxLatencyDurationCount: 8,
-        maxLiveSyncPlaybackRate: 1.0,
-      });
-      hls.loadSource(hlsUrl);
-      hls.attachMedia(audio);
-      hlsRef.current = hls;
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (isAudioActiveRef.current) {
-          audio.play().catch((e) => console.warn("[RADIO HLS] Autoplay error:", e));
-        }
-      });
-
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              setTimeout(() => {
-                if (hlsRef.current) hlsRef.current.startLoad();
-              }, 2500);
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              hls.recoverMediaError();
-              break;
-            default:
-              hls.destroy();
-              hlsRef.current = null;
-              break;
-          }
-        }
-      });
-    }
-  }, []);
 
   // ------------------------------------------------------------
   // 3. Media Session API for Lock Screen & Background Control
@@ -314,9 +327,22 @@ export default function CampusRadio() {
         es.addEventListener("track_start", (e) => {
           try {
             const data = JSON.parse(e.data);
+            setBufferedPercent(0);
             applyRadioState(data);
+            console.log("[RADIO SSE] 🎵 New track started:", data.current_track?.title);
           } catch (err) {
             console.warn("[RADIO SSE] Parse track_start error:", err);
+          }
+        });
+
+        es.addEventListener("preload_next", (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data?.next_track) {
+              preloadNextTrack(data.next_track);
+            }
+          } catch (err) {
+            console.warn("[RADIO SSE] Parse preload_next error:", err);
           }
         });
 
@@ -364,7 +390,6 @@ export default function CampusRadio() {
         const baseElapsed = (snap.server_time - snap.started_at) / 1000;
         const totalElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localElapsedDelta));
         setCurrentElapsed(totalElapsed);
-        // Server HLS daemon pushes track_start via SSE when next song begins - zero runaway client calls!
       }
     }, 250);
 
@@ -375,12 +400,20 @@ export default function CampusRadio() {
       }
       clearInterval(safetyPollInterval);
       clearInterval(tickInterval);
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
     };
-  }, [fetchRadioState, applyRadioState]);
+  }, [fetchRadioState, applyRadioState, preloadNextTrack]);
+
+  // Buffer progress tracking for Spotify-style dual-layer bar
+  const handleAudioProgress = () => {
+    const audio = audioRef.current;
+    if (!audio || !audio.buffered || audio.buffered.length === 0) return;
+    const duration = stateSnapshotRef.current.duration_sec || audio.duration || 1;
+    try {
+      const bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
+      const pct = Math.min(100, Math.max(0, (bufferedEnd / duration) * 100));
+      setBufferedPercent(pct);
+    } catch (e) {}
+  };
 
   // Cooldown countdown ticker
   useEffect(() => {
@@ -427,14 +460,12 @@ export default function CampusRadio() {
     setIsAudioActive(true);
     isAudioActiveRef.current = true;
 
-    const audio = audioRef.current;
-    if (audio) {
-      if (!audio.src && !hlsRef.current) {
-        initHlsPlayer();
-      }
-      audio.play().catch((e) => {
-        console.warn("[RADIO HLS] Play error:", e);
-      });
+    if (radioState?.current_track) {
+      syncAudioPlayback(
+        radioState.current_track,
+        radioState.started_at,
+        radioState.server_time
+      );
     }
 
     if ("mediaSession" in navigator) {
@@ -676,8 +707,20 @@ export default function CampusRadio() {
 
   return (
     <section className="np-radio-panel">
-      {/* Native HTML5 Audio Element for HLS Live Streaming */}
-      <audio ref={audioRef} preload="none" playsInline style={{ display: "none" }} />
+      {/* Native HTML5 Audio Elements for Direct Track Streaming & Gapless Preload */}
+      <audio
+        ref={audioRef}
+        preload="auto"
+        playsInline
+        onProgress={handleAudioProgress}
+        style={{ display: "none" }}
+      />
+      <audio
+        ref={preloadAudioRef}
+        preload="none"
+        playsInline
+        style={{ display: "none" }}
+      />
 
       {/* Section Header */}
       <div className="np-radio-head">
@@ -728,12 +771,31 @@ export default function CampusRadio() {
               <span className="np-radio-card__user">added by {currentTrack.added_by || "anonymous"}</span>
             </div>
 
-            {/* Progress Scrubber */}
+            {/* Progress Scrubber with Spotify-Style Dual-Layer Buffer Bar */}
             <div className="np-radio-card__progress-wrap">
-              <div className="np-radio-card__progress-track">
+              <div className="np-radio-card__progress-track" style={{ position: "relative", overflow: "hidden" }}>
+                {/* Translucent Gray Buffer Fill */}
+                <div
+                  className="np-radio-card__buffer-fill"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    height: "100%",
+                    width: `${bufferedPercent}%`,
+                    backgroundColor: "rgba(255, 255, 255, 0.22)",
+                    borderRadius: "inherit",
+                    transition: "width 0.25s ease",
+                  }}
+                  title={`Buffered: ${Math.round(bufferedPercent)}%`}
+                />
+                {/* Active Playhead Fill */}
                 <div
                   className="np-radio-card__progress-fill"
-                  style={{ width: `${progressPercent}%` }}
+                  style={{
+                    position: "relative",
+                    width: `${progressPercent}%`,
+                  }}
                 />
               </div>
               <div className="np-radio-card__timestamps">
@@ -741,6 +803,37 @@ export default function CampusRadio() {
                 <span>{currentTrack.duration_text || formatTime(durationSec)}</span>
               </div>
             </div>
+
+            {/* Next Track Preview */}
+            {radioState?.next_track && (
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                  backgroundColor: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  fontSize: "0.72rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  color: "#a1a1aa",
+                  letterSpacing: "0.01em",
+                }}
+              >
+                <span style={{ fontSize: "0.8rem" }}>⏭️</span>
+                <span style={{ fontWeight: 600, color: "var(--color-primary, #10b981)" }}>
+                  Next:
+                </span>
+                <span style={{ color: "#fff", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {radioState.next_track.title}
+                </span>
+                <span style={{ opacity: 0.5 }}>·</span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {radioState.next_track.artist}
+                </span>
+              </div>
+            )}
           </>
         ) : (
           <div className="np-radio-card__idle-state">
