@@ -157,35 +157,19 @@ export default function CampusRadio() {
     return "";
   }, []);
 
-  const syncAudioPlayback = useCallback((track, startedAt, serverTime) => {
+  const syncAudioPlayback = useCallback((track) => {
     const audio = audioRef.current;
     if (!audio || !track || !isAudioActiveRef.current) return;
 
     const targetSrc = getTrackAudioUrl(track);
     if (!targetSrc) return;
 
-    const now = Date.now();
-    const sTime = serverTime || now;
-    const sAt = startedAt || now;
-    const elapsedSec = Math.max(0, (sTime - sAt) / 1000);
-    const duration = track.duration_sec || 180;
-
-    const liveElapsed = Math.min(duration - 1, Math.max(0, elapsedSec));
-
     // Track source changed (new song started):
     if (audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
       audio.src = targetSrc;
-      pendingSeekRef.current = liveElapsed;
       audio.play().catch((e) => console.warn("[RADIO AUDIO] Track switch play error:", e));
     } else if (audio.paused && isAudioActiveRef.current) {
-      // Unpausing / resuming: tune in to current live broadcast position
-      if (Math.abs(audio.currentTime - liveElapsed) > 3) {
-        try { audio.currentTime = liveElapsed; } catch (e) {}
-      }
       audio.play().catch((e) => console.warn("[RADIO AUDIO] Resume play error:", e));
-    } else if (isAudioActiveRef.current && !audio.paused && Math.abs(audio.currentTime - liveElapsed) > 8) {
-      // Phone was sleeping or tab throttled: catch up to live broadcast
-      try { audio.currentTime = liveElapsed; } catch (e) {}
     }
   }, [getTrackAudioUrl]);
 
@@ -215,7 +199,7 @@ export default function CampusRadio() {
         setCurrentElapsed(elapsed);
       }
       if (isAudioActiveRef.current) {
-        syncAudioPlayback(data.current_track, startedAt, serverTime);
+        syncAudioPlayback(data.current_track);
       }
     } else {
       setCurrentElapsed(0);
@@ -451,22 +435,8 @@ export default function CampusRadio() {
     if (audio && radioState?.current_track) {
       const targetSrc = getTrackAudioUrl(radioState.current_track);
       if (targetSrc) {
-        const now = Date.now();
-        const snap = stateSnapshotRef.current;
-        const localElapsedDelta = snap.local_fetch_at > 0 ? (now - snap.local_fetch_at) / 1000 : 0;
-        const baseElapsed = (snap.server_time > 0 && snap.started_at > 0) ? (snap.server_time - snap.started_at) / 1000 : 0;
-        const duration = snap.duration_sec || radioState.current_track.duration_sec || 180;
-        const liveElapsed = Math.min(duration - 1, Math.max(0, baseElapsed + localElapsedDelta));
-
         if (audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
           audio.src = targetSrc;
-          pendingSeekRef.current = liveElapsed;
-        } else {
-          // Track is already loaded, but user was paused:
-          // A radio is a live broadcast: jump immediately to live broadcast position!
-          if (Math.abs(audio.currentTime - liveElapsed) > 3) {
-            try { audio.currentTime = liveElapsed; } catch (e) {}
-          }
         }
         audio.play().catch((e) => console.warn("[RADIO AUDIO] Direct play error:", e));
       }
@@ -741,8 +711,27 @@ export default function CampusRadio() {
         }}
         onProgress={handleAudioProgress}
         onEnded={() => {
-          console.log("[RADIO AUDIO] Track ended. Waiting for live broadcast advance...");
-          fetchRadioState(false);
+          console.log("[RADIO AUDIO] Track ended. Seamlessly rolling to next track...");
+          const next = radioState?.next_track;
+          if (next && next.videoId && isAudioActiveRef.current) {
+            const nextUrl = getTrackAudioUrl(next);
+            const audio = audioRef.current;
+            if (audio && nextUrl) {
+              audio.src = nextUrl;
+              audio.play().catch((err) => console.warn("[RADIO AUDIO] Auto-advance play error:", err));
+            }
+            // Optimistically update state so MediaSession and UI immediately advance
+            setRadioState((prev) => prev ? {
+              ...prev,
+              current_track: next,
+              next_track: null,
+              started_at: Date.now(),
+              status: "playing",
+            } : prev);
+            setCurrentElapsed(0);
+          }
+          // Sync with server in background
+          setTimeout(() => fetchRadioState(false), 2000);
         }}
         style={{ display: "none" }}
       />
