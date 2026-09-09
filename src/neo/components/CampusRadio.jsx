@@ -170,14 +170,22 @@ export default function CampusRadio() {
     const elapsedSec = Math.max(0, (sTime - sAt) / 1000);
     const duration = track.duration_sec || 180;
 
+    const liveElapsed = Math.min(duration - 1, Math.max(0, elapsedSec));
+
     // Track source changed (new song started):
     if (audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
       audio.src = targetSrc;
-      const initialOffset = Math.min(duration - 1, Math.max(0, elapsedSec));
-      pendingSeekRef.current = initialOffset;
+      pendingSeekRef.current = liveElapsed;
       audio.play().catch((e) => console.warn("[RADIO AUDIO] Track switch play error:", e));
     } else if (audio.paused && isAudioActiveRef.current) {
+      // Unpausing / resuming: tune in to current live broadcast position
+      if (Math.abs(audio.currentTime - liveElapsed) > 3) {
+        try { audio.currentTime = liveElapsed; } catch (e) {}
+      }
       audio.play().catch((e) => console.warn("[RADIO AUDIO] Resume play error:", e));
+    } else if (isAudioActiveRef.current && !audio.paused && Math.abs(audio.currentTime - liveElapsed) > 8) {
+      // Phone was sleeping or tab throttled: catch up to live broadcast
+      try { audio.currentTime = liveElapsed; } catch (e) {}
     }
   }, [getTrackAudioUrl]);
 
@@ -443,15 +451,22 @@ export default function CampusRadio() {
     if (audio && radioState?.current_track) {
       const targetSrc = getTrackAudioUrl(radioState.current_track);
       if (targetSrc) {
+        const now = Date.now();
+        const snap = stateSnapshotRef.current;
+        const localElapsedDelta = snap.local_fetch_at > 0 ? (now - snap.local_fetch_at) / 1000 : 0;
+        const baseElapsed = (snap.server_time > 0 && snap.started_at > 0) ? (snap.server_time - snap.started_at) / 1000 : 0;
+        const duration = snap.duration_sec || radioState.current_track.duration_sec || 180;
+        const liveElapsed = Math.min(duration - 1, Math.max(0, baseElapsed + localElapsedDelta));
+
         if (audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
           audio.src = targetSrc;
-          const now = Date.now();
-          const sTime = radioState.server_time || now;
-          const sAt = radioState.started_at || now;
-          const elapsedSec = Math.max(0, (sTime - sAt) / 1000);
-          const duration = radioState.current_track.duration_sec || 180;
-          const initialOffset = Math.min(duration - 1, Math.max(0, elapsedSec));
-          pendingSeekRef.current = initialOffset;
+          pendingSeekRef.current = liveElapsed;
+        } else {
+          // Track is already loaded, but user was paused:
+          // A radio is a live broadcast: jump immediately to live broadcast position!
+          if (Math.abs(audio.currentTime - liveElapsed) > 3) {
+            try { audio.currentTime = liveElapsed; } catch (e) {}
+          }
         }
         audio.play().catch((e) => console.warn("[RADIO AUDIO] Direct play error:", e));
       }
