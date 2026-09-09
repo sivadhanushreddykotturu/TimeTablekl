@@ -137,8 +137,31 @@ export default function CampusRadio() {
   }, [studentId, password]);
 
   // ------------------------------------------------------------
-  // 1. Fetch synchronized radio state
+  // 1. Fetch & Apply Synchronized Radio State
   // ------------------------------------------------------------
+  const applyRadioState = useCallback((data) => {
+    if (!data || !data.success) return;
+    setRadioState(data);
+    const nowLocal = Date.now();
+    const duration = data.current_track?.duration_sec || 0;
+    const startedAt = data.started_at || 0;
+    const serverTime = data.server_time || nowLocal;
+
+    stateSnapshotRef.current = {
+      started_at: startedAt,
+      duration_sec: duration,
+      server_time: serverTime,
+      local_fetch_at: nowLocal,
+    };
+
+    if (data.status === "playing" && startedAt > 0 && duration > 0 && data.current_track?.videoId) {
+      const elapsed = Math.min(duration, Math.max(0, (serverTime - startedAt) / 1000));
+      setCurrentElapsed(elapsed);
+    } else {
+      setCurrentElapsed(0);
+    }
+  }, []);
+
   const fetchRadioState = useCallback(async (isInitial = false) => {
     try {
       const token = localStorage.getItem("radio_jwt") || "";
@@ -146,28 +169,7 @@ export default function CampusRadio() {
       const resp = await fetch(API_CONFIG.RADIO_STATE_URL, { headers });
       if (!resp.ok) throw new Error("Failed to load radio state");
       const data = await resp.json();
-
-      if (data && data.success) {
-        setRadioState(data);
-        const nowLocal = Date.now();
-        const duration = data.current_track?.duration_sec || 0;
-        const startedAt = data.started_at || 0;
-        const serverTime = data.server_time || nowLocal;
-
-        stateSnapshotRef.current = {
-          started_at: startedAt,
-          duration_sec: duration,
-          server_time: serverTime,
-          local_fetch_at: nowLocal,
-        };
-
-        if (data.status === "playing" && startedAt > 0 && duration > 0 && data.current_track?.videoId) {
-          const elapsed = Math.min(duration, Math.max(0, (serverTime - startedAt) / 1000));
-          setCurrentElapsed(elapsed);
-        } else {
-          setCurrentElapsed(0);
-        }
-      }
+      applyRadioState(data);
     } catch (err) {
       if (isInitial) {
         console.warn("[RADIO] State fetch error:", err.message);
@@ -175,7 +177,7 @@ export default function CampusRadio() {
     } finally {
       if (isInitial) setIsLoading(false);
     }
-  }, []);
+  }, [applyRadioState]);
 
   // ------------------------------------------------------------
   // 2. Dual Engine HLS Live Radio Stream Initializer
@@ -284,15 +286,77 @@ export default function CampusRadio() {
   }, [radioState?.current_track, isAudioActive]);
 
   // ------------------------------------------------------------
-  // 4. Periodic Poll & Smooth Scrubber Ticking
+  // 4. Real-time Server-Sent Events (SSE) + Smooth Scrubber Ticking
   // ------------------------------------------------------------
   useEffect(() => {
+    // 1. Initial snapshot fetch
     fetchRadioState(true);
 
-    const stateInterval = setInterval(() => {
-      fetchRadioState(false);
-    }, 6000);
+    // 2. Connect to Server-Sent Events (SSE) for instant real-time pushes
+    let es = null;
+    let sseConnected = false;
 
+    const connectSSE = () => {
+      try {
+        const eventsUrl = API_CONFIG.RADIO_EVENTS_URL || `${API_CONFIG.RADIO_STATE_URL.replace(/\/state$/, "")}/stream-events`;
+        es = new EventSource(eventsUrl);
+
+        es.addEventListener("sync", (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            applyRadioState(data);
+            sseConnected = true;
+          } catch (err) {
+            console.warn("[RADIO SSE] Parse sync error:", err);
+          }
+        });
+
+        es.addEventListener("track_start", (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            applyRadioState(data);
+          } catch (err) {
+            console.warn("[RADIO SSE] Parse track_start error:", err);
+          }
+        });
+
+        es.addEventListener("queue_update", (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            applyRadioState(data);
+          } catch (err) {
+            console.warn("[RADIO SSE] Parse queue_update error:", err);
+          }
+        });
+
+        es.addEventListener("track_update", (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            applyRadioState(data);
+          } catch (err) {
+            console.warn("[RADIO SSE] Parse track_update error:", err);
+          }
+        });
+
+        es.onerror = () => {
+          sseConnected = false;
+          // EventSource automatically retries connection in the background
+        };
+      } catch (err) {
+        console.warn("[RADIO SSE] EventSource init error:", err);
+      }
+    };
+
+    connectSSE();
+
+    // 3. Slow safety fallback poll (every 45s) only if SSE is disconnected
+    const safetyPollInterval = setInterval(() => {
+      if (!sseConnected || document.visibilityState === "visible") {
+        fetchRadioState(false);
+      }
+    }, 45000);
+
+    // 4. Local scrubber tick interval (ZERO advance network calls)
     const tickInterval = setInterval(() => {
       const snap = stateSnapshotRef.current;
       if (snap.started_at > 0 && snap.duration_sec > 0) {
@@ -300,22 +364,23 @@ export default function CampusRadio() {
         const baseElapsed = (snap.server_time - snap.started_at) / 1000;
         const totalElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localElapsedDelta));
         setCurrentElapsed(totalElapsed);
-
-        if (totalElapsed >= snap.duration_sec) {
-          handleTrackEnd();
-        }
+        // Server HLS daemon pushes track_start via SSE when next song begins - zero runaway client calls!
       }
     }, 250);
 
     return () => {
-      clearInterval(stateInterval);
+      if (es) {
+        es.close();
+        es = null;
+      }
+      clearInterval(safetyPollInterval);
       clearInterval(tickInterval);
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
     };
-  }, [fetchRadioState]);
+  }, [fetchRadioState, applyRadioState]);
 
   // Cooldown countdown ticker
   useEffect(() => {
@@ -327,18 +392,10 @@ export default function CampusRadio() {
   }, [cooldownSeconds]);
 
   // ------------------------------------------------------------
-  // 5. Track Advance Trigger
+  // 5. Track Advance Handler (No-op on client; server HLS daemon is single authority)
   // ------------------------------------------------------------
-  const handleTrackEnd = async () => {
-    try {
-      const resp = await fetch(API_CONFIG.RADIO_ADVANCE_URL, { method: "POST" });
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.success) {
-          setRadioState(data);
-        }
-      }
-    } catch (e) {}
+  const handleTrackEnd = () => {
+    // Intentionally no-op to eliminate runaway client advance requests
   };
 
   // ------------------------------------------------------------
