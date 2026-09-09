@@ -70,6 +70,9 @@ export default function CampusRadio() {
   // Single Native HTML5 Audio player for Campus Radio
   const audioRef = useRef(null);
   const isAudioActiveRef = useRef(false);
+  const pendingSeekRef = useRef(0);
+  const lastAudioAdvanceTimeRef = useRef(0);
+  const lastAudioCurrentTimeRef = useRef(0);
   const searchDebounceRef = useRef(null);
   const searchAbortRef = useRef(null);
   const latestQueryRef = useRef("");
@@ -171,7 +174,7 @@ export default function CampusRadio() {
     if (audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
       audio.src = targetSrc;
       const initialOffset = Math.min(duration - 1, Math.max(0, elapsedSec));
-      try { audio.currentTime = initialOffset; } catch (e) {}
+      pendingSeekRef.current = initialOffset;
       audio.play().catch((e) => console.warn("[RADIO AUDIO] Track switch play error:", e));
     } else if (audio.paused && isAudioActiveRef.current) {
       audio.play().catch((e) => console.warn("[RADIO AUDIO] Resume play error:", e));
@@ -354,21 +357,28 @@ export default function CampusRadio() {
       }
     }, 45000);
 
-    // 5. Local scrubber tick interval
+    // 5. Local scrubber tick interval (never freezes)
     const tickInterval = setInterval(() => {
       const audio = audioRef.current;
-      // If audio is actively playing, sync scrubber directly with hardware decoding
-      if (isAudioActiveRef.current && audio && !audio.paused && !audio.ended && audio.currentTime > 0) {
+      const snap = stateSnapshotRef.current;
+      const localElapsedDelta = snap.local_fetch_at > 0 ? (Date.now() - snap.local_fetch_at) / 1000 : 0;
+      const baseElapsed = (snap.server_time > 0 && snap.started_at > 0) ? (snap.server_time - snap.started_at) / 1000 : 0;
+      const wallClockElapsed = snap.duration_sec > 0 ? Math.min(snap.duration_sec, Math.max(0, baseElapsed + localElapsedDelta)) : 0;
+
+      // Check if audio hardware is genuinely decoding and advancing (not stalled/frozen)
+      const isActivelyAdvancing = isAudioActiveRef.current &&
+                                  audio &&
+                                  !audio.paused &&
+                                  !audio.ended &&
+                                  !audio.seeking &&
+                                  audio.readyState >= 2 &&
+                                  (Date.now() - lastAudioAdvanceTimeRef.current < 2000);
+
+      if (isActivelyAdvancing && audio.currentTime > 0) {
         setCurrentElapsed(audio.currentTime);
       } else {
-        // Otherwise (loading, paused, or muted), display live broadcast position
-        const snap = stateSnapshotRef.current;
-        if (snap.started_at > 0 && snap.duration_sec > 0) {
-          const localElapsedDelta = (Date.now() - snap.local_fetch_at) / 1000;
-          const baseElapsed = (snap.server_time - snap.started_at) / 1000;
-          const totalElapsed = Math.min(snap.duration_sec, Math.max(0, baseElapsed + localElapsedDelta));
-          setCurrentElapsed(totalElapsed);
-        }
+        // If loading, paused, muted, or stalled: ALWAYS show live wall clock so timer NEVER freezes!
+        setCurrentElapsed(wallClockElapsed);
       }
     }, 250);
 
@@ -441,7 +451,7 @@ export default function CampusRadio() {
           const elapsedSec = Math.max(0, (sTime - sAt) / 1000);
           const duration = radioState.current_track.duration_sec || 180;
           const initialOffset = Math.min(duration - 1, Math.max(0, elapsedSec));
-          try { audio.currentTime = initialOffset; } catch (e) {}
+          pendingSeekRef.current = initialOffset;
         }
         audio.play().catch((e) => console.warn("[RADIO AUDIO] Direct play error:", e));
       }
@@ -692,9 +702,27 @@ export default function CampusRadio() {
         preload="auto"
         playsInline
         onTimeUpdate={(e) => {
+          lastAudioAdvanceTimeRef.current = Date.now();
+          lastAudioCurrentTimeRef.current = e.target.currentTime;
           if (isAudioActiveRef.current && e.target.duration) {
             setCurrentElapsed(e.target.currentTime);
           }
+        }}
+        onCanPlay={() => {
+          const audio = audioRef.current;
+          if (!audio) return;
+          if (pendingSeekRef.current > 1 && audio.duration && pendingSeekRef.current < audio.duration) {
+            const seekTo = pendingSeekRef.current;
+            pendingSeekRef.current = 0;
+            try {
+              audio.currentTime = seekTo;
+            } catch (err) {
+              console.warn("[RADIO AUDIO] Seek to offset error:", err);
+            }
+          }
+        }}
+        onError={() => {
+          console.warn("[RADIO AUDIO] Native audio error:", audioRef.current?.error);
         }}
         onProgress={handleAudioProgress}
         onEnded={() => {
