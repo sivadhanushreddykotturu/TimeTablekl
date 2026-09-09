@@ -171,29 +171,10 @@ export default function CampusRadio() {
     if (audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
       audio.src = targetSrc;
       const initialOffset = Math.min(duration - 1, Math.max(0, elapsedSec));
-
-      const onCanPlay = () => {
-        audio.removeEventListener("canplay", onCanPlay);
-        if (initialOffset > 0) {
-          try { audio.currentTime = initialOffset; } catch (e) {}
-        }
-        if (isAudioActiveRef.current) {
-          audio.play().catch((e) => console.warn("[RADIO AUDIO] Play error:", e));
-        }
-      };
-
-      audio.addEventListener("canplay", onCanPlay);
-      audio.load();
-    } else {
-      // Audio is already playing this track.
-      // Never seek during smooth playback! Only catch up if drift is massive (> 15s)
-      const drift = Math.abs(audio.currentTime - elapsedSec);
-      if (drift > 15 && elapsedSec < duration) {
-        audio.currentTime = elapsedSec;
-      }
-      if (audio.paused && isAudioActiveRef.current) {
-        audio.play().catch((e) => console.warn("[RADIO AUDIO] Play error:", e));
-      }
+      try { audio.currentTime = initialOffset; } catch (e) {}
+      audio.play().catch((e) => console.warn("[RADIO AUDIO] Track switch play error:", e));
+    } else if (audio.paused && isAudioActiveRef.current) {
+      audio.play().catch((e) => console.warn("[RADIO AUDIO] Resume play error:", e));
     }
   }, [getTrackAudioUrl]);
 
@@ -441,24 +422,29 @@ export default function CampusRadio() {
       return;
     }
 
-    const isSessionConfirmed = sessionStorage.getItem("radio_class_confirmed") === "true";
-    if (!isSessionConfirmed) {
-      setShowClassModal(true);
-    } else {
-      enableAudioPlayback();
-    }
+    enableAudioPlayback();
   };
 
   const enableAudioPlayback = () => {
     setIsAudioActive(true);
     isAudioActiveRef.current = true;
 
-    if (radioState?.current_track) {
-      syncAudioPlayback(
-        radioState.current_track,
-        radioState.started_at,
-        radioState.server_time
-      );
+    const audio = audioRef.current;
+    if (audio && radioState?.current_track) {
+      const targetSrc = getTrackAudioUrl(radioState.current_track);
+      if (targetSrc) {
+        if (audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
+          audio.src = targetSrc;
+          const now = Date.now();
+          const sTime = radioState.server_time || now;
+          const sAt = radioState.started_at || now;
+          const elapsedSec = Math.max(0, (sTime - sAt) / 1000);
+          const duration = radioState.current_track.duration_sec || 180;
+          const initialOffset = Math.min(duration - 1, Math.max(0, elapsedSec));
+          try { audio.currentTime = initialOffset; } catch (e) {}
+        }
+        audio.play().catch((e) => console.warn("[RADIO AUDIO] Direct play error:", e));
+      }
     }
 
     if ("mediaSession" in navigator) {
