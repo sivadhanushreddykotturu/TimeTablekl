@@ -171,8 +171,19 @@ export default function CampusRadio() {
     if (audio.src !== targetSrc && !audio.src.endsWith(targetSrc)) {
       audio.src = targetSrc;
       const initialOffset = Math.min(duration - 1, Math.max(0, elapsedSec));
-      audio.currentTime = initialOffset;
-      audio.play().catch((e) => console.warn("[RADIO AUDIO] Play error:", e));
+
+      const onCanPlay = () => {
+        audio.removeEventListener("canplay", onCanPlay);
+        if (initialOffset > 0) {
+          try { audio.currentTime = initialOffset; } catch (e) {}
+        }
+        if (isAudioActiveRef.current) {
+          audio.play().catch((e) => console.warn("[RADIO AUDIO] Play error:", e));
+        }
+      };
+
+      audio.addEventListener("canplay", onCanPlay);
+      audio.load();
     } else {
       // Audio is already playing this track.
       // Never seek during smooth playback! Only catch up if drift is massive (> 15s)
@@ -310,23 +321,11 @@ export default function CampusRadio() {
         es.addEventListener("track_start", (e) => {
           try {
             const data = JSON.parse(e.data);
-            hasRolledRef.current = false;
             setBufferedPercent(0);
             applyRadioState(data);
             console.log("[RADIO SSE] 🎵 New track started:", data.current_track?.title);
           } catch (err) {
             console.warn("[RADIO SSE] Parse track_start error:", err);
-          }
-        });
-
-        es.addEventListener("preload_next", (e) => {
-          try {
-            const data = JSON.parse(e.data);
-            if (data?.next_track) {
-              preloadNextTrack(data.next_track);
-            }
-          } catch (err) {
-            console.warn("[RADIO SSE] Parse preload_next error:", err);
           }
         });
 
@@ -374,9 +373,14 @@ export default function CampusRadio() {
       }
     }, 45000);
 
-    // 5. Local scrubber tick interval (only when sound is muted/inactive)
+    // 5. Local scrubber tick interval
     const tickInterval = setInterval(() => {
-      if (!isAudioActiveRef.current) {
+      const audio = audioRef.current;
+      // If audio is actively playing, sync scrubber directly with hardware decoding
+      if (isAudioActiveRef.current && audio && !audio.paused && !audio.ended && audio.currentTime > 0) {
+        setCurrentElapsed(audio.currentTime);
+      } else {
+        // Otherwise (loading, paused, or muted), display live broadcast position
         const snap = stateSnapshotRef.current;
         if (snap.started_at > 0 && snap.duration_sec > 0) {
           const localElapsedDelta = (Date.now() - snap.local_fetch_at) / 1000;
@@ -385,7 +389,7 @@ export default function CampusRadio() {
           setCurrentElapsed(totalElapsed);
         }
       }
-    }, 500);
+    }, 250);
 
     return () => {
       if (es) {
