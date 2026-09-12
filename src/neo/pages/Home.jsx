@@ -335,8 +335,28 @@ export default function NeoHome() {
       {/* announcement banner (always visible even if games are disabled) */}
       <AnnouncementBanner />
 
-      {/* minimal portfolio link */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px', paddingRight: '8px' }}>
+      {/* minimal links footer (benchmarks left, portfolio right) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingLeft: '8px', paddingRight: '8px' }}>
+        <a
+          href="http://timetableklbenchmarks.vercel.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontFamily: "var(--np-font-ui, sans-serif)",
+            fontSize: "10px",
+            letterSpacing: "0.1em",
+            textTransform: "lowercase",
+            color: "var(--np-muted)",
+            textDecoration: "none",
+            opacity: 0.5,
+            transition: "opacity 0.2s"
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = 0.5}
+        >
+          benchmarks<span style={{ color: 'var(--np-acid, #a6e22e)' }}>.</span>
+        </a>
+
         <a
           href="https://dhanushkotturu.vercel.app"
           target="_blank"
