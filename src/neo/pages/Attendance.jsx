@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { FiShare2 } from "react-icons/fi";
 import { LuCalculator } from "react-icons/lu";
@@ -84,64 +84,20 @@ export default function NeoAttendance() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showTargetModal]);
 
-  const fetchAttendanceData = async () => {
-    setIsLoading(true);
-    setError("");
-
-    const creds = friendCredentials || getCredentials();
-    if (!creds) {
-      setError("Session expired. Please log in again.");
-      setIsLoading(false);
-      return;
-    }
-
-    const semester = friendCredentials ? friendCredentials.semester : (localStorage.getItem("semester") || "odd");
-    const academicYear = friendCredentials ? friendCredentials.academicYear : (localStorage.getItem("academicYear") || "2024-25");
-
-    try {
-      const form = getFormData(
-        creds.username,
-        creds.password,
-        "",
-        semester,
-        academicYear,
-        "",
-        { useStoredCookies: !friendCredentials }
-      );
-      const res = await axios.post(API_CONFIG.ATTENDANCE_URL, form);
-
-      if (res.data.success) {
-        if (!friendCredentials) {
-          handleSessionRefresh(res.data);
-        }
-        handleAttendanceSuccess(res.data.attendance);
-      } else {
-        setError(res.data.message || "Failed to fetch attendance. Please try again.");
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || "Something went wrong. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [autoSyncing, setAutoSyncing] = useState(false);
+  const isFetchingRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    const cached = localStorage.getItem("cached_attendance");
-    if (!friendCredentials && cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return; // Instant load from cache!
-        }
-      } catch (_) {}
-    }
-    fetchAttendanceData();
-    // eslint-disable-next-line
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const getField = (item, snake, pascal) => item[snake] ?? item[pascal] ?? "";
 
-  const handleAttendanceSuccess = (attendance) => {
+  const handleAttendanceSuccess = useCallback((attendance, isBackground = false) => {
     const grouped = groupAttendanceByCourse(attendance);
     const courseCount = grouped.length;
     const overallPercentages = grouped.map(c => c.overallPercentage);
@@ -202,21 +158,147 @@ export default function NeoAttendance() {
       console.error("Error auto-mapping subjects:", err);
     }
 
+    if (!isMountedRef.current) return;
     setAttendanceData(attendance);
     if (!friendCredentials) {
       const nowIso = new Date().toISOString();
       try {
         localStorage.setItem("cached_attendance", JSON.stringify(attendance));
         localStorage.setItem("cached_attendance_time", nowIso);
-      } catch (_) {}
+      } catch {
+        /* ignore storage write error */
+      }
       setLastFetchedTime(nowIso);
     }
-    setToast({
-      show: true,
-      message: "Attendance fetched successfully!",
-      type: "success"
-    });
-  };
+    if (!isBackground) {
+      setToast({
+        show: true,
+        message: "Attendance fetched successfully!",
+        type: "success"
+      });
+    }
+  }, [friendCredentials]);
+
+  const fetchAttendanceData = useCallback(async (opts = {}) => {
+    if (isFetchingRef.current) return;
+
+    const isBackground = Boolean(opts && opts.isBackground === true);
+
+    const creds = friendCredentials || getCredentials();
+    if (!creds) {
+      if (!isBackground) {
+        setError("Session expired. Please log in again.");
+      }
+      return;
+    }
+
+    isFetchingRef.current = true;
+    if (isBackground) {
+      setAutoSyncing(true);
+    } else {
+      setIsLoading(true);
+      setError("");
+    }
+
+    const semester = friendCredentials ? friendCredentials.semester : (localStorage.getItem("semester") || "odd");
+    const academicYear = friendCredentials ? friendCredentials.academicYear : (localStorage.getItem("academicYear") || "2024-25");
+
+    try {
+      const form = getFormData(
+        creds.username,
+        creds.password,
+        "",
+        semester,
+        academicYear,
+        "",
+        { useStoredCookies: !friendCredentials }
+      );
+      const res = await axios.post(API_CONFIG.ATTENDANCE_URL, form);
+
+      if (!isMountedRef.current) return;
+
+      if (res.data.success) {
+        if (!friendCredentials) {
+          handleSessionRefresh(res.data);
+        }
+        handleAttendanceSuccess(res.data.attendance, isBackground);
+      } else {
+        if (!isBackground) {
+          setError(res.data.message || "Failed to fetch attendance. Please try again.");
+        }
+      }
+    } catch (err) {
+      if (!isMountedRef.current) return;
+      if (!isBackground) {
+        setError(err.response?.data?.message || "Something went wrong. Please try again.");
+      } else {
+        console.warn("Background attendance sync failed:", err);
+      }
+    } finally {
+      isFetchingRef.current = false;
+      if (isMountedRef.current) {
+        if (isBackground) {
+          setAutoSyncing(false);
+        } else {
+          setIsLoading(false);
+        }
+      }
+    }
+  }, [friendCredentials, handleAttendanceSuccess]);
+
+  const checkAndFetchAttendance = useCallback(() => {
+    if (friendCredentials) {
+      fetchAttendanceData();
+      return;
+    }
+
+    const cached = localStorage.getItem("cached_attendance");
+    const cachedTime = localStorage.getItem("cached_attendance_time");
+    let hasValidCache = false;
+
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          hasValidCache = true;
+        }
+      } catch {
+        /* ignore storage parse error */
+      }
+    }
+
+    if (!hasValidCache) {
+      // First visit or cache cleared: show loading spinner and fetch
+      fetchAttendanceData();
+      return;
+    }
+
+    // Cache exists: check if fetched within 1 minute
+    const now = Date.now();
+    const lastFetchMs = cachedTime ? new Date(cachedTime).getTime() : 0;
+    const diffMs = now - lastFetchMs;
+    const ONE_MINUTE_MS = 60 * 1000;
+
+    if (diffMs >= 0 && diffMs < ONE_MINUTE_MS) {
+      // Within 1 minute: do not refetch, save backend request
+      return;
+    }
+
+    // After 1 minute (or missing timestamp): fetch in background while displaying cached data
+    fetchAttendanceData({ isBackground: true });
+  }, [friendCredentials, fetchAttendanceData]);
+
+  useEffect(() => {
+    checkAndFetchAttendance();
+  }, [checkAndFetchAttendance]);
+
+  useEffect(() => {
+    const handleTabRefresh = () => {
+      checkAndFetchAttendance();
+    };
+    window.addEventListener("refresh_attendance_tab", handleTabRefresh);
+    return () => window.removeEventListener("refresh_attendance_tab", handleTabRefresh);
+  }, [checkAndFetchAttendance]);
 
   const getPctClass = (percentage) => {
     const num = parseFloat(percentage);
@@ -616,13 +698,13 @@ export default function NeoAttendance() {
   };
 
   return (
-    <NeoShell onRefresh={fetchAttendanceData} refreshMode="direct" refreshLabel="refetch">
+    <NeoShell onRefresh={fetchAttendanceData} refreshMode="direct" refreshLabel="refetch" autoSyncing={autoSyncing}>
       <div className="np-pagehead">
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
           <span className="np-eyebrow" style={{ margin: 0 }}>
             {friendCredentials ? `${friendCredentials.name}'s numbers` : "your numbers"}
           </span>
-          {lastFetchedTime && !friendCredentials && (
+          {(lastFetchedTime || autoSyncing) && !friendCredentials && (
             <span
               style={{
                 display: "inline-flex",
@@ -644,12 +726,12 @@ export default function NeoAttendance() {
                   width: "6px",
                   height: "6px",
                   borderRadius: "50%",
-                  background: "var(--np-acid, #cfff04)",
-                  boxShadow: "0 0 6px var(--np-acid, #cfff04)",
+                  background: autoSyncing ? "var(--np-cyan, #00e5ff)" : "var(--np-acid, #cfff04)",
+                  boxShadow: autoSyncing ? "0 0 6px var(--np-cyan, #00e5ff)" : "0 0 6px var(--np-acid, #cfff04)",
                   flexShrink: 0,
                 }}
               />
-              fetched {formatTimeAgo(lastFetchedTime)}
+              {autoSyncing ? "syncing…" : `fetched ${formatTimeAgo(lastFetchedTime)}`}
             </span>
           )}
         </div>

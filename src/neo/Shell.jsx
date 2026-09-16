@@ -263,7 +263,15 @@ export default function NeoShell({
               <span className="np-nav__dot" />
             </NavLink>
 
-            <NavLink to="/attendance" className={({ isActive }) => `np-nav__core${isActive ? " is-active" : ""}`}>
+            <NavLink
+              to="/attendance"
+              className={({ isActive }) => `np-nav__core${isActive ? " is-active" : ""}`}
+              onClick={() => {
+                if (location.pathname === "/attendance") {
+                  window.dispatchEvent(new CustomEvent("refresh_attendance_tab"));
+                }
+              }}
+            >
               <span className="np-nav__diamond">
                 <FiPieChart size={19} />
               </span>
