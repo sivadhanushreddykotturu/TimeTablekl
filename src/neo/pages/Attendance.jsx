@@ -49,6 +49,7 @@ export default function NeoAttendance() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [selectedRegisterData, setSelectedRegisterData] = useState(null);
   const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerLoadingText, setRegisterLoadingText] = useState("fetching register…");
   const [attendanceData, setAttendanceData] = useState(() => {
     if (friendCredentials) return [];
     try {
@@ -86,6 +87,7 @@ export default function NeoAttendance() {
 
   const [autoSyncing, setAutoSyncing] = useState(false);
   const isFetchingRef = useRef(false);
+  const fetchPromiseRef = useRef(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -180,7 +182,9 @@ export default function NeoAttendance() {
   }, [friendCredentials]);
 
   const fetchAttendanceData = useCallback(async (opts = {}) => {
-    if (isFetchingRef.current) return;
+    if (fetchPromiseRef.current) {
+      return fetchPromiseRef.current;
+    }
 
     const isBackground = Boolean(opts && opts.isBackground === true);
 
@@ -189,7 +193,7 @@ export default function NeoAttendance() {
       if (!isBackground) {
         setError("Session expired. Please log in again.");
       }
-      return;
+      return false;
     }
 
     isFetchingRef.current = true;
@@ -203,47 +207,56 @@ export default function NeoAttendance() {
     const semester = friendCredentials ? friendCredentials.semester : (localStorage.getItem("semester") || "odd");
     const academicYear = friendCredentials ? friendCredentials.academicYear : (localStorage.getItem("academicYear") || "2024-25");
 
-    try {
-      const form = getFormData(
-        creds.username,
-        creds.password,
-        "",
-        semester,
-        academicYear,
-        "",
-        { useStoredCookies: !friendCredentials }
-      );
-      const res = await axios.post(API_CONFIG.ATTENDANCE_URL, form);
+    const doFetch = async () => {
+      try {
+        const form = getFormData(
+          creds.username,
+          creds.password,
+          "",
+          semester,
+          academicYear,
+          "",
+          { useStoredCookies: !friendCredentials }
+        );
+        const res = await axios.post(API_CONFIG.ATTENDANCE_URL, form);
 
-      if (!isMountedRef.current) return;
+        if (!isMountedRef.current) return false;
 
-      if (res.data.success) {
-        if (!friendCredentials) {
-          handleSessionRefresh(res.data);
-        }
-        handleAttendanceSuccess(res.data.attendance, isBackground);
-      } else {
-        if (!isBackground) {
-          setError(res.data.message || "Failed to fetch attendance. Please try again.");
-        }
-      }
-    } catch (err) {
-      if (!isMountedRef.current) return;
-      if (!isBackground) {
-        setError(err.response?.data?.message || "Something went wrong. Please try again.");
-      } else {
-        console.warn("Background attendance sync failed:", err);
-      }
-    } finally {
-      isFetchingRef.current = false;
-      if (isMountedRef.current) {
-        if (isBackground) {
-          setAutoSyncing(false);
+        if (res.data.success) {
+          if (!friendCredentials) {
+            handleSessionRefresh(res.data);
+          }
+          handleAttendanceSuccess(res.data.attendance, isBackground);
+          return true;
         } else {
-          setIsLoading(false);
+          if (!isBackground) {
+            setError(res.data.message || "Failed to fetch attendance. Please try again.");
+          }
+          return false;
+        }
+      } catch (err) {
+        if (!isMountedRef.current) return false;
+        if (!isBackground) {
+          setError(err.response?.data?.message || "Something went wrong. Please try again.");
+        } else {
+          console.warn("Background attendance sync failed:", err);
+        }
+        return false;
+      } finally {
+        isFetchingRef.current = false;
+        fetchPromiseRef.current = null;
+        if (isMountedRef.current) {
+          if (isBackground) {
+            setAutoSyncing(false);
+          } else {
+            setIsLoading(false);
+          }
         }
       }
-    }
+    };
+
+    fetchPromiseRef.current = doFetch();
+    return fetchPromiseRef.current;
   }, [friendCredentials, handleAttendanceSuccess]);
 
   const checkAndFetchAttendance = useCallback(() => {
@@ -629,6 +642,7 @@ export default function NeoAttendance() {
 
     if (attendanceItem.register_href) {
       setRegisterLoading(true);
+      setRegisterLoadingText("fetching register…");
       setSelectedRegisterData(null);
       setShowRegisterModal(true);
 
@@ -641,19 +655,65 @@ export default function NeoAttendance() {
           return;
         }
 
-        const form = getRegisterDetailFormData(
-          creds.username,
-          creds.password,
-          attendanceItem.register_href,
-          { useStoredCookies: !friendCredentials }
-        );
-        const res = await axios.post(API_CONFIG.REGISTER_DETAIL_URL, form);
+        // If an attendance fetch is currently in-flight, wait for it to finish first
+        // so we get guaranteed fresh session cookies!
+        if (fetchPromiseRef.current) {
+          setRegisterLoadingText("syncing session…");
+          await fetchPromiseRef.current;
+          setRegisterLoadingText("fetching register…");
+        } else {
+          // Check if attendance cache is older than 1 minute (or missing)
+          const cachedTime = localStorage.getItem("cached_attendance_time");
+          const lastFetchMs = cachedTime ? new Date(cachedTime).getTime() : 0;
+          const diffMs = Date.now() - lastFetchMs;
+          const ONE_MINUTE_MS = 60 * 1000;
 
-        if (!friendCredentials) {
-          handleSessionRefresh(res.data);
+          // If cache is > 1 min old, session may be cold on ERP.
+          // Pre-emptively refresh attendance session (takes ~2s) to guarantee warm session!
+          if (!friendCredentials && (diffMs >= ONE_MINUTE_MS || !cachedTime)) {
+            setRegisterLoadingText("renewing session (wait 2s)…");
+            await fetchAttendanceData({ isBackground: true });
+            setRegisterLoadingText("fetching register…");
+          }
         }
 
-        if (res.data.success) {
+        const doRegisterPost = async () => {
+          const form = getRegisterDetailFormData(
+            creds.username,
+            creds.password,
+            attendanceItem.register_href,
+            { useStoredCookies: !friendCredentials }
+          );
+          return await axios.post(API_CONFIG.REGISTER_DETAIL_URL, form);
+        };
+
+        let res;
+        try {
+          res = await doRegisterPost();
+        } catch (fetchErr) {
+          console.warn("Direct register fetch failed, will attempt auto-heal:", fetchErr);
+          res = null;
+        }
+
+        // If register failed or returned non-success (e.g. session expired / broken),
+        // self-heal seamlessly: fetch fresh attendance session and retry once!
+        if (!res || !res.data?.success) {
+          setRegisterLoadingText("renewing session (wait 2s)…");
+          const refreshed = await fetchAttendanceData({ isBackground: true });
+          if (refreshed) {
+            setRegisterLoadingText("fetching register…");
+            try {
+              res = await doRegisterPost();
+            } catch (retryErr) {
+              console.error("Retry register fetch error:", retryErr);
+            }
+          }
+        }
+
+        if (res && res.data?.success) {
+          if (!friendCredentials) {
+            handleSessionRefresh(res.data);
+          }
           setSelectedRegisterData({
             metadata: {
               ...res.data.metadata,
@@ -665,7 +725,7 @@ export default function NeoAttendance() {
           });
         } else {
           setShowRegisterModal(false);
-          setToast({ show: true, message: res.data.message || "Failed to fetch register.", type: "error" });
+          setToast({ show: true, message: res?.data?.message || "Failed to fetch register.", type: "error" });
         }
       } catch (err) {
         console.error("Register detail fetch error:", err);
@@ -673,6 +733,7 @@ export default function NeoAttendance() {
         setToast({ show: true, message: "Failed to fetch register details.", type: "error" });
       } finally {
         setRegisterLoading(false);
+        setRegisterLoadingText("fetching register…");
       }
     } else {
       setSelectedRegisterData({
@@ -695,6 +756,8 @@ export default function NeoAttendance() {
   const closeRegisterModal = () => {
     setShowRegisterModal(false);
     setSelectedRegisterData(null);
+    setRegisterLoading(false);
+    setRegisterLoadingText("fetching register…");
   };
 
   return (
@@ -899,7 +962,7 @@ export default function NeoAttendance() {
       {/* register details */}
       <NeoModal open={showRegisterModal} title="register details" onClose={closeRegisterModal} wide>
         {registerLoading ? (
-          <NeoLoading text="fetching register…" />
+          <NeoLoading text={registerLoadingText} />
         ) : selectedRegisterData ? (
           <div className="np-table">
             <div className="np-table__row is-head">
