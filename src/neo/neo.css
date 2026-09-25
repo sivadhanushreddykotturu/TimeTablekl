@@ -955,6 +955,33 @@ body.np-body button.np-iconbtn--exit {
   opacity: 0.9;
 }
 
+/* attendance posted? — text-styled button; negative margins keep a 44px tap target
+   without changing the card's spacing */
+.np-now .np-now__att,
+.np-now .np-now__att:hover,
+.np-now .np-now__att:active {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  margin: -7px 0 -17px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  transform: none;
+  font: 700 10px/1 var(--np-font-ui);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--np-purple-text);
+  opacity: 0.9;
+  cursor: pointer;
+}
+.np-now .np-now__att:disabled { cursor: progress; opacity: 0.7; }
+.np-now .np-now__att:focus-visible { outline: 2px solid var(--np-cream); outline-offset: 3px; }
+
 /* live class timer & progress bar */
 .np-now__progress-track {
   position: absolute;

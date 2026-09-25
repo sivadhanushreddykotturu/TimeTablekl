@@ -7,6 +7,7 @@ import AnnouncementBanner from "../components/AnnouncementBanner.jsx";
 import Toast from "../../components/Toast.jsx";
 
 import { syncTimetable } from "../../../utils/syncTimetable.js";
+import { checkAttendancePosted } from "../../../utils/attendancePosted.js";
 import { replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
 import { trackEvent } from "../../utils/analytics";
 import { getSlotTimes, getMaxSlots, formatTimeStr } from "../../utils/slotTimes";
@@ -110,6 +111,7 @@ function findCurrentAndNextClass(timetable) {
     const endTimeMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0, 0).getTime();
 
     return {
+      content: block.content,
       name: replaceCourseCodeWithCustomName(block.content),
       time: `${startFormatted} – ${endFormatted} · [${slotStr}]`,
       startTimeMs,
@@ -172,6 +174,28 @@ export default function NeoHome() {
     () => localStorage.getItem("radio_enabled") === "true"
   );
   const previousTimetableRef = useRef(null);
+  // null = hidden, "checking", "error", or { posted, status }
+  const [attendanceState, setAttendanceState] = useState(null);
+  const attendanceReqRef = useRef(0);
+
+  const checkAttendance = async (content) => {
+    const slot = getCurrentSlotNumber();
+    if (!content || !slot) return setAttendanceState(null);
+    const reqId = ++attendanceReqRef.current;
+    setAttendanceState("checking");
+    let result;
+    try {
+      result = await checkAttendancePosted(content, slot);
+    } catch {
+      result = "error";
+    }
+    if (reqId === attendanceReqRef.current) setAttendanceState(result);
+  };
+
+  // ponytail: one check per ongoing class + tap to re-check; no polling (every check scrapes the ERP)
+  useEffect(() => {
+    checkAttendance(current?.content);
+  }, [current?.content]);
 
   useEffect(() => {
     const checkRadioEnabled = () => {
@@ -306,6 +330,27 @@ export default function NeoHome() {
           {current ? current.name : "no ongoing class. enjoy the break."}
         </div>
         {current && <div className="np-now__time">{current.time}</div>}
+        {current && attendanceState && (
+          <button
+            type="button"
+            className="np-now__att"
+            onClick={() => checkAttendance(current.content)}
+            disabled={attendanceState === "checking"}
+            title="tap to re-check"
+          >
+            <span>
+              attendance ·{" "}
+              {attendanceState === "checking" ? "checking…"
+                : attendanceState === "error" ? "couldn't check"
+                : attendanceState.posted ? (
+                  <>posted · <span className={attendanceState.status === "P" ? "np-good" : "np-bad"}>
+                    {attendanceState.status === "P" ? "present" : "absent"}
+                  </span></>
+                ) : "not posted yet"}
+            </span>
+            {attendanceState !== "checking" && <span aria-hidden="true">↻</span>}
+          </button>
+        )}
         {current && (
           <ClassProgressBar
             startTimeMs={current.startTimeMs}
