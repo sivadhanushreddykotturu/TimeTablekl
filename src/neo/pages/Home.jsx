@@ -9,6 +9,7 @@ import Toast from "../../components/Toast.jsx";
 import { syncTimetable } from "../../../utils/syncTimetable.js";
 import { replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
 import { trackEvent } from "../../utils/analytics";
+import { useNowTick } from "../../hooks/useNowTick";
 import { getSlotTimes, getMaxSlots, formatTimeStr } from "../../utils/slotTimes";
 
 function getCurrentSlotNumber() {
@@ -157,9 +158,14 @@ const SEMESTER_NAMES = {
 
 export default function NeoHome() {
   const navigate = useNavigate();
-  const [timetable, setTimetable] = useState(
-    JSON.parse(localStorage.getItem("timetable") || "{}")
-  );
+  const [timetable, setTimetable] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("timetable") || "{}") || {};
+    } catch {
+      return {};
+    }
+  });
+  const nowTick = useNowTick();
   const [current, setCurrent] = useState(null);
   const [next, setNext] = useState(null);
   const [semester, setSemester] = useState("");
@@ -191,7 +197,7 @@ export default function NeoHome() {
     const validSemesters = new Set(["odd", "even", "summer", "term3"]);
     setSemester(validSemesters.has(storedSemester) ? storedSemester : "odd");
     setAcademicYear(localStorage.getItem("academicYear") || "2024-25");
-  }, [timetable]);
+  }, [timetable, nowTick]);
 
   useEffect(() => {
     trackEvent("home_page_viewed", {
