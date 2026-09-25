@@ -6,6 +6,7 @@ import ClassTimer, { ClassTimerReadout, ClassProgressBar } from "../components/C
 import Toast from "../../components/Toast.jsx";
 import { getSlotTimes, getMaxSlots } from "../../utils/slotTimes";
 import { replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
+import { useNowTick } from "../../hooks/useNowTick";
 
 const SEMESTER_NAMES = {
   odd: "odd sem",
@@ -125,6 +126,7 @@ export default function NeoMaddyClassInfo() {
   const [current, setCurrent] = useState(null);
   const [next, setNext] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const nowTick = useNowTick();
 
   useEffect(() => {
     const maddys = JSON.parse(localStorage.getItem("maddys") || "[]");
@@ -140,7 +142,7 @@ export default function NeoMaddyClassInfo() {
     const { current: cur, next: nxt } = findCurrentAndNextClass(foundMaddy.timetable, foundMaddy.username);
     setCurrent(cur);
     setNext(nxt);
-  }, [id, navigate]);
+  }, [id, navigate, nowTick]);
 
   if (!maddy) {
     return (
