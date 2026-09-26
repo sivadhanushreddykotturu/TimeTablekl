@@ -72,6 +72,7 @@ function App() {
                 <Route path="/games" element={<HomePage />} />
                 <Route path="/games/flappy-bird" element={<HomePage />} />
                 <Route path="/kl-calculator" element={<CalculatorPage />} />
+                <Route path="/kl-attendance-calculator" element={<CalculatorPage />} />
               </Routes>
               </Suspense>
             </div>

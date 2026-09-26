@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FiShare2 } from "react-icons/fi";
 import Header from "../components/Header";
+import { Title, Meta, Link } from "react-head";
 import CalculatorModal from "../components/CalculatorModal";
 import ShowCalculation from "../components/ShowCalculation";
 import Toast from "../components/Toast";
@@ -544,6 +545,17 @@ export default function Attendance() {
 
   return (
     <>
+      <Title>KL Attendance Calculator & ERP Tracker | TimeTable</Title>
+      <Meta
+        name="description"
+        content="Track live KL University ERP attendance, calculate course-wise percentage, bunk limits, and required classes to maintain 75% target."
+      />
+      <Meta
+        name="keywords"
+        content="KL Attendance Calculator, KL ERP Attendance, KL University Attendance, Bunk Calculator KL, KL Attendance Percentage"
+      />
+      <Link rel="canonical" href="https://timetable.vercel.app/attendance" />
+      <Meta name="robots" content="index, follow" />
       <Header />
 
       <div className="container" style={{ marginTop: "16px", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
