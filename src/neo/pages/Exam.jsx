@@ -7,6 +7,7 @@ import Toast from "../../components/Toast.jsx";
 import { getCredentials } from "../../../utils/storage.js";
 import { getSubjectName } from "../../utils/subjectMapper";
 import { getSlotDetails } from "../../utils/examSlots";
+import GuestAuthModal, { ensureTimetableFetched } from "../../components/GuestAuthModal.jsx";
 
 const minutes = (hours, mins) => hours * 60 + mins;
 
@@ -130,18 +131,15 @@ export default function NeoExam() {
   const [nextExam, setNextExam] = useState(null);
   const [showSeatingModal, setShowSeatingModal] = useState(false);
   const [showEditSlotsModal, setShowEditSlotsModal] = useState(false);
+  const [showGuestModal, setShowGuestModal] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   useEffect(() => {
     localStorage.setItem("examMode", "true");
-
-    const credentials = getCredentials();
-    const timetable = localStorage.getItem("timetable");
-
-    if (!credentials || !timetable) {
-      navigate("/", { replace: true });
+    if (!getCredentials()) {
+      setShowGuestModal(true);
     }
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
     const { todayExam: today, nextExam: next } = findTodayAndNextExam(seatingPlan, slotDetails);
@@ -150,6 +148,10 @@ export default function NeoExam() {
   }, [seatingPlan, slotDetails]);
 
   const handleRefresh = () => {
+    if (!getCredentials()) {
+      setShowGuestModal(true);
+      return;
+    }
     setShowSeatingModal(true);
   };
 
@@ -204,14 +206,20 @@ export default function NeoExam() {
         </section>
       )}
 
-      {!todayExam && !nextExam && (
+      {!getCredentials() ? (
+        <div className="np-guest-cta-plaque">
+          <h2>You're very near! 📝</h2>
+          <p>Log in with your KL ERP credentials to view your exam schedule and seating plan.</p>
+          <button type="button" className="np-btn" onClick={() => setShowGuestModal(true)}>Log In Now</button>
+        </div>
+      ) : !todayExam && !nextExam ? (
         <div className="np-empty">
           <h2 className="np-empty__title">no exams found</h2>
           <p className="np-empty__text">
             If exams are scheduled, hit "seating" up top to pull the latest seating plan.
           </p>
         </div>
-      )}
+      ) : null}
 
       <SeatingPlanModal
         isOpen={showSeatingModal}
@@ -225,6 +233,17 @@ export default function NeoExam() {
         onSave={handleSlotSave}
       />
 
+      <GuestAuthModal
+        isOpen={showGuestModal}
+        onClose={() => setShowGuestModal(false)}
+        pageType="exam"
+        onSuccess={async () => {
+          setShowGuestModal(false);
+          setShowSeatingModal(true);
+          ensureTimetableFetched();
+        }}
+      />
+
       <Toast
         message={toast.message}
         type={toast.type}
@@ -234,3 +253,4 @@ export default function NeoExam() {
     </NeoShell>
   );
 }
+

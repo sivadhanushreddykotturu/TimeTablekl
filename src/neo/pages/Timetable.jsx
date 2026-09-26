@@ -7,6 +7,9 @@ import { replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
 import { trackEvent } from "../../utils/analytics";
 import { getSlotTimes, getMaxSlots, formatTimeStr } from "../../utils/slotTimes";
 import { getCSSColor } from "../utils/themeEngine";
+import { getCredentials } from "../../../utils/storage.js";
+import GuestAuthModal from "../../components/GuestAuthModal.jsx";
+
 
 const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -80,6 +83,14 @@ export default function NeoTimetable() {
   const [exporting, setExporting] = useState(false);
   const [autoSyncing, setAutoSyncing] = useState(false);
   const [showTableView, setShowTableView] = useState(false);
+  const [showGuestModal, setShowGuestModal] = useState(false);
+
+  useEffect(() => {
+    if (!getCredentials()) {
+      setShowGuestModal(true);
+    }
+  }, []);
+
 
   const slotTimes = getSlotTimes();
   const maxSlots = getMaxSlots();
@@ -348,10 +359,18 @@ export default function NeoTimetable() {
       </div>
 
       {days.length === 0 ? (
-        <div className="np-empty">
-          <h2 className="np-empty__title">no timetable loaded</h2>
-          <p className="np-empty__text">Sign in again or hit resync to pull it from ERP.</p>
-        </div>
+        !getCredentials() ? (
+          <div className="np-guest-cta-plaque">
+            <h2>You're very near! 🗓️</h2>
+            <p>Log in with your KL ERP credentials to load your weekly timetable and class schedule.</p>
+            <button type="button" className="np-btn" onClick={() => setShowGuestModal(true)}>Log In Now</button>
+          </div>
+        ) : (
+          <div className="np-empty">
+            <h2 className="np-empty__title">no timetable loaded</h2>
+            <p className="np-empty__text">Sign in again or hit resync to pull it from ERP.</p>
+          </div>
+        )
       ) : (
         <>
           <div className="np-tabs" role="tablist" aria-label="Day">
@@ -530,6 +549,17 @@ export default function NeoTimetable() {
           </table>
         </div>
       </NeoModal>
+
+      <GuestAuthModal
+        isOpen={showGuestModal}
+        onClose={() => setShowGuestModal(false)}
+        pageType="timetable"
+        onSuccess={async () => {
+          setShowGuestModal(false);
+          const updated = JSON.parse(localStorage.getItem("timetable") || "{}");
+          setTimetable(updated);
+        }}
+      />
 
       <Toast
         message={toast.message}

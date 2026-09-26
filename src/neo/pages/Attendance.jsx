@@ -13,6 +13,8 @@ import { getCredentials, handleSessionRefresh } from "../../../utils/storage.js"
 import { getFormData, getRegisterDetailFormData, API_CONFIG } from "../../config/api.js";
 import { getSubjectName } from "../../utils/subjectMapper";
 import { getCSSColor } from "../utils/themeEngine";
+import GuestAuthModal, { ensureTimetableFetched } from "../../components/GuestAuthModal.jsx";
+
 
 function formatTimeAgo(isoString) {
   if (!isoString) return null;
@@ -76,6 +78,14 @@ export default function NeoAttendance() {
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetInput, setTargetInput] = useState("");
   const [targetError, setTargetError] = useState("");
+  const [showGuestModal, setShowGuestModal] = useState(false);
+
+  useEffect(() => {
+    if (!friendCredentials && !getCredentials()) {
+      setShowGuestModal(true);
+    }
+  }, [friendCredentials]);
+
 
   useEffect(() => {
     if (showTargetModal) {
@@ -809,10 +819,18 @@ export default function NeoAttendance() {
       {isLoading ? (
         <NeoLoading text={`fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} attendance…`} />
       ) : error ? (
-        <div className="np-error">
-          <p>{error}</p>
-          <button onClick={fetchAttendanceData} className="np-iconbtn">retry</button>
-        </div>
+        error.includes("Session expired") || error.includes("log in") ? (
+          <div className="np-guest-cta-plaque">
+            <h2>You're very near! 🎯</h2>
+            <p>Log in with your KL ERP credentials to view your live attendance and safe margin calculator.</p>
+            <NeoButton onClick={() => setShowGuestModal(true)}>Log In Now</NeoButton>
+          </div>
+        ) : (
+          <div className="np-error">
+            <p>{error}</p>
+            <button onClick={fetchAttendanceData} className="np-iconbtn">retry</button>
+          </div>
+        )
       ) : attendanceData.length === 0 ? (
         <div className="np-empty">
           <h2 className="np-empty__title">no attendance data</h2>
@@ -1028,6 +1046,17 @@ export default function NeoAttendance() {
           save target
         </NeoButton>
       </NeoModal>
+
+      <GuestAuthModal
+        isOpen={showGuestModal}
+        onClose={() => setShowGuestModal(false)}
+        pageType="attendance"
+        onSuccess={async () => {
+          setShowGuestModal(false);
+          await fetchAttendanceData();
+          ensureTimetableFetched();
+        }}
+      />
 
       <Toast
         message={toast.message}

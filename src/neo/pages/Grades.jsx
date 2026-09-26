@@ -20,6 +20,8 @@ import {
 } from "../../utils/gradesUtils.js";
 import { getCSSColor } from "../utils/themeEngine";
 import { trackEvent } from "../../utils/analytics";
+import GuestAuthModal, { ensureTimetableFetched } from "../../components/GuestAuthModal.jsx";
+
 
 const MARKS_DETAIL_FIELDS = [
   { key: "internal_marks", label: "Internal Marks" },
@@ -58,6 +60,14 @@ export default function NeoGrades() {
   const [marksDetail, setMarksDetail] = useState(null);
   const [marksCourseLabel, setMarksCourseLabel] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [showGuestModal, setShowGuestModal] = useState(false);
+
+  useEffect(() => {
+    if (!friendCredentials && !getCredentials()) {
+      setShowGuestModal(true);
+    }
+  }, [friendCredentials]);
+
 
   const semesterOptions = useMemo(() => buildSemesterOptions(courses), [courses]);
 
@@ -488,10 +498,18 @@ export default function NeoGrades() {
       {isLoading ? (
         <NeoLoading text={`fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} grades…`} />
       ) : error ? (
-        <div className="np-error">
-          <p>{error}</p>
-          <button onClick={fetchCgpaData} className="np-iconbtn">retry</button>
-        </div>
+        error.includes("Session expired") || error.includes("log in") ? (
+          <div className="np-guest-cta-plaque">
+            <h2>You're very near! 📊</h2>
+            <p>Log in with your KL ERP credentials to calculate and track your CGPA / SGPA grades.</p>
+            <button type="button" className="np-btn" onClick={() => setShowGuestModal(true)}>Log In Now</button>
+          </div>
+        ) : (
+          <div className="np-error">
+            <p>{error}</p>
+            <button onClick={fetchCgpaData} className="np-iconbtn">retry</button>
+          </div>
+        )
       ) : (
         <>
           {headlineGpa !== null && (
@@ -592,6 +610,17 @@ export default function NeoGrades() {
           <p className="np-note">No marks data found.</p>
         )}
       </NeoModal>
+
+      <GuestAuthModal
+        isOpen={showGuestModal}
+        onClose={() => setShowGuestModal(false)}
+        pageType="grades"
+        onSuccess={async () => {
+          setShowGuestModal(false);
+          await fetchCgpaData();
+          ensureTimetableFetched();
+        }}
+      />
 
       <Toast
         message={toast.message}

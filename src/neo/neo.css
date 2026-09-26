@@ -3194,3 +3194,127 @@ body.np-body button.np-font-card--active {
   border-color: var(--np-cream) !important;
   color: var(--np-cream) !important;
 }
+
+/* ============================================================
+   GUEST AUTH MODAL & PWA PROMPT
+   ============================================================ */
+
+.np-guest-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.np-guest-modal__head {
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--np-line);
+}
+
+.np-guest-modal__title {
+  font-family: var(--np-font-display);
+  font-size: 20px;
+  color: var(--np-cream);
+  margin: 6px 0 4px 0;
+  line-height: 1.25;
+}
+
+.np-guest-modal__desc {
+  font-size: 13px;
+  color: var(--np-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.np-guest-pwa-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--np-well);
+  border: 1px solid var(--np-acid);
+  border-left: 4px solid var(--np-acid);
+  padding: 12px 14px;
+  border-radius: 4px;
+}
+
+.np-guest-pwa-card__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.np-guest-pwa-card__icon {
+  color: var(--np-acid);
+  flex-shrink: 0;
+}
+
+.np-guest-pwa-card__title {
+  font-family: var(--np-font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--np-cream);
+  display: block;
+}
+
+.np-guest-pwa-card__sub {
+  font-size: 11px;
+  color: var(--np-muted);
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.np-guest-pwa-card__btn {
+  background: var(--np-acid);
+  color: #000;
+  font-family: var(--np-font-ui);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 6px 12px;
+  border: 1px solid #000;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 2px 2px 0 #000;
+  transition: transform 0.1s ease;
+}
+
+.np-guest-pwa-card__btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+.np-guest-pwa-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--np-acid);
+  background: rgba(0, 255, 170, 0.1);
+  padding: 4px 8px;
+  border: 1px solid var(--np-acid);
+  white-space: nowrap;
+}
+
+.np-guest-cta-plaque {
+  background: var(--np-carbon);
+  border: 2px solid var(--np-acid);
+  padding: 24px 20px;
+  text-align: center;
+  margin: 16px 0;
+  box-shadow: 4px 4px 0 #000;
+}
+
+.np-guest-cta-plaque h2 {
+  font-family: var(--np-font-display);
+  font-size: 20px;
+  color: var(--np-cream);
+  margin: 0 0 8px 0;
+}
+
+.np-guest-cta-plaque p {
+  font-size: 13px;
+  color: var(--np-muted);
+  margin: 0 0 16px 0;
+  line-height: 1.4;
+}
+
