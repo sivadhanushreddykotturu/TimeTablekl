@@ -554,7 +554,7 @@ export default function Attendance() {
         name="keywords"
         content="KL Attendance Calculator, KL ERP Attendance, KL University Attendance, Bunk Calculator KL, KL Attendance Percentage"
       />
-      <Link rel="canonical" href="https://timetable.vercel.app/attendance" />
+      <Link rel="canonical" href="https://timetablekl.vercel.app/attendance" />
       <Meta name="robots" content="index, follow" />
       <Header />
 

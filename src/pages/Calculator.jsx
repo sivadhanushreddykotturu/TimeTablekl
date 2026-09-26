@@ -398,7 +398,7 @@ export default function Calculator() {
         name="keywords"
         content="KL Calculator, KL University attendance calculator, timetable calculator, attendance percentage, KL ERP, weighted average calculator"
       />
-      <Link rel="canonical" href="https://timetable.vercel.app/kl-calculator" />
+      <Link rel="canonical" href="https://timetablekl.vercel.app/kl-attendance-calculator" />
       <Meta name="robots" content="index, follow" />
       {isLoggedIn ? (
         <Header onRefresh={() => {}} />

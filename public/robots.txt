@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://timetable.vercel.app/sitemap.xml
+Sitemap: https://timetablekl.vercel.app/sitemap.xml
