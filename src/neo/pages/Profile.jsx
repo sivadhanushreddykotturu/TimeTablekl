@@ -8,7 +8,6 @@ import {
   FiGithub,
   FiLinkedin,
   FiRefreshCw,
-  FiRadio,
   FiClock,
   FiDroplet,
 } from "react-icons/fi";
@@ -42,9 +41,6 @@ export default function NeoProfile() {
   );
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [radioEnabled, setRadioEnabled] = useState(
-    () => localStorage.getItem("radio_enabled") === "true"
-  );
   const [timeFormat, setTimeFormat] = useState(
     () => localStorage.getItem("time_format") || "12"
   );
@@ -270,23 +266,6 @@ export default function NeoProfile() {
           <FiMessageSquare size={15} /> send feedback
         </span>
         <span className="np-linkrow__go">→</span>
-      </button>
-
-      <button
-        className="np-linkrow"
-        onClick={() =>
-          setRadioEnabled((prev) => {
-            localStorage.setItem("radio_enabled", String(!prev));
-            return !prev;
-          })
-        }
-      >
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <FiRadio size={15} /> campus radio
-        </span>
-        <span className={`np-toggle${radioEnabled ? " np-toggle--on" : ""}`}>
-          {radioEnabled ? "on" : "off"}
-        </span>
       </button>
 
       <button

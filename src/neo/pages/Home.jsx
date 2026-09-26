@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import NeoShell, { NeoModal } from "../Shell.jsx";
-import CampusRadio from "../components/CampusRadio.jsx";
 import ClassTimer, { ClassTimerReadout, ClassProgressBar } from "../components/ClassTimer.jsx";
 import AnnouncementBanner from "../components/AnnouncementBanner.jsx";
 import Toast from "../../components/Toast.jsx";
@@ -174,19 +173,7 @@ export default function NeoHome() {
   const [showChangesPopup, setShowChangesPopup] = useState(false);
   const [resyncChanges, setResyncChanges] = useState([]);
   const [autoSyncing, setAutoSyncing] = useState(false);
-  const [radioEnabled, setRadioEnabled] = useState(
-    () => localStorage.getItem("radio_enabled") === "true"
-  );
   const previousTimetableRef = useRef(null);
-
-  useEffect(() => {
-    const checkRadioEnabled = () => {
-      setRadioEnabled(localStorage.getItem("radio_enabled") === "true");
-    };
-    checkRadioEnabled();
-    window.addEventListener("focus", checkRadioEnabled);
-    return () => window.removeEventListener("focus", checkRadioEnabled);
-  }, []);
 
   useEffect(() => {
     const { current: cur, next: nxt } = findCurrentAndNextClass(timetable);
@@ -332,11 +319,6 @@ export default function NeoHome() {
       </section>
 
       </div>
-
-      {/* synchronized campus radio (toggleable in profile) */}
-      {radioEnabled && (
-        <CampusRadio />
-      )}
 
       {/* announcement banner (always visible even if games are disabled) */}
       <AnnouncementBanner />
