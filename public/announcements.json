@@ -1,5 +1,10 @@
 {
   "active": false,
   "title": "⚙️👷🏻‍♂️🛠️🔧",
-  "message": "Register isn't working, will fix it tonight."
+  "message": "Register isn't working, will fix it tonight.",
+  "bugSweep": {
+    "active": true,
+    "campaignId": "sweep-2026-09-28",
+    "durationHours": 24
+  }
 }

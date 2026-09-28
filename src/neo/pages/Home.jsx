@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import NeoShell, { NeoModal } from "../Shell.jsx";
 import ClassTimer, { ClassTimerReadout, ClassProgressBar } from "../components/ClassTimer.jsx";
 import AnnouncementBanner from "../components/AnnouncementBanner.jsx";
+import BugSweepFeedback from "../components/BugSweepFeedback.jsx";
 import Toast from "../../components/Toast.jsx";
 
 import { syncTimetable } from "../../../utils/syncTimetable.js";
@@ -322,6 +323,9 @@ export default function NeoHome() {
 
       {/* announcement banner (always visible even if games are disabled) */}
       <AnnouncementBanner />
+
+      {/* 24-hour bug sweep feedback (open on desktop right side, expandable on mobile) */}
+      <BugSweepFeedback />
 
       {/* minimal links footer (benchmarks left, portfolio right) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingLeft: '8px', paddingRight: '8px' }}>
