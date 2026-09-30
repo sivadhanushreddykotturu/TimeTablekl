@@ -12,7 +12,7 @@ export function useAppUpdater() {
     // 1. Silent Check & Update Logic
     const checkForAppUpdate = async () => {
       if (isCheckingRef.current || isUpdatingRef.current) return;
-      if (process.env.NODE_ENV === "development" && CURRENT_BUILD_ID === "dev") return;
+      if (import.meta.env.DEV || CURRENT_BUILD_ID === "dev") return;
 
       try {
         isCheckingRef.current = true;

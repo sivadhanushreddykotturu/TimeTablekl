@@ -8,6 +8,7 @@ import { NeoField, NeoSelect, NeoButton } from "../neo/NeoKit.jsx";
 import { trackEvent } from "../utils/analytics";
 import { useTheme } from "../contexts/ThemeContext";
 import { Title, Meta, Link } from "react-head";
+import { decodeHtml } from "../utils/gradesUtils.js";
 
 // Compact version of the attendance page's LTPS-weighted grouping,
 // used for the quick-check teaser result.
@@ -17,7 +18,8 @@ function summarizeAttendance(attendance) {
   const grouped = {};
   attendance.forEach((item) => {
     const code = item.course_code ?? item.Coursecode ?? "";
-    const name = item.course_name ?? item.Coursedesc ?? "";
+    const rawName = item.course_name ?? item.Coursedesc ?? "";
+    const name = decodeHtml(rawName);
     const type = (item.type ?? item.Ltps ?? "").charAt(0).toUpperCase();
     const conducted = parseInt(item.conducted ?? item["Total Conducted"] ?? "0", 10) || 0;
     const attended = parseInt(item.attended ?? item["Total Attended"] ?? "0", 10) || 0;
@@ -25,15 +27,16 @@ function summarizeAttendance(attendance) {
     if (!code) return;
     if (!grouped[code]) grouped[code] = { code, name, wAtt: 0, wCon: 0 };
     const w = LTPS_WEIGHTS[type] || LTPS_WEIGHTS.O;
-    grouped[code].wAtt += (attended + (tcbr > 0 ? tcbr : 0)) * w;
-    grouped[code].wCon += conducted * w;
+    const effectiveConducted = Math.max(0, conducted - (tcbr > 0 ? tcbr : 0));
+    grouped[code].wAtt += attended * w;
+    grouped[code].wCon += effectiveConducted * w;
   });
 
   const courses = Object.values(grouped)
     .map((c) => ({
       code: c.code,
-      name: c.name,
-      pct: c.wCon > 0 ? Math.round((c.wAtt / c.wCon) * 100) : 0,
+      name: decodeHtml(c.name),
+      pct: c.wCon > 0 ? Math.ceil((c.wAtt / c.wCon) * 100) : 0,
     }))
     .sort((a, b) => a.pct - b.pct);
 
@@ -187,10 +190,10 @@ export default function Calculator() {
       const componentType = comp.type.charAt(0).toUpperCase();
       const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
       
-      const adjustedAttended = attended + tcbrValue;
+      const effectiveConducted = Math.max(0, conducted - tcbrValue);
 
-      weightedAttendedSum += adjustedAttended * weight;
-      weightedConductedSum += conducted * weight;
+      weightedAttendedSum += attended * weight;
+      weightedConductedSum += effectiveConducted * weight;
     });
 
     if (weightedConductedSum > 0) {
@@ -271,12 +274,12 @@ export default function Calculator() {
       return;
     }
 
-    const adjustedAttended = attended + (tcbrValue > 0 ? tcbrValue : 0);
-    const currentPercent = (adjustedAttended / total) * 100;
+    const effectiveTotal = Math.max(1, total - (tcbrValue > 0 ? tcbrValue : 0));
+    const currentPercent = (attended / effectiveTotal) * 100;
     const currentPercentFormatted = currentPercent.toFixed(2);
 
     if (currentPercent >= required) {
-      const daysAvailableToSick = daysToSick(adjustedAttended, total, required);
+      const daysAvailableToSick = daysToSick(attended, effectiveTotal, required);
       let outputLine1 = `🟢 Attendance: ${currentPercentFormatted}%`;
       let outputLine2;
 
@@ -287,12 +290,12 @@ export default function Calculator() {
       }
 
       if (tcbrValue > 0) {
-        outputLine1 += ` (tcbr=${tcbrValue})`;
+        outputLine1 += ` (tcbr=${tcbrValue} condoned)`;
       }
 
       setSickResult(`${outputLine1}<br/>${outputLine2}`);
     } else {
-      const attendanceNeeded = reqAttendance(adjustedAttended, total, required);
+      const attendanceNeeded = reqAttendance(attended, effectiveTotal, required);
       let outputLine1 = `🔴 Attendance: ${currentPercentFormatted}%`;
       let outputLine2;
 
@@ -303,7 +306,7 @@ export default function Calculator() {
       }
 
       if (tcbrValue > 0) {
-        outputLine1 += ` (tcbr=${tcbrValue})`;
+        outputLine1 += ` (tcbr=${tcbrValue} condoned)`;
       }
 
       setSickResult(`${outputLine1}<br/>${outputLine2}`);
@@ -342,8 +345,8 @@ export default function Calculator() {
       setError("Tcbr must be 0 or greater");
       return;
     }
-    const adjustedAttended = attended + (tcbrValue > 0 ? tcbrValue : 0);
-    const raw = (adjustedAttended / total) * 100;
+    const effectiveTotal = Math.max(1, total - (tcbrValue > 0 ? tcbrValue : 0));
+    const raw = (attended / effectiveTotal) * 100;
     const result = raw.toFixed(2);
     setPercentage(result);
   };
@@ -437,14 +440,14 @@ export default function Calculator() {
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
               {qcResult.courses.map((c) => (
-                <span key={c.code} className="np-chip" title={c.name}>
-                  {c.name || c.code} <small>{c.pct}%</small>
+                <span key={c.code} className="np-chip" title={decodeHtml(c.name)}>
+                  {decodeHtml(c.name || c.code)} <small>{c.pct}%</small>
                 </span>
               ))}
             </div>
             <p className="np-note" style={{ marginBottom: 14 }}>
               This updates automatically in the app — plus timetable, grades,
-              safe-bunk hints and the daily game. Timetable syncs on its own.
+              and safe-bunk hints. Timetable syncs on its own.
             </p>
             <NeoButton onClick={() => navigate("/home")}>open the full app →</NeoButton>
           </div>
@@ -1034,8 +1037,7 @@ export default function Calculator() {
           </h2>
           <p>
             One ERP sign-in turns into all of this — attendance, timetable,
-            grades, friends' schedules, and a break-time game with a daily
-            campus leaderboard.
+            grades, and friends' schedules.
           </p>
           <div
             style={{
@@ -1048,8 +1050,8 @@ export default function Calculator() {
             {[
               {
                 src: "/images/photo_2026-07-28_03-29-27.jpg",
-                alt: "TimeTable PWA home screen for KL University students showing current and next class, break-time dino game and daily top-3 campus leaderboard",
-                cap: "home · your day + daily game",
+                alt: "TimeTable PWA home screen for KL University students showing current and next class and daily schedule",
+                cap: "home · your day",
               },
               {
                 src: "/images/photo_2026-07-28_03-29-29.jpg",
@@ -1117,9 +1119,10 @@ export default function Calculator() {
             How is KL University attendance percentage calculated?
           </h3>
           <p>
-            Attendance % = (attended + TCBR) ÷ conducted × 100. Your overall
-            percentage is a weighted average across LTPS components, where Lecture
-            and Tutorial hours weigh 100, Practical 50, and Skilling 25.
+            Attendance % = Attended ÷ (Conducted - TCBR) × 100. TCBR hours are
+            condoned directly from conducted hours. Your overall percentage is a
+            weighted average across LTPS components, where Lecture and Tutorial
+            hours weigh 100, Practical 50, and Skilling 25.
           </p>
 
           <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
@@ -1128,17 +1131,16 @@ export default function Calculator() {
           <p>
             Most KL University courses require at least 75% attendance to be
             eligible for semester-end exams. Exact rules and any condonation
-            provisions are in your academic regulations — when in doubt, keep a
-            buffer above 75%.
+            provisions are in your academic regulations — keep a safe buffer (85% recommended).
           </p>
 
           <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
             What is TCBR in KL ERP?
           </h3>
           <p>
-            TCBR is the regularization credit shown in the KL ERP attendance
-            register — it is added to your attended classes, so include it when
-            calculating your real percentage.
+            TCBR is the condonation credit shown in the KL ERP attendance
+            register — it is deducted from your total conducted classes, giving
+            your official attendance percentage.
           </p>
 
           <h3 style={{ color: "var(--text-primary)", fontSize: "1rem", margin: "16px 0 4px" }}>
@@ -1207,7 +1209,7 @@ export default function Calculator() {
                 name: "How is KL University attendance percentage calculated?",
                 acceptedAnswer: {
                   "@type": "Answer",
-                  text: "Attendance % = (attended + TCBR) ÷ conducted × 100. The overall percentage is a weighted average across LTPS components: Lecture and Tutorial weigh 100, Practical 50, Skilling 25.",
+                  text: "Attendance % = Attended ÷ (Conducted - TCBR) × 100. TCBR hours are condoned directly from conducted hours. The overall percentage is a weighted average across LTPS components: Lecture and Tutorial weigh 100, Practical 50, Skilling 25.",
                 },
               },
               {
@@ -1223,7 +1225,7 @@ export default function Calculator() {
                 name: "What is TCBR in KL ERP?",
                 acceptedAnswer: {
                   "@type": "Answer",
-                  text: "TCBR is the regularization credit shown in the KL ERP attendance register. It is added to your attended classes when computing your real attendance percentage.",
+                  text: "TCBR is the regularization condonation shown in the KL ERP attendance register. It is deducted from your conducted classes when computing your real attendance percentage.",
                 },
               },
               {

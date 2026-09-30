@@ -76,13 +76,12 @@ export default function CalculatorModal({ isOpen, onClose, initialCourseData }) 
       newComponentsData.forEach((comp) => {
         const attended = parseInt(comp.attended || "0", 10);
         const conducted = parseInt(comp.conducted || "0", 10);
-        const tcbrValue = parseInt(comp.tcbr || "0", 10);
         if (conducted <= 0 || !Number.isFinite(attended) || attended < 0 || tcbrValue < 0) return;
         const componentType = comp.type.charAt(0).toUpperCase();
         const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
-        const adjustedAttended = attended + tcbrValue;
-        weightedAttendedSum += adjustedAttended * weight;
-        weightedConductedSum += conducted * weight;
+        const effectiveConducted = Math.max(0, conducted - tcbrValue);
+        weightedAttendedSum += attended * weight;
+        weightedConductedSum += effectiveConducted * weight;
       });
       if (weightedConductedSum > 0) {
         setWeightedAverage(Math.ceil(Math.max(0, Math.min(100, (weightedAttendedSum / weightedConductedSum) * 100))));
@@ -123,12 +122,12 @@ export default function CalculatorModal({ isOpen, onClose, initialCourseData }) 
       const componentType = comp.type.charAt(0).toUpperCase();
       const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
       
-      // Calculate adjusted attended classes (Attended + Tcbr)
-      const adjustedAttended = attended + tcbrValue;
+      // Effective conducted classes (Conducted - Tcbr condonation)
+      const effectiveConducted = Math.max(0, conducted - tcbrValue);
 
       // Add to weighted sums
-      weightedAttendedSum += adjustedAttended * weight;
-      weightedConductedSum += conducted * weight;
+      weightedAttendedSum += attended * weight;
+      weightedConductedSum += effectiveConducted * weight;
     });
 
     if (weightedConductedSum > 0) {
@@ -218,12 +217,12 @@ export default function CalculatorModal({ isOpen, onClose, initialCourseData }) 
       return;
     }
 
-    const adjustedAttended = attended + (tcbrValue > 0 ? tcbrValue : 0);
-    const currentPercent = (adjustedAttended / total) * 100;
+    const effectiveTotal = Math.max(1, total - (tcbrValue > 0 ? tcbrValue : 0));
+    const currentPercent = (attended / effectiveTotal) * 100;
     const currentPercentFormatted = currentPercent.toFixed(2);
 
     if (currentPercent >= required) {
-      const daysAvailableToBunk = daysToBunk(adjustedAttended, total, required);
+      const daysAvailableToBunk = daysToBunk(attended, effectiveTotal, required);
       let outputLine1 = `🟢 Attendance: ${currentPercentFormatted}%`;
       let outputLine2;
 
@@ -234,12 +233,12 @@ export default function CalculatorModal({ isOpen, onClose, initialCourseData }) 
       }
 
       if (tcbrValue > 0) {
-        outputLine1 += ` (tcbr=${tcbrValue})`;
+        outputLine1 += ` (tcbr=${tcbrValue} condoned)`;
       }
 
       setBunkResult(`${outputLine1}<br/>${outputLine2}`);
     } else {
-      const attendanceNeeded = reqAttendance(adjustedAttended, total, required);
+      const attendanceNeeded = reqAttendance(attended, effectiveTotal, required);
       let outputLine1 = `🔴 Attendance: ${currentPercentFormatted}%`;
       let outputLine2;
 
@@ -250,7 +249,7 @@ export default function CalculatorModal({ isOpen, onClose, initialCourseData }) 
       }
 
       if (tcbrValue > 0) {
-        outputLine1 += ` (tcbr=${tcbrValue})`;
+        outputLine1 += ` (tcbr=${tcbrValue} condoned)`;
       }
 
       setBunkResult(`${outputLine1}<br/>${outputLine2}`);
@@ -289,8 +288,8 @@ export default function CalculatorModal({ isOpen, onClose, initialCourseData }) 
       setError("Tcbr must be 0 or greater");
       return;
     }
-    const adjustedAttended = attended + (tcbrValue > 0 ? tcbrValue : 0);
-    const raw = (adjustedAttended / total) * 100;
+    const effectiveTotal = Math.max(1, total - (tcbrValue > 0 ? tcbrValue : 0));
+    const raw = (attended / effectiveTotal) * 100;
     const result = raw.toFixed(2);
     setPercentage(result);
   };

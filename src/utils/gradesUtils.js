@@ -1,9 +1,17 @@
-/** Decode HTML entities from ERP course names (e.g. &amp; → &) */
 export const decodeHtml = (text) => {
   if (!text) return "";
-  const el = document.createElement("textarea");
-  el.innerHTML = text;
-  return el.value;
+  let clean = String(text);
+  for (let i = 0; i < 2; i++) {
+    clean = clean
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/&#039;/gi, "'")
+      .replace(/&nbsp;/gi, " ");
+  }
+  return clean.trim();
 };
 
 /**

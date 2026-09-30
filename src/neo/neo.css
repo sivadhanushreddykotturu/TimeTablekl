@@ -549,6 +549,11 @@ body.np-body button.np-iconbtn--exit {
   color: var(--np-pink);
 }
 
+body.np-body button.np-iconbtn--active {
+  border-color: var(--np-acid);
+  color: var(--np-cream);
+}
+
 .np-spin {
   animation: np-spin 0.9s linear infinite;
 }

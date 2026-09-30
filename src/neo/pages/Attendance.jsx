@@ -14,6 +14,7 @@ import { getFormData, getRegisterDetailFormData, API_CONFIG } from "../../config
 import { getSubjectName } from "../../utils/subjectMapper";
 import { getCSSColor } from "../utils/themeEngine";
 import GuestAuthModal, { ensureTimetableFetched } from "../../components/GuestAuthModal.jsx";
+import { decodeHtml } from "../../utils/gradesUtils.js";
 
 
 function formatTimeAgo(isoString) {
@@ -73,8 +74,29 @@ export default function NeoAttendance() {
   const [targetPercentage, setTargetPercentage] = useState(() => {
     const saved = localStorage.getItem("attendanceTargetPercentage");
     const parsed = saved ? parseFloat(saved) : NaN;
-    return Number.isFinite(parsed) ? parsed : 75;
+    return Number.isFinite(parsed) ? parsed : 85;
   });
+  const [includeTcbr, setIncludeTcbr] = useState(true);
+
+  // Ensure legacy stored setting is removed so TCBR always defaults to true
+  useEffect(() => {
+    try {
+      localStorage.removeItem("include_tcbr");
+    } catch (_) {}
+  }, []);
+
+  const hasAnyTcbr = attendanceData && attendanceData.length > 0 && attendanceData.some(item => {
+    const val = parseInt(item.tcbr ?? item.Tcbr ?? "0", 10);
+    return Number.isFinite(val) && val > 0;
+  });
+
+  const toggleTcbr = () => {
+    setIncludeTcbr((prev) => {
+      const next = !prev;
+      trackEvent("attendance_tcbr_toggled", { enabled: next });
+      return next;
+    });
+  };
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetInput, setTargetInput] = useState("");
   const [targetError, setTargetError] = useState("");
@@ -349,13 +371,13 @@ export default function NeoAttendance() {
     return Math.max(0, Math.floor(available));
   };
 
-  const groupAttendanceByCourse = (attendance) => {
+  const groupAttendanceByCourse = (attendance, withTcbr = includeTcbr) => {
     const LTPS_WEIGHTS = { L: 100, T: 100, P: 50, S: 25, O: 1 };
 
     const grouped = {};
     attendance.forEach(item => {
       const courseCode = item.course_code ?? item.Coursecode ?? "";
-      const courseName = item.course_name ?? item.Coursedesc ?? "";
+      const courseName = decodeHtml(item.course_name ?? item.Coursedesc ?? "");
       const ltps = item.type ?? item.Ltps ?? "";
       const section = item.section ?? item.Section ?? "";
       const conducted = item.conducted ?? item["Total Conducted"] ?? "0";
@@ -372,9 +394,10 @@ export default function NeoAttendance() {
       const totalConducted = parseInt(conducted);
 
       let rawPercentage = 0;
-      if (totalConducted > 0) {
-        const adjustedAttended = totalAttended + (tcbr > 0 ? tcbr : 0);
-        rawPercentage = (adjustedAttended / totalConducted) * 100;
+      const effectiveTcbr = withTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
+      const effectiveConducted = withTcbr ? Math.max(0, totalConducted - effectiveTcbr) : totalConducted;
+      if (effectiveConducted > 0) {
+        rawPercentage = (totalAttended / effectiveConducted) * 100;
       }
 
       grouped[courseCode].sections.push({
@@ -385,6 +408,8 @@ export default function NeoAttendance() {
         totalAttended: attended,
         totalAbsent: absent,
         tcbr,
+        effectiveTcbr,
+        effectiveConducted,
         rawPercentage: rawPercentage.toFixed(2)
       });
     });
@@ -398,14 +423,15 @@ export default function NeoAttendance() {
           const componentType = section.ltps.charAt(0).toUpperCase();
           const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
 
-          const attended = parseInt(section.totalAttended);
-          const conducted = parseInt(section.totalConducted);
-          const tcbr = parseInt(section.tcbr || "0");
-          const adjustedAttended = (Number.isFinite(attended) ? attended : 0) + (tcbr > 0 ? tcbr : 0);
-          const safeConducted = Number.isFinite(conducted) ? conducted : 0;
+          const attended = parseInt(section.totalAttended, 10);
+          const conducted = parseInt(section.totalConducted, 10);
+          const tcbr = parseInt(section.tcbr || "0", 10);
+          const effectiveTcbr = withTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
+          const effectiveConducted = withTcbr ? Math.max(0, conducted - effectiveTcbr) : conducted;
+          const safeAttended = Number.isFinite(attended) ? attended : 0;
 
-          weightedAttendedSum += adjustedAttended * weight;
-          weightedConductedSum += safeConducted * weight;
+          weightedAttendedSum += safeAttended * weight;
+          weightedConductedSum += effectiveConducted * weight;
         });
 
         if (weightedConductedSum > 0) {
@@ -518,12 +544,13 @@ export default function NeoAttendance() {
           const attended = parseInt(section.totalAttended);
           const conducted = parseInt(section.totalConducted);
           const tcbr = parseInt(section.tcbr || "0");
-          const adjustedAttended = (Number.isFinite(attended) ? attended : 0) + (tcbr > 0 ? tcbr : 0);
-          const safeConducted = Number.isFinite(conducted) ? conducted : 0;
+          const effectiveTcbr = includeTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
+          const effectiveConducted = includeTcbr ? Math.max(0, conducted - effectiveTcbr) : conducted;
+          const safeAttended = Number.isFinite(attended) ? attended : 0;
 
           let individualPercentage = 0;
-          if (safeConducted > 0) {
-            individualPercentage = Math.ceil((adjustedAttended / safeConducted) * 100);
+          if (effectiveConducted > 0) {
+            individualPercentage = Math.ceil((safeAttended / effectiveConducted) * 100);
           }
 
           ctx.fillStyle = compIndex % 2 === 0 ? getCSSColor("--np-carbon") : getCSSColor("--np-panel");
@@ -810,9 +837,21 @@ export default function NeoAttendance() {
         </div>
         <div className="np-pagehead__row">
           <h1 className="np-pagehead__title">attendance<i>.</i></h1>
-          <button className="np-iconbtn" onClick={() => setShowTargetModal(true)}>
-            safe % · {targetPercentage}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            {hasAnyTcbr && (
+              <button
+                type="button"
+                className="np-iconbtn"
+                onClick={toggleTcbr}
+                title={includeTcbr ? "TCBR included in attendance. Click to turn off." : "TCBR excluded. Click to turn on."}
+              >
+                tcbr · {includeTcbr ? "on" : "off"}
+              </button>
+            )}
+            <button className="np-iconbtn" onClick={() => setShowTargetModal(true)}>
+              safe % · {targetPercentage}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -837,7 +876,7 @@ export default function NeoAttendance() {
           <p className="np-empty__text">Nothing came back from ERP for this semester.</p>
         </div>
       ) : (
-        groupAttendanceByCourse(attendanceData).map((course, index) => (
+        groupAttendanceByCourse(attendanceData, includeTcbr).map((course, index) => (
           <div key={index} className="np-att">
             <div className="np-att__head">
               <div className="np-att__code">{getSubjectName(course.courseCode)}</div>
@@ -860,7 +899,7 @@ export default function NeoAttendance() {
                           type,
                           attended: section.totalAttended,
                           conducted: section.totalConducted,
-                          tcbr: section.tcbr || "0"
+                          tcbr: includeTcbr ? (section.tcbr || "0") : "0"
                         };
                       }).filter(item => ['L', 'T', 'P', 'S'].includes(item.type));
                       setCalculatorInitialCourse(initData);
@@ -889,9 +928,11 @@ export default function NeoAttendance() {
               const attended = parseInt(section.totalAttended);
               const conducted = parseInt(section.totalConducted);
               const tcbr = parseInt(section.tcbr || "0");
-              const adjustedAttended = (Number.isFinite(attended) ? attended : 0) + (tcbr > 0 ? tcbr : 0);
-              const hasNums = Number.isFinite(attended) && Number.isFinite(conducted) && conducted > 0;
-              const currentPct = hasNums ? (adjustedAttended / conducted) * 100 : 0;
+              const effectiveTcbr = includeTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
+              const effectiveConducted = includeTcbr ? Math.max(0, conducted - effectiveTcbr) : conducted;
+              const safeAttended = Number.isFinite(attended) ? attended : 0;
+              const hasNums = Number.isFinite(attended) && Number.isFinite(conducted) && effectiveConducted > 0;
+              const currentPct = hasNums ? (safeAttended / effectiveConducted) * 100 : 0;
 
               return (
                 <div key={sectionIndex} className="np-att__section">
@@ -916,16 +957,16 @@ export default function NeoAttendance() {
                     </div>
                     <div className="np-att__detail">
                       {section.totalAttended}/{section.totalConducted} · {section.totalAbsent} absent
-                      {tcbr > 0 ? ` · tcbr ${tcbr}` : ""}
+                      {tcbr > 0 ? (includeTcbr ? ` · tcbr ${tcbr} (condoned: ${section.totalAttended}/${effectiveConducted})` : ` · tcbr ${tcbr} (off)`) : ""}
                     </div>
                     {hasNums && (
                       currentPct >= targetPercentage ? (
                         <div className="np-att__hint">
-                          safe bunks at {targetPercentage}%: <b>{safeBunksAtTarget(adjustedAttended, conducted, targetPercentage)} hrs</b>
+                          safe bunks at {targetPercentage}%: <b>{safeBunksAtTarget(safeAttended, effectiveConducted, targetPercentage)} hrs</b>
                         </div>
                       ) : (
                         <div className="np-att__hint">
-                          attend <b>{classesToReachTarget(adjustedAttended, conducted, targetPercentage)} hrs</b> for {targetPercentage}%
+                          attend <b>{classesToReachTarget(safeAttended, effectiveConducted, targetPercentage)} hrs</b> for {targetPercentage}%
                         </div>
                       )
                     )}
@@ -953,6 +994,8 @@ export default function NeoAttendance() {
           setSelectedCourseData(null);
         }}
         courseData={selectedCourseData}
+        includeTcbr={includeTcbr}
+        onToggleTcbr={toggleTcbr}
       />
 
       {attendanceData.length > 0 && (

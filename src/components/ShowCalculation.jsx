@@ -1,7 +1,12 @@
 import React from "react";
 
-export default function ShowCalculation({ isOpen, onClose, courseData }) {
+export default function ShowCalculation({ isOpen, onClose, courseData, includeTcbr = true, onToggleTcbr }) {
   if (!isOpen || !courseData) return null;
+
+  const courseHasTcbr = Boolean(
+    courseData.sections &&
+    courseData.sections.some((s) => parseInt(s.tcbr || "0", 10) > 0)
+  );
 
   const LTPS_WEIGHTS = {
     L: 100,
@@ -24,20 +29,19 @@ export default function ShowCalculation({ isOpen, onClose, courseData }) {
       const attended = parseInt(section.totalAttended || "0", 10);
       const conducted = parseInt(section.totalConducted || "0", 10);
       const tcbr = parseInt(section.tcbr || "0", 10);
-      const adjustedAttended = (Number.isFinite(attended) ? attended : 0) + (tcbr > 0 ? tcbr : 0);
-      const safeConducted = Number.isFinite(conducted) ? conducted : 0;
+      const effectiveTcbr = includeTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
+      const effectiveConducted = Math.max(0, conducted - effectiveTcbr);
+      const safeAttended = Number.isFinite(attended) ? attended : 0;
 
-      if (safeConducted > 0) {
-        const weightedAttended = adjustedAttended * weight;
-        const weightedConducted = safeConducted * weight;
+      if (effectiveConducted > 0) {
+        const weightedAttended = safeAttended * weight;
+        const weightedConducted = effectiveConducted * weight;
 
         weightedAttendedSum += weightedAttended;
         weightedConductedSum += weightedConducted;
 
         // Calculate individual percentage with ceiling
-        const individualPercentage = safeConducted > 0 
-          ? Math.ceil((adjustedAttended / safeConducted) * 100)
-          : 0;
+        const individualPercentage = Math.ceil((safeAttended / effectiveConducted) * 100);
 
         steps.push({
           componentType,
@@ -45,7 +49,8 @@ export default function ShowCalculation({ isOpen, onClose, courseData }) {
           attended,
           conducted,
           tcbr,
-          adjustedAttended,
+          effectiveTcbr,
+          effectiveConducted,
           weight,
           weightedAttended,
           weightedConducted,
@@ -144,32 +149,66 @@ export default function ShowCalculation({ isOpen, onClose, courseData }) {
               {courseData.courseCode}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: "transparent",
-              border: "none",
-              fontSize: "24px",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-              padding: "0",
-              width: "28px",
-              height: "28px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "4px",
-              transition: "background 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = "var(--bg-secondary)";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = "transparent";
-            }}
-          >
-            ×
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {courseHasTcbr && onToggleTcbr && (
+              <button
+                type="button"
+                onClick={onToggleTcbr}
+                style={{
+                  background: includeTcbr ? "rgba(16, 185, 129, 0.15)" : "var(--bg-secondary)",
+                  border: includeTcbr ? "1px solid #10b981" : "1px solid var(--border-color)",
+                  color: includeTcbr ? "#10b981" : "var(--text-secondary)",
+                  borderRadius: "20px",
+                  padding: "4px 10px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  transition: "all 0.2s ease",
+                }}
+                title={includeTcbr ? "TCBR condoned from conducted classes. Click to turn off." : "TCBR excluded. Click to turn on."}
+              >
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: includeTcbr ? "#10b981" : "var(--text-secondary)",
+                  }}
+                />
+                tcbr {includeTcbr ? "on" : "off"}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                background: "transparent",
+                border: "none",
+                fontSize: "24px",
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+                padding: "0",
+                width: "28px",
+                height: "28px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "4px",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "var(--bg-secondary)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "transparent";
+              }}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {breakdown.steps.map((step, index) => (
@@ -200,7 +239,21 @@ export default function ShowCalculation({ isOpen, onClose, courseData }) {
               </span>
             </div>
             <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-              {step.adjustedAttended}/{step.conducted} × {step.weight} = {step.weightedAttended} / {step.weightedConducted} = {step.individualPercentage}%
+              {step.attended}/{step.effectiveConducted} × {step.weight} = {step.weightedAttended} / {step.weightedConducted} = {step.individualPercentage}%
+              {step.tcbr > 0 && (
+                <span
+                  style={{
+                    marginLeft: 6,
+                    fontSize: "0.75rem",
+                    color: includeTcbr ? "#10b981" : "var(--text-secondary)",
+                    fontWeight: 500,
+                  }}
+                >
+                  {includeTcbr
+                    ? `(condoned: -${step.tcbr} from ${step.conducted})`
+                    : `(tcbr ${step.tcbr} off)`}
+                </span>
+              )}
             </div>
           </div>
         ))}
@@ -222,6 +275,31 @@ export default function ShowCalculation({ isOpen, onClose, courseData }) {
             Final: {breakdown.finalPercentage}%
           </div>
         </div>
+
+        {courseHasTcbr && (
+          <div
+            style={{
+              marginTop: "10px",
+              padding: "8px 12px",
+              borderRadius: "6px",
+              background: "var(--bg-secondary)",
+              fontSize: "0.75rem",
+              color: "var(--text-secondary)",
+              lineHeight: 1.4,
+              border: "1px dashed var(--border-color)",
+            }}
+          >
+            {includeTcbr ? (
+              <span>
+                💡 <b>KL ERP Condonation mode:</b> TCBR ({breakdown.steps.reduce((acc, s) => acc + (s.tcbr || 0), 0)} hrs) is deducted from total conducted hours, giving your exact official portal percentage.
+              </span>
+            ) : (
+              <span>
+                💡 <b>Raw mode:</b> Calculated with total raw conducted hours without deducting TCBR.
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

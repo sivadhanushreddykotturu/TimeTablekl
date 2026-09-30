@@ -10,6 +10,7 @@ import { trackEvent } from "../utils/analytics";
 import axios from "axios";
 import { getCredentials, handleSessionRefresh } from "../../utils/storage.js";
 import { getFormData, getRegisterDetailFormData, API_CONFIG } from "../config/api.js";
+import { decodeHtml } from "../utils/gradesUtils.js";
 
 import Lottie from "lottie-react";
 import animationData from "../assets/animation.json";
@@ -35,7 +36,7 @@ export default function Attendance() {
   const [targetPercentage, setTargetPercentage] = useState(() => {
     const saved = localStorage.getItem("attendanceTargetPercentage");
     const parsed = saved ? parseFloat(saved) : NaN;
-    return Number.isFinite(parsed) ? parsed : 75;
+    return Number.isFinite(parsed) ? parsed : 85;
   });
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [targetInput, setTargetInput] = useState("");
@@ -226,7 +227,7 @@ export default function Attendance() {
     attendance.forEach(item => {
       // Support both new snake_case (backend v7.3) and old PascalCase field names
       const courseCode = item.course_code ?? item.Coursecode ?? "";
-      const courseName = item.course_name ?? item.Coursedesc ?? "";
+      const courseName = decodeHtml(item.course_name ?? item.Coursedesc ?? "");
       const ltps = item.type ?? item.Ltps ?? "";
       const section = item.section ?? item.Section ?? "";
       const conducted = item.conducted ?? item["Total Conducted"] ?? "0";
@@ -247,9 +248,9 @@ export default function Attendance() {
       const totalConducted = parseInt(conducted);
 
       let rawPercentage = 0;
-      if (totalConducted > 0) {
-        const adjustedAttended = totalAttended + (tcbr > 0 ? tcbr : 0);
-        rawPercentage = (adjustedAttended / totalConducted) * 100;
+      const effectiveConducted = Math.max(0, totalConducted - (tcbr > 0 ? tcbr : 0));
+      if (effectiveConducted > 0) {
+        rawPercentage = (totalAttended / effectiveConducted) * 100;
       }
 
       grouped[courseCode].sections.push({
@@ -276,11 +277,11 @@ export default function Attendance() {
           const attended = parseInt(section.totalAttended);
           const conducted = parseInt(section.totalConducted);
           const tcbr = parseInt(section.tcbr || "0");
-          const adjustedAttended = (Number.isFinite(attended) ? attended : 0) + (tcbr > 0 ? tcbr : 0);
-          const safeConducted = Number.isFinite(conducted) ? conducted : 0;
+          const effectiveConducted = Math.max(0, conducted - (tcbr > 0 ? tcbr : 0));
+          const safeAttended = Number.isFinite(attended) ? attended : 0;
 
-          weightedAttendedSum += adjustedAttended * weight;
-          weightedConductedSum += safeConducted * weight;
+          weightedAttendedSum += safeAttended * weight;
+          weightedConductedSum += effectiveConducted * weight;
         });
 
         if (weightedConductedSum > 0) {
@@ -406,12 +407,12 @@ export default function Attendance() {
           const attended = parseInt(section.totalAttended);
           const conducted = parseInt(section.totalConducted);
           const tcbr = parseInt(section.tcbr || "0");
-          const adjustedAttended = (Number.isFinite(attended) ? attended : 0) + (tcbr > 0 ? tcbr : 0);
-          const safeConducted = Number.isFinite(conducted) ? conducted : 0;
+          const effectiveConducted = Math.max(0, conducted - (tcbr > 0 ? tcbr : 0));
+          const safeAttended = Number.isFinite(attended) ? attended : 0;
 
           let individualPercentage = 0;
-          if (safeConducted > 0) {
-            individualPercentage = Math.ceil((adjustedAttended / safeConducted) * 100);
+          if (effectiveConducted > 0) {
+            individualPercentage = Math.ceil((safeAttended / effectiveConducted) * 100);
           }
 
           // Alternate row background
@@ -847,7 +848,7 @@ export default function Attendance() {
                           {(() => {
                             const tcbrValue = parseInt(section.tcbr || "0");
                             return tcbrValue > 0 ? (
-                              <span className="absent-count" style={{ marginLeft: "4px" }}>tcbr={tcbrValue}</span>
+                              <span className="absent-count" style={{ marginLeft: "4px" }}>tcbr={tcbrValue} (condoned)</span>
                             ) : null;
                           })()}
                         </div>
@@ -856,21 +857,22 @@ export default function Attendance() {
                           const attended = parseInt(section.totalAttended);
                           const conducted = parseInt(section.totalConducted);
                           const tcbr = parseInt(section.tcbr || "0");
-                          if (!Number.isFinite(attended) || !Number.isFinite(conducted) || conducted <= 0) {
+                          const effectiveConducted = Math.max(0, conducted - (tcbr > 0 ? tcbr : 0));
+                          const safeAttended = Number.isFinite(attended) ? attended : 0;
+                          if (!Number.isFinite(attended) || !Number.isFinite(conducted) || effectiveConducted <= 0) {
                             return null;
                           }
 
-                          const adjustedAttended = attended + (tcbr > 0 ? tcbr : 0);
-                          const current = (adjustedAttended / conducted) * 100;
+                          const current = (safeAttended / effectiveConducted) * 100;
                           if (current >= targetPercentage) {
-                            const safe = safeBunksAtTarget(adjustedAttended, conducted, targetPercentage);
+                            const safe = safeBunksAtTarget(safeAttended, effectiveConducted, targetPercentage);
                             return (
                               <div style={{ marginTop: "4px", fontSize: "0.9em", color: "var(--text-secondary)" }}>
                                 Safe sessions at {targetPercentage}%: <strong style={{ color: "var(--text-primary)" }}>{safe} (hrs)</strong>
                               </div>
                             );
                           }
-                          const need = classesToReachTarget(adjustedAttended, conducted, targetPercentage);
+                          const need = classesToReachTarget(safeAttended, effectiveConducted, targetPercentage);
                           return (
                             <div style={{ marginTop: "4px", fontSize: "0.9em", color: "var(--text-secondary)" }}>
                               Attend next <strong style={{ color: "var(--text-primary)" }}>{need} (hrs)</strong> to reach {targetPercentage}%
