@@ -1,7 +1,7 @@
 {
   "active": true,
   "title": "‼️IMPORTANT‼️",
-  "message": "KL ERP calculates attendance using TCBR condonation: Total Conducted hours are reduced by TCBR hours [Effective Conducted = Conducted - TCBR = Attended + Absent], giving your exact official ERP percentage. TimeTable has now been updated to match this official formula by default. You can also use the TCBR toggle button in the Attendance tab header to view raw vs condoned attendance anytime.",
+  "message": "Attendance formula updated to match official KL ERP condonation!\n\n• BEFORE: (Attended + TCBR) ÷ Conducted\n• NOW (Official ERP): Attended ÷ (Conducted - TCBR)\n\nTCBR condones conducted hours. You can also use the new TCBR ON/OFF button in Attendance to compare raw vs condoned stats anytime!",
   "bugSweep": {
     "active": false,
     "campaignId": "sweep-2026-09-28",

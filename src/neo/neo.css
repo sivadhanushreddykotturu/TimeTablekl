@@ -383,6 +383,7 @@ body.np-body .toast {
     font-size: 12px;
     line-height: 1.5;
     color: var(--np-cream);
+    white-space: pre-line;
   }
 
   .np-companion-projection__hint {

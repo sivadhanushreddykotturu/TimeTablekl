@@ -54,6 +54,7 @@ export default function AnnouncementBanner() {
           color: "var(--np-cream)",
           fontFamily: "var(--np-font-ui)",
           lineHeight: "1.4",
+          whiteSpace: "pre-line",
         }}
       >
         {announcement.message}
