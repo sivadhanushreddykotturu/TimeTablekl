@@ -1,9 +1,9 @@
 {
-  "active": false,
-  "title": "⚙️👷🏻‍♂️🛠️🔧",
-  "message": "Register isn't working, will fix it tonight.",
+  "active": true,
+  "title": "‼️IMPORTANT‼️",
+  "message": "KL ERP calculates attendance using TCBR condonation: Total Conducted hours are reduced by TCBR hours [Effective Conducted = Conducted - TCBR = Attended + Absent], giving your exact official ERP percentage. TimeTable has now been updated to match this official formula by default. You can also use the TCBR toggle button in the Attendance tab header to view raw vs condoned attendance anytime.",
   "bugSweep": {
-    "active": true,
+    "active": false,
     "campaignId": "sweep-2026-09-28",
     "durationHours": 24
   }
