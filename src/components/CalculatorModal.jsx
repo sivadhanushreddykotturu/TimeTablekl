@@ -76,6 +76,7 @@ export default function CalculatorModal({ isOpen, onClose, initialCourseData }) 
       newComponentsData.forEach((comp) => {
         const attended = parseInt(comp.attended || "0", 10);
         const conducted = parseInt(comp.conducted || "0", 10);
+        const tcbrValue = parseInt(comp.tcbr || "0", 10);
         if (conducted <= 0 || !Number.isFinite(attended) || attended < 0 || tcbrValue < 0) return;
         const componentType = comp.type.charAt(0).toUpperCase();
         const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
