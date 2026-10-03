@@ -1,5 +1,5 @@
 {
-  "active": true,
+  "active": false,
   "title": "‼️IMPORTANT‼️",
   "message": "Attendance formula updated to match official KL ERP condonation!\n\n• BEFORE: (Attended + TCBR) ÷ Conducted\n• NOW (Official ERP): Attended ÷ (Conducted - TCBR)\n\nTCBR condones conducted hours. You can also use the new TCBR ON/OFF button in Attendance to compare raw vs condoned stats anytime!",
   "bugSweep": {
