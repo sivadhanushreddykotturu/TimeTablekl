@@ -3553,5 +3553,88 @@ body.np-body button.np-font-card--active {
   }
 }
 
+/* ============================================================
+   BUNK CALCULATOR
+   ============================================================ */
+.bc { display: flex; flex-direction: column; gap: 28px; font-family: var(--np-font-ui); }
+.bc button { font-family: inherit; cursor: pointer; background: none; border: 0; padding: 0; color: inherit; min-height: 0; border-radius: 0; display: inline-block; text-align: left; transition: color 0.15s ease; }
+.bc button:hover, .bc button:active { background: none; transform: none; }
 
+.bc-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--np-muted); margin-bottom: 12px; }
+.bc-label--row { display: flex; justify-content: space-between; align-items: center; }
+.bc-links { display: flex; gap: 16px; letter-spacing: 0; text-transform: none; }
+.bc-links button { font-size: 12px; color: var(--np-muted); }
+.bc-links button:hover { color: var(--np-cream); }
+.bc-sub { margin-top: 10px; font-size: 12px; color: var(--np-muted); }
 
+/* result */
+.bc-result__nums { display: flex; align-items: baseline; gap: 12px; }
+.bc-now { font-size: 18px; color: var(--np-muted); }
+.bc-arrow { color: var(--np-muted); align-self: center; }
+.bc-after { font: 700 46px/1 var(--np-font-display); color: var(--np-cream); }
+.bc-result.is-risk .bc-after { color: var(--np-pink); }
+.bc-delta { font-size: 13px; color: var(--np-muted); }
+.bc-result__meta { margin-top: 10px; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--np-muted); }
+.bc-status { color: var(--np-acid); white-space: nowrap; }
+.bc-result.is-risk .bc-status { color: var(--np-pink); }
+
+/* subject + when share one quiet tab style */
+.bc-chips, .bc-seg { display: flex; gap: 22px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--np-line); }
+.bc-chips::-webkit-scrollbar, .bc-seg::-webkit-scrollbar { display: none; }
+.bc-chip, .bc-seg button { flex-shrink: 0; line-height: 1.2; padding: 0 0 10px; margin-bottom: -1px; border-bottom: 2px solid transparent !important; font-size: 14px; font-weight: 600; color: var(--np-muted); white-space: nowrap; }
+.bc-chip small { margin-left: 6px; font-size: 11px; font-weight: 500; opacity: 0.8; }
+.bc-chip small.is-warn { color: var(--np-pink); opacity: 1; }
+.bc-chip:hover, .bc-seg button:hover { color: var(--np-cream); }
+.bc-chip.is-on, .bc-seg button.is-on { color: var(--np-cream); border-bottom-color: var(--np-acid) !important; }
+
+.bc-dates { display: flex; align-items: center; gap: 12px; margin-top: 16px; color: var(--np-muted); font-size: 12px; }
+.bc-dates input { flex: 1; min-width: 0; padding: 6px 0; background: transparent; border: 0; border-bottom: 1px solid var(--np-line); color: var(--np-cream); font: 600 14px var(--np-font-ui); color-scheme: dark; border-radius: 0; outline: none; }
+.bc-dates input:focus { border-bottom-color: var(--np-acid); }
+
+/* classes */
+.bc-list { display: flex; flex-direction: column; max-height: 320px; overflow-y: auto; }
+.bc-row { display: flex !important; align-items: center; gap: 14px; width: 100%; padding: 13px 0 !important; border-bottom: 1px solid var(--np-line) !important; text-align: left; }
+.bc-row:last-child { border-bottom: 0 !important; }
+.bc-row__mark { display: grid; place-items: center; width: 20px; flex-shrink: 0; color: var(--np-acid); }
+.bc-row__text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.bc-row__text b { font-size: 14px; font-weight: 600; }
+.bc-row__text small { font-size: 12px; color: var(--np-muted); }
+.bc-row.is-absent .bc-row__mark { color: var(--np-pink); }
+.bc-row.is-absent .bc-row__text b { text-decoration: line-through; color: var(--np-muted); }
+
+.bc-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 0; color: var(--np-muted); text-align: center; }
+.bc-empty p { margin: 0; font-size: 13px; }
+.bc-empty button { font-size: 12px; text-decoration: underline; text-underline-offset: 3px; color: var(--np-cream); }
+
+.bc button + button { margin-top: 0 !important; }
+
+/* calculator modal: one quiet scroll, no native white bar */
+.np-modal:has(.bc) { scrollbar-width: thin; scrollbar-color: var(--np-line) transparent; }
+.np-modal:has(.bc)::-webkit-scrollbar { width: 6px; }
+.np-modal:has(.bc)::-webkit-scrollbar-track { background: transparent; }
+.np-modal:has(.bc)::-webkit-scrollbar-thumb { background: var(--np-line); }
+.bc-list { max-height: none; overflow: visible; }
+
+.bc-subject { margin-bottom: -14px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--np-muted); }
+
+.bc-safe { margin-top: 6px; font-size: 12px; color: var(--np-cream); }
+.bc-actions { display: flex; gap: 18px; margin-bottom: 4px; }
+.bc-actions button { font-size: 12px; color: var(--np-muted); text-decoration: underline; text-underline-offset: 3px; }
+.bc-actions button:hover { color: var(--np-cream); }
+.bc-actions button.is-main { color: var(--np-acid); text-decoration: none; font-weight: 700; }
+
+/* custom range calendar */
+.bc-cal { margin-top: 12px; }
+.bc-cal__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; font-size: 13px; font-weight: 600; }
+.bc-cal__head button { display: grid; place-items: center; width: 28px; height: 28px; color: var(--np-muted); }
+.bc-cal__head button:hover { color: var(--np-cream); }
+.bc-cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.bc-cal__wd { text-align: center; font-size: 10px; color: var(--np-muted); padding: 2px 0 4px; }
+.bc .bc-cal__day { position: relative; height: 32px; font-size: 13px; font-weight: 500; color: var(--np-cream); background: transparent; }
+.bc .bc-cal__day:hover { background: var(--np-panel); }
+.bc .bc-cal__day.is-range { background: rgba(207, 255, 4, 0.12); }
+.bc .bc-cal__day.is-edge { background: var(--np-acid) !important; color: #000 !important; font-weight: 700; }
+.bc .bc-cal__day.is-today:not(.is-edge) { color: var(--np-acid); }
+.bc-cal__day.has-class::after { content: ""; position: absolute; left: 50%; bottom: 3px; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: var(--np-muted); }
+.bc-cal__day.is-edge.has-class::after { background: #000; }
+.bc-cal__hint { margin-top: 6px; font-size: 11px; color: var(--np-muted); text-align: center; }

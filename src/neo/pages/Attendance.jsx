@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { FiShare2 } from "react-icons/fi";
-import { LuCalculator } from "react-icons/lu";
+import { LuCalendarCheck2 } from "react-icons/lu";
 import axios from "axios";
 import NeoShell, { NeoModal, NeoLoading } from "../Shell.jsx";
 import { NeoButton } from "../NeoKit.jsx";
-import CalculatorModal from "../../components/CalculatorModal";
+import BunkSimulatorModal from "../../components/BunkSimulatorModal";
 import ShowCalculation from "../../components/ShowCalculation";
 import Toast from "../../components/Toast.jsx";
 import { trackEvent } from "../../utils/analytics";
@@ -47,8 +47,8 @@ export default function NeoAttendance() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showCalculatorModal, setShowCalculatorModal] = useState(false);
-  const [calculatorInitialCourse, setCalculatorInitialCourse] = useState(null);
+  const [showSimulatorModal, setShowSimulatorModal] = useState(false);
+  const [simulatorCourseCode, setSimulatorCourseCode] = useState("");
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [selectedRegisterData, setSelectedRegisterData] = useState(null);
   const [registerLoading, setRegisterLoading] = useState(false);
@@ -170,7 +170,8 @@ export default function NeoAttendance() {
                 if (
                   word.length > 0 &&
                   !["AND", "OF", "THE", "IN", "FOR", "TO"].includes(word.toUpperCase()) &&
-                  !word.match(/^[0-9]+$/)
+                  !word.match(/^[0-9]+$/) &&
+                  /^[A-Za-z0-9]/.test(word)
                 ) {
                   acronym += word[0].toUpperCase();
                 }
@@ -893,20 +894,11 @@ export default function NeoAttendance() {
                   <button
                     className="np-minibtn"
                     onClick={() => {
-                      const initData = course.sections.map(section => {
-                        const type = section.ltps.charAt(0).toUpperCase();
-                        return {
-                          type,
-                          attended: section.totalAttended,
-                          conducted: section.totalConducted,
-                          tcbr: includeTcbr ? (section.tcbr || "0") : "0"
-                        };
-                      }).filter(item => ['L', 'T', 'P', 'S'].includes(item.type));
-                      setCalculatorInitialCourse(initData);
-                      setShowCalculatorModal(true);
+                      setSimulatorCourseCode(course.courseCode);
+                      setShowSimulatorModal(true);
                     }}
                   >
-                    calculator
+                    bunk / attend
                   </button>
                   <button
                     className="np-minibtn"
@@ -978,13 +970,17 @@ export default function NeoAttendance() {
         ))
       )}
 
-      <CalculatorModal
-        isOpen={showCalculatorModal}
+      <BunkSimulatorModal
+        isOpen={showSimulatorModal}
         onClose={() => {
-          setShowCalculatorModal(false);
-          setCalculatorInitialCourse(null);
+          setShowSimulatorModal(false);
+          setSimulatorCourseCode("");
         }}
-        initialCourseData={calculatorInitialCourse}
+        attendanceData={attendanceData}
+        initialCourseCode={simulatorCourseCode}
+        includeTcbr={includeTcbr}
+        targetPercentage={targetPercentage}
+        timetable={friendCredentials ? {} : undefined}
       />
 
       <ShowCalculation
@@ -1012,12 +1008,12 @@ export default function NeoAttendance() {
       <button
         className="np-fab np-fab--1"
         onClick={() => {
-          setCalculatorInitialCourse(null);
-          setShowCalculatorModal(true);
+          setSimulatorCourseCode("");
+          setShowSimulatorModal(true);
         }}
-        title="Open calculator"
+        title="Bunk / Attend Simulator"
       >
-        <LuCalculator size={20} />
+        <LuCalendarCheck2 size={20} />
       </button>
 
       {/* register details */}

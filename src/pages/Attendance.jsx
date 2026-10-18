@@ -142,7 +142,8 @@ export default function Attendance() {
                   if (
                     word.length > 0 &&
                     !["AND", "OF", "THE", "IN", "FOR", "TO"].includes(word.toUpperCase()) &&
-                    !word.match(/^[0-9]+$/)
+                    !word.match(/^[0-9]+$/) &&
+                    /^[A-Za-z0-9]/.test(word)
                   ) {
                     acronym += word[0].toUpperCase();
                   }
