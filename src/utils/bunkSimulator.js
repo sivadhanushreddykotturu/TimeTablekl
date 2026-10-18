@@ -334,25 +334,3 @@ export function calculateAttendanceImpact(course, classesList = [], includeTcbr 
     targetPercentage
   };
 }
-
-/**
- * Finds the largest set of listed classes that can be skipped while staying at or above target.
- * Components have different weights and durations, so cheapest-to-skip (weight x hours) goes first.
- */
-export function planMaxSafeSkips(course, classes = [], includeTcbr = true, target = 85) {
-  const base = classes.map(c => ({ ...c, status: "attend" }));
-  const allPresent = calculateAttendanceImpact(course, base, includeTcbr, target);
-  if (base.length === 0 || !allPresent.isSafe) {
-    return { ids: [], reachable: allPresent.isSafe, allPresentPct: allPresent.simulatedPercentage };
-  }
-
-  const skipped = new Set();
-  [...base]
-    .sort((a, b) => a.weight * a.hours - b.weight * b.hours)
-    .forEach(c => {
-      const trial = base.map(x => (skipped.has(x.id) || x.id === c.id ? { ...x, status: "bunk" } : x));
-      if (calculateAttendanceImpact(course, trial, includeTcbr, target).isSafe) skipped.add(c.id);
-    });
-
-  return { ids: [...skipped], reachable: true, allPresentPct: allPresent.simulatedPercentage };
-}

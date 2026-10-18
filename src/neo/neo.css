@@ -3617,11 +3617,9 @@ body.np-body button.np-font-card--active {
 
 .bc-subject { margin-bottom: -14px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--np-muted); }
 
-.bc-safe { margin-top: 6px; font-size: 12px; color: var(--np-cream); }
 .bc-actions { display: flex; gap: 18px; margin-bottom: 4px; }
 .bc-actions button { font-size: 12px; color: var(--np-muted); text-decoration: underline; text-underline-offset: 3px; }
 .bc-actions button:hover { color: var(--np-cream); }
-.bc-actions button.is-main { color: var(--np-acid); text-decoration: none; font-weight: 700; }
 
 /* custom range calendar */
 .bc-cal { margin-top: 12px; }

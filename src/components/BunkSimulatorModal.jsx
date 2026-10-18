@@ -3,8 +3,7 @@ import { FiClock, FiCheck, FiX, FiAlertTriangle, FiArrowRight, FiChevronLeft, Fi
 import { NeoModal } from "../neo/Shell.jsx";
 import {
   findClassesInRange,
-  calculateAttendanceImpact,
-  planMaxSafeSkips
+  calculateAttendanceImpact
 } from "../utils/bunkSimulator";
 import { extractMainCode, getSubjectName } from "../utils/subjectMapper";
 
@@ -304,12 +303,6 @@ export default function BunkSimulatorModal({
     return calculateAttendanceImpact(currentCourse, classesList, includeTcbr, userSafePercentage);
   }, [currentCourse, classesList, includeTcbr, userSafePercentage]);
 
-  // Best plan: skip as many listed classes as possible without dropping below target
-  const safePlan = useMemo(
-    () => planMaxSafeSkips(currentCourse, classesList, includeTcbr, userSafePercentage),
-    [currentCourse, classesList, includeTcbr, userSafePercentage]
-  );
-
   // For an empty range, find the next day this subject actually has a class
   const nextClass = useMemo(() => {
     if (!currentCourse || !hasTimetable || classesList.length > 0) return null;
@@ -320,11 +313,6 @@ export default function BunkSimulatorModal({
       timetable, currentCourse.courseCode, currentCourse.courseName, toIsoDate(from), toIsoDate(to)
     )[0] || null;
   }, [currentCourse, hasTimetable, classesList.length, timetable]);
-
-  const handleMaxSafe = () => {
-    const ids = new Set(safePlan.ids);
-    applyBatch(c => ({ ...c, status: ids.has(c.id) ? "bunk" : "attend" }));
-  };
 
   const handleJumpToNext = () => {
     if (!nextClass) return;
@@ -461,9 +449,6 @@ export default function BunkSimulatorModal({
 
           {classesList.length > 0 && (
             <div className="bc-actions">
-              {safePlan.ids.length > 0 && (
-                <button type="button" className="is-main" onClick={handleMaxSafe}>Skip max safe ({safePlan.ids.length})</button>
-              )}
               {undoSnap && <button type="button" onClick={handleUndo}>Undo</button>}
               <button type="button" onClick={handleShare}>{shareMsg || "Share plan"}</button>
             </div>
