@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-export default function CalculatorModal({ isOpen, onClose, initialCourseData }) {
+export default function CalculatorModal({ isOpen, onClose, initialCourseData, modeSwitch = null }) {
   // State for Percentage/Bunk Tab
   const [activeTab, setActiveTab] = useState("percentage");
   const [attendedClasses, setAttendedClasses] = useState("");
@@ -381,6 +381,7 @@ export default function CalculatorModal({ isOpen, onClose, initialCourseData }) 
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {modeSwitch}
         <div className="calculator-header">
           <h3 style={{ margin: "0 0 8px 0", color: "var(--text-primary)" }}>
             Attendance Calculator

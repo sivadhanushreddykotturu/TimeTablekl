@@ -6,6 +6,8 @@ import axios from "axios";
 import NeoShell, { NeoModal, NeoLoading } from "../Shell.jsx";
 import { NeoButton } from "../NeoKit.jsx";
 import BunkSimulatorModal from "../../components/BunkSimulatorModal";
+import CalculatorModal from "../../components/CalculatorModal";
+import BunkModeSwitch from "../../components/BunkModeSwitch";
 import ShowCalculation from "../../components/ShowCalculation";
 import Toast from "../../components/Toast.jsx";
 import { trackEvent } from "../../utils/analytics";
@@ -49,6 +51,15 @@ export default function NeoAttendance() {
   const [error, setError] = useState("");
   const [showSimulatorModal, setShowSimulatorModal] = useState(false);
   const [simulatorCourseCode, setSimulatorCourseCode] = useState("");
+  const [calculatorInitialCourse, setCalculatorInitialCourse] = useState(null);
+  // "new" = tap-to-skip simulator, "old" = the original attendance calculator. Remembered per device.
+  const [bunkMode, setBunkModeState] = useState(() => {
+    try { return localStorage.getItem("bunkCalcMode") === "old" ? "old" : "new"; } catch (_) { return "new"; }
+  });
+  const setBunkMode = (m) => {
+    setBunkModeState(m);
+    try { localStorage.setItem("bunkCalcMode", m); } catch (_) {}
+  };
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [selectedRegisterData, setSelectedRegisterData] = useState(null);
   const [registerLoading, setRegisterLoading] = useState(false);
@@ -895,6 +906,14 @@ export default function NeoAttendance() {
                     className="np-minibtn"
                     onClick={() => {
                       setSimulatorCourseCode(course.courseCode);
+                      setCalculatorInitialCourse(
+                        course.sections.map(section => ({
+                          type: section.ltps.charAt(0).toUpperCase(),
+                          attended: section.totalAttended,
+                          conducted: section.totalConducted,
+                          tcbr: includeTcbr ? (section.tcbr || "0") : "0"
+                        })).filter(item => ["L", "T", "P", "S"].includes(item.type))
+                      );
                       setShowSimulatorModal(true);
                     }}
                   >
@@ -970,11 +989,24 @@ export default function NeoAttendance() {
         ))
       )}
 
-      <BunkSimulatorModal
-        isOpen={showSimulatorModal}
+      <CalculatorModal
+        isOpen={showSimulatorModal && bunkMode === "old"}
         onClose={() => {
           setShowSimulatorModal(false);
           setSimulatorCourseCode("");
+          setCalculatorInitialCourse(null);
+        }}
+        initialCourseData={calculatorInitialCourse}
+        modeSwitch={<BunkModeSwitch mode={bunkMode} onChange={setBunkMode} />}
+      />
+
+      <BunkSimulatorModal
+        isOpen={showSimulatorModal && bunkMode === "new"}
+        modeSwitch={<BunkModeSwitch mode={bunkMode} onChange={setBunkMode} />}
+        onClose={() => {
+          setShowSimulatorModal(false);
+          setSimulatorCourseCode("");
+          setCalculatorInitialCourse(null);
         }}
         attendanceData={attendanceData}
         initialCourseCode={simulatorCourseCode}
@@ -1009,6 +1041,7 @@ export default function NeoAttendance() {
         className="np-fab np-fab--1"
         onClick={() => {
           setSimulatorCourseCode("");
+          setCalculatorInitialCourse(null);
           setShowSimulatorModal(true);
         }}
         title="Bunk / Attend Simulator"

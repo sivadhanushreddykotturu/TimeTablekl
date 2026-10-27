@@ -1,7 +1,7 @@
 {
   "active": true,
   "title": "✨ Fresh look for the bunk calculator",
-  "message": "We've given the bunk calculator a cleaner, simpler flow:\n\n• Pick a subject, choose Today / Tomorrow / a custom range\n• Tap a class to mark it absent and watch your % update live\n• Holiday or cancelled class? Tap \"No class\" beside it and it won't be counted\n• Today's class not showing, or its attendance isn't posted yet? Tap \"Add today's class\" to include it\n\nWe'll try this version for the next month, so use it and tell us what you think. Your feedback decides what stays! 💚",
+  "message": "We've given the bunk calculator a cleaner, simpler flow:\n\n• Pick a subject, choose Today / Tomorrow / a custom range\n• Tap a class to mark it absent and watch your % update live\n• Holiday or cancelled class? Tap \"No class\" beside it and it won't be counted\n• Today's class not showing, or its attendance isn't posted yet? Tap \"Add today's class\" to include it\n\nPrefer the original? Use the New / Old switch at the top of the calculator, and we'll remember your choice.\n\nWe'll try this for the next month, so use it and tell us what you think. Your feedback decides what stays! 💚",
   "bugSweep": {
     "active": false,
     "campaignId": "sweep-2026-09-28",

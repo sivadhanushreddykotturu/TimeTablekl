@@ -137,7 +137,8 @@ export default function BunkSimulatorModal({
   initialCourseCode = "",
   includeTcbr = true,
   targetPercentage = 85,
-  timetable: propTimetable
+  timetable: propTimetable,
+  modeSwitch = null
 }) {
   // Read user's custom safe percentage from localStorage if not provided
   const userSafePercentage = useMemo(() => {
@@ -264,6 +265,7 @@ export default function BunkSimulatorModal({
   // Snapshot for undoing the last bulk action
   const [undoSnap, setUndoSnap] = useState(null);
   const [shareMsg, setShareMsg] = useState("");
+
 
   const buzz = () => {
     try { if (navigator.vibrate) navigator.vibrate(8); } catch (_) {}
@@ -394,6 +396,7 @@ export default function BunkSimulatorModal({
   return (
     <NeoModal open={isOpen} title="bunk calculator" onClose={onClose} wide>
       <div className="bc">
+        {modeSwitch}
 
         {locked && currentCourse && <div className="bc-subject">{currentCourse.courseName}</div>}
 
