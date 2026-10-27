@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { FiClock, FiCheck, FiX, FiAlertTriangle, FiArrowRight, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiClock, FiCheck, FiX, FiMinus, FiAlertTriangle, FiArrowRight, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { NeoModal } from "../neo/Shell.jsx";
 import {
   findClassesInRange,
@@ -101,9 +101,9 @@ function RangeCalendar({ start, end, onChange, timetable, course }) {
         </button>
       </div>
       <div className="bc-cal__grid">
-        {WEEKDAYS.map((w, i) => <span key={i} className="bc-cal__wd">{w}</span>)}
+        {WEEKDAYS.map((w, i) => <div key={i} className="bc-cal__wd">{w}</div>)}
         {cells.map((iso, i) => {
-          if (!iso) return <span key={`e${i}`} />;
+          if (!iso) return <div key={`e${i}`} />;
           const isStart = iso === start;
           const isEnd = iso === end;
           const inRange = iso > start && iso < end;
@@ -233,23 +233,32 @@ export default function BunkSimulatorModal({
   // Scheduled classes found in timetable
   const [classesList, setClassesList] = useState([]);
 
+  // Classes that have already started: normally counted by the ERP, but can be added back by hand
+  const [startedPool, setStartedPool] = useState([]);
+  const [showPool, setShowPool] = useState(false);
+
   // Load classes whenever subject or dates change
   useEffect(() => {
+    setShowPool(false);
     if (!currentCourse || !hasTimetable) {
       setClassesList([]);
+      setStartedPool([]);
       return;
     }
 
-    const scheduled = findClassesInRange(
+    const all = findClassesInRange(
       timetable,
       currentCourse.courseCode,
       currentCourse.courseName,
       startDate,
-      endDate
+      endDate,
+      true
     );
 
     setUndoSnap(null);
-    setClassesList(scheduled);
+    setClassesList(all.filter(c => !c.started));
+    // Only today's classes: earlier days are long since in the ERP
+    setStartedPool(all.filter(c => c.started && c.date === toIsoDate(new Date())));
   }, [currentCourse, timetable, startDate, endDate, hasTimetable]);
 
   // Snapshot for undoing the last bulk action
@@ -266,7 +275,18 @@ export default function BunkSimulatorModal({
     setUndoSnap(null);
     setClassesList(prev =>
       prev.map(c =>
-        c.id === classId ? { ...c, status: c.status === "bunk" ? "attend" : "bunk" } : c
+        c.id === classId ? { ...c, status: c.status === "attend" ? "bunk" : "attend" } : c
+      )
+    );
+  }, []);
+
+  // Mark a class as "not held" (holiday / cancelled) so it isn't counted at all
+  const toggleOff = useCallback((classId) => {
+    buzz();
+    setUndoSnap(null);
+    setClassesList(prev =>
+      prev.map(c =>
+        c.id === classId ? { ...c, status: c.status === "off" ? "attend" : "off" } : c
       )
     );
   }, []);
@@ -277,7 +297,17 @@ export default function BunkSimulatorModal({
     setClassesList(classesList.map(mapper));
   };
 
-  const handleBunkAll = () => applyBatch(c => ({ ...c, status: "bunk" }));
+  const addFromPool = (item) => {
+    buzz();
+    setStartedPool(prev => prev.filter(c => c.id !== item.id));
+    setClassesList(prev =>
+      [...prev, { ...item, status: "attend" }].sort((x, y) =>
+        x.date === y.date ? x.startSlot - y.startSlot : x.date < y.date ? -1 : 1
+      )
+    );
+  };
+
+  const handleBunkAll = () => applyBatch(c => (c.status === "off" ? c : { ...c, status: "bunk" }));
   const handleResetAll = () => applyBatch(c => ({ ...c, status: "attend" }));
 
   const handleUndo = () => {
@@ -288,6 +318,7 @@ export default function BunkSimulatorModal({
   };
 
   const absentCount = useMemo(() => classesList.filter(c => c.status === "bunk").length, [classesList]);
+  const offCount = useMemo(() => classesList.filter(c => c.status === "off").length, [classesList]);
 
   // Preset click handler
   const handleSelectPreset = (key) => {
@@ -347,11 +378,17 @@ export default function BunkSimulatorModal({
   // Opened from a subject's own button: that subject is already chosen, so skip the picker
   const locked = !!initialCourseCode && courses.some(c => c.courseCode === initialCourseCode);
 
-  let hint = "Pick a subject and a date to see its classes.";
+  let hint = startedPool.length > 0
+    ? "No more classes left today"
+    : "Pick a subject and a date to see its classes.";
   if (classesList.length > 0) {
-    hint = absentCount === 0
-      ? `Attending all ${classesList.length} classes`
-      : `${absentCount} of ${classesList.length} skipped · ${impact.bunkedHours}h`;
+    const held = classesList.length - offCount;
+    const offNote = offCount > 0 ? ` · ${offCount} not held` : "";
+    hint = held === 0
+      ? `No classes counted${offNote}`
+      : absentCount === 0
+        ? `Attending all ${held} classes${offNote}`
+        : `${absentCount} of ${held} skipped · ${impact.bunkedHours}h${offNote}`;
   }
 
   return (
@@ -437,7 +474,7 @@ export default function BunkSimulatorModal({
             <span>Classes · tap to skip{classesList.length > 0 ? ` (${classesList.length})` : ""}</span>
             {classesList.length > 0 && (
               <span className="bc-links">
-                {absentCount < classesList.length && (
+                {absentCount < classesList.length - offCount && (
                   <button type="button" onClick={handleBunkAll}>Skip all</button>
                 )}
                 {absentCount > 0 && (
@@ -462,7 +499,11 @@ export default function BunkSimulatorModal({
           ) : classesList.length === 0 ? (
             <div className="bc-empty">
               <FiClock size={18} />
-              <p>No {currentCourse?.shortName || "classes"} classes in this range.</p>
+              <p>
+                {startedPool.length > 0
+                  ? "No more classes today."
+                  : `No ${currentCourse?.shortName || "classes"} classes in this range.`}
+              </p>
               {nextClass ? (
                 <button type="button" onClick={handleJumpToNext}>Jump to next class · {nextClass.dateDisplay}</button>
               ) : (
@@ -475,22 +516,51 @@ export default function BunkSimulatorModal({
             <div className="bc-list">
               {classesList.map((item) => {
                 const absent = item.status === "bunk";
+                const off = item.status === "off";
                 return (
-                  <button
-                    type="button"
-                    key={item.id}
-                    onClick={() => toggleClass(item.id)}
-                    className={`bc-row ${absent ? "is-absent" : "is-present"}`}
-                    aria-pressed={absent}
-                  >
-                    <span className="bc-row__mark">{absent ? <FiX size={13} /> : <FiCheck size={13} />}</span>
-                    <span className="bc-row__text">
-                      <b>{item.dateDisplay}</b>
-                      <small>{item.time} · {item.componentLabel} · {item.hours}h</small>
-                    </span>
-                  </button>
+                  <div key={item.id} className={`bc-row ${off ? "is-off" : absent ? "is-absent" : "is-present"}`}>
+                    <button
+                      type="button"
+                      className="bc-row__main"
+                      onClick={() => toggleClass(item.id)}
+                      aria-pressed={absent}
+                      disabled={off}
+                    >
+                      <span className="bc-row__mark">
+                        {off ? <FiMinus size={13} /> : absent ? <FiX size={13} /> : <FiCheck size={13} />}
+                      </span>
+                      <span className="bc-row__text">
+                        <b>{item.dateDisplay}</b>
+                        <small>{off ? "No class held · not counted" : `${item.time} · ${item.componentLabel} · ${item.hours}h`}</small>
+                      </span>
+                    </button>
+                    <button type="button" className="bc-row__off" onClick={() => toggleOff(item.id)}>
+                      {off ? "Count it" : "No class"}
+                    </button>
+                  </div>
                 );
               })}
+            </div>
+          )}
+
+          {startedPool.length > 0 && (
+            <div className="bc-pool">
+              <button type="button" className="bc-pool__toggle" onClick={() => setShowPool(v => !v)}>
+                {showPool ? "Hide" : "Attendance not posted yet? Add today's class"}
+              </button>
+              {showPool && (
+                <div className="bc-pool__list">
+                  {startedPool.map(item => (
+                    <div key={item.id} className="bc-pool__row">
+                      <span>
+                        <b>{item.dateDisplay}</b>
+                        <small>{item.time} · {item.componentLabel} · {item.hours}h</small>
+                      </span>
+                      <button type="button" onClick={() => addFromPool(item)}>Add</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

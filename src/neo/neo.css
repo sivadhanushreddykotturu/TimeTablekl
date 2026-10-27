@@ -3593,14 +3593,19 @@ body.np-body button.np-font-card--active {
 
 /* classes */
 .bc-list { display: flex; flex-direction: column; max-height: 320px; overflow-y: auto; }
-.bc-row { display: flex !important; align-items: center; gap: 14px; width: 100%; padding: 13px 0 !important; border-bottom: 1px solid var(--np-line) !important; text-align: left; }
-.bc-row:last-child { border-bottom: 0 !important; }
+.bc-row { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--np-line); }
+.bc-row:last-child { border-bottom: 0; }
+.bc .bc-row__main { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; padding: 13px 0; text-align: left; }
 .bc-row__mark { display: grid; place-items: center; width: 20px; flex-shrink: 0; color: var(--np-acid); }
 .bc-row__text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
 .bc-row__text b { font-size: 14px; font-weight: 600; }
 .bc-row__text small { font-size: 12px; color: var(--np-muted); }
 .bc-row.is-absent .bc-row__mark { color: var(--np-pink); }
 .bc-row.is-absent .bc-row__text b { text-decoration: line-through; color: var(--np-muted); }
+.bc-row.is-off .bc-row__mark, .bc-row.is-off .bc-row__text b { color: var(--np-muted); }
+.bc-row.is-off .bc-row__main { opacity: 0.55; cursor: default; }
+.bc .bc-row__off { flex-shrink: 0; padding: 6px 0 6px 8px; font-size: 11px; color: var(--np-muted); text-decoration: underline; text-underline-offset: 3px; }
+.bc .bc-row__off:hover { color: var(--np-cream); }
 
 .bc-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px 0; color: var(--np-muted); text-align: center; }
 .bc-empty p { margin: 0; font-size: 13px; }
@@ -3627,8 +3632,8 @@ body.np-body button.np-font-card--active {
 .bc-cal__head button { display: grid; place-items: center; width: 28px; height: 28px; color: var(--np-muted); }
 .bc-cal__head button:hover { color: var(--np-cream); }
 .bc-cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-.bc-cal__wd { text-align: center; font-size: 10px; color: var(--np-muted); padding: 2px 0 4px; }
-.bc .bc-cal__day { position: relative; height: 32px; font-size: 13px; font-weight: 500; color: var(--np-cream); background: transparent; }
+.bc .bc-cal__wd { text-align: center; font-size: 10px; color: var(--np-muted) !important; padding: 2px 0 4px; }
+.bc .bc-cal__day { position: relative; display: grid; place-items: center; width: 100%; padding: 0; text-align: center; height: 34px; font-size: 13px; font-weight: 500; color: var(--np-cream); background: transparent; }
 .bc .bc-cal__day:hover { background: var(--np-panel); }
 .bc .bc-cal__day.is-range { background: rgba(207, 255, 4, 0.12); }
 .bc .bc-cal__day.is-edge { background: var(--np-acid) !important; color: #000 !important; font-weight: 700; }
@@ -3636,3 +3641,16 @@ body.np-body button.np-font-card--active {
 .bc-cal__day.has-class::after { content: ""; position: absolute; left: 50%; bottom: 3px; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: var(--np-muted); }
 .bc-cal__day.is-edge.has-class::after { background: #000; }
 .bc-cal__hint { margin-top: 6px; font-size: 11px; color: var(--np-muted); text-align: center; }
+
+/* classes already started: add back by hand if the ERP hasn't caught up */
+.bc-pool { margin-top: 12px; }
+.bc .bc-pool__toggle { font-size: 12px; color: var(--np-muted); text-decoration: underline; text-underline-offset: 3px; }
+.bc .bc-pool__toggle:hover { color: var(--np-cream); }
+.bc-pool__list { margin-top: 8px; }
+.bc-pool__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--np-line); }
+.bc-pool__row:last-child { border-bottom: 0; }
+.bc-pool__row span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.bc-pool__row b { font-size: 13px; font-weight: 600; }
+.bc-pool__row small { font-size: 12px; color: var(--np-muted); }
+.bc .bc-pool__row button { flex-shrink: 0; padding: 5px 12px; font-size: 12px; font-weight: 600; border: 1px solid var(--np-line); color: var(--np-cream); }
+.bc .bc-pool__row button:hover { border-color: var(--np-acid); color: var(--np-acid); }

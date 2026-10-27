@@ -78,6 +78,7 @@ export function mergeDaySlotsWithHours(slots = {}, maxSlots = 14) {
       hours,
       startTime,
       endTime,
+      startTimeRaw,
       slotLabel
     });
 
@@ -128,7 +129,7 @@ export function matchesCourse(slotContent, courseCode, courseName) {
  * Finds all classes scheduled for a course between startDate and endDate (inclusive).
  * Initial status is 'neutral' (scheduled, not yet modified).
  */
-export function findClassesInRange(timetable = {}, courseCode = "", courseName = "", startDateStr, endDateStr) {
+export function findClassesInRange(timetable = {}, courseCode = "", courseName = "", startDateStr, endDateStr, includeStarted = false) {
   if (!startDateStr || !endDateStr || !timetable) return [];
 
   const start = new Date(startDateStr);
@@ -157,7 +158,16 @@ export function findClassesInRange(timetable = {}, courseCode = "", courseName =
         day: "numeric"
       });
 
+      const now = new Date();
       daySlots.forEach(block => {
+        // Attendance is taken as a class starts, so a class that has begun is normally in the ERP numbers already.
+        // With includeStarted they are returned too (flagged) so the user can add one the ERP hasn't registered yet.
+        let started = false;
+        if (block.startTimeRaw) {
+          const [sh, sm] = block.startTimeRaw.split(":").map(Number);
+          started = new Date(current.getFullYear(), current.getMonth(), current.getDate(), sh, sm) <= now;
+          if (started && !includeStarted) return;
+        }
         if (matchesCourse(block.content, courseCode, courseName)) {
           let room = "";
           const componentType = extractComponentType(block.content);
@@ -191,7 +201,8 @@ export function findClassesInRange(timetable = {}, courseCode = "", courseName =
             componentType,
             componentLabel: componentLabels[componentType] || "Lecture",
             weight: LTPS_WEIGHTS[componentType] || 100,
-            status: "attend" // 'attend' (present, default) | 'bunk' (absent)
+            started,
+            status: "attend" // 'attend' (present, default) | 'bunk' (absent) | 'off' (no class held)
           });
         }
       });
@@ -256,7 +267,8 @@ export function calculateAttendanceImpact(course, classesList = [], includeTcbr 
   let hasChanges = false;
 
   classesList.forEach(item => {
-    if (item.status === "neutral") return;
+    // "off" = no class that day (holiday / cancelled): not counted at all
+    if (item.status === "neutral" || item.status === "off") return;
 
     hasChanges = true;
     const hours = item.hours || 1;
