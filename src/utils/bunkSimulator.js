@@ -89,47 +89,43 @@ export function mergeDaySlotsWithHours(slots = {}, maxSlots = 14) {
 }
 
 /**
- * Checks if a timetable slot content matches a selected course.
+ * Checks if a timetable slot content belongs to the selected course.
+ * Slots look like "24AD3107-L - S-55 - RoomNo-M202": the leading token is the course code (or the
+ * user's custom name for it). It must match exactly: loose substring matching made "DS" match "24EDS3308HF".
  */
 export function matchesCourse(slotContent, courseCode, courseName) {
-  if (!slotContent || slotContent === "-") return false;
-  const contentUpper = slotContent.toUpperCase();
+  if (!slotContent || slotContent === "-" || !courseCode) return false;
 
-  // 1. Direct course code match (e.g. 24CS3105 or 24AD01HF)
-  if (courseCode) {
-    const codeUpper = courseCode.toUpperCase();
-    if (contentUpper.includes(codeUpper)) return true;
+  const lead = slotContent.toUpperCase().trim().match(/^[A-Z0-9]+/);
+  if (!lead) return false;
+  const token = lead[0];
 
-    const mainCode = extractMainCode(courseCode).toUpperCase();
-    if (mainCode && contentUpper.includes(mainCode)) return true;
+  const mainCode = extractMainCode(courseCode).toUpperCase();
+  if (token === mainCode || token === courseCode.toUpperCase()) return true;
 
-    // Check mapped subject name (e.g. IAS or ASE)
-    try {
-      const subjectMappings = JSON.parse(localStorage.getItem("subjectMappings") || "{}");
-      const mapped = subjectMappings[mainCode] || subjectMappings[courseCode];
-      if (mapped && contentUpper.includes(mapped.toUpperCase())) return true;
-    } catch (_) {}
-  }
-
-  // 2. Acronym or title word match from courseName
-  if (courseName) {
-    const cleanName = courseName.trim().toUpperCase();
-    if (contentUpper.includes(cleanName)) return true;
-
-    const words = cleanName.split(/\s+/).filter(w => w.length > 2 && !["AND", "THE", "FOR", "WITH"].includes(w));
-    if (words.length > 0 && words.some(w => contentUpper.includes(w))) {
-      return true;
-    }
-  }
+  // The timetable may already show the user's custom subject name instead of the code
+  try {
+    const subjectMappings = JSON.parse(localStorage.getItem("subjectMappings") || "{}");
+    const mapped = subjectMappings[extractMainCode(courseCode)] || subjectMappings[courseCode];
+    if (mapped && token === String(mapped).toUpperCase().replace(/[^A-Z0-9]/g, "")) return true;
+  } catch (_) {}
 
   return false;
+}
+
+/** Component types (L/T/P/S) this course actually has, from its attendance sections. */
+export function courseComponentTypes(course) {
+  const types = (course?.sections || [])
+    .map(s => (s.ltps || "").charAt(0).toUpperCase())
+    .filter(t => ["L", "T", "P", "S"].includes(t));
+  return types.length > 0 ? new Set(types) : null;
 }
 
 /**
  * Finds all classes scheduled for a course between startDate and endDate (inclusive).
  * Initial status is 'neutral' (scheduled, not yet modified).
  */
-export function findClassesInRange(timetable = {}, courseCode = "", courseName = "", startDateStr, endDateStr, includeStarted = false) {
+export function findClassesInRange(timetable = {}, courseCode = "", courseName = "", startDateStr, endDateStr, includeStarted = false, allowedTypes = null) {
   if (!startDateStr || !endDateStr || !timetable) return [];
 
   const start = new Date(startDateStr);
@@ -171,6 +167,8 @@ export function findClassesInRange(timetable = {}, courseCode = "", courseName =
         if (matchesCourse(block.content, courseCode, courseName)) {
           let room = "";
           const componentType = extractComponentType(block.content);
+          // Skip components this course doesn't have (e.g. no tutorial or skilling for it)
+          if (allowedTypes && !allowedTypes.has(componentType)) return;
 
           const parts = block.content.split("-").map(p => p.trim());
           parts.forEach(part => {
@@ -270,14 +268,17 @@ export function calculateAttendanceImpact(course, classesList = [], includeTcbr 
     // "off" = no class that day (holiday / cancelled): not counted at all
     if (item.status === "neutral" || item.status === "off") return;
 
-    hasChanges = true;
     const hours = item.hours || 1;
     const cType = item.componentType || "L";
 
-    // Match exact section or fallback to first section
+    // Only count against a component the course really has
     let targetSection = sections.find(s => s.type === cType);
-    if (!targetSection) targetSection = sections[0];
+    if (!targetSection) {
+      if (course.sections && course.sections.length > 0) return;
+      targetSection = sections[0];
+    }
 
+    hasChanges = true;
     if (item.status === "attend") {
       targetSection.simAttended += hours;
       targetSection.simConducted += hours;

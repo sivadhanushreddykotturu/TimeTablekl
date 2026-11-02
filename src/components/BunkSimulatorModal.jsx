@@ -3,6 +3,7 @@ import { FiClock, FiCheck, FiX, FiMinus, FiAlertTriangle, FiArrowRight, FiChevro
 import { NeoModal } from "../neo/Shell.jsx";
 import {
   findClassesInRange,
+  courseComponentTypes,
   calculateAttendanceImpact
 } from "../utils/bunkSimulator";
 import { extractMainCode, getSubjectName } from "../utils/subjectMapper";
@@ -66,7 +67,7 @@ function RangeCalendar({ start, end, onChange, timetable, course }) {
   const classDays = useMemo(() => {
     if (!course) return new Set();
     return new Set(
-      findClassesInRange(timetable, course.courseCode, course.courseName, firstIso, lastIso).map(c => c.date)
+      findClassesInRange(timetable, course.courseCode, course.courseName, firstIso, lastIso, false, courseComponentTypes(course)).map(c => c.date)
     );
   }, [timetable, course, firstIso, lastIso]);
 
@@ -253,7 +254,8 @@ export default function BunkSimulatorModal({
       currentCourse.courseName,
       startDate,
       endDate,
-      true
+      true,
+      courseComponentTypes(currentCourse)
     );
 
     setUndoSnap(null);
@@ -343,7 +345,7 @@ export default function BunkSimulatorModal({
     const to = new Date();
     to.setDate(from.getDate() + 28);
     return findClassesInRange(
-      timetable, currentCourse.courseCode, currentCourse.courseName, toIsoDate(from), toIsoDate(to)
+      timetable, currentCourse.courseCode, currentCourse.courseName, toIsoDate(from), toIsoDate(to), false, courseComponentTypes(currentCourse)
     )[0] || null;
   }, [currentCourse, hasTimetable, classesList.length, timetable]);
 
