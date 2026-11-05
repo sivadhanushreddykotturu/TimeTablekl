@@ -1,5 +1,5 @@
 {
-  "active": true,
+  "active": false,
   "title": "⚠️ ERP ARC: SYSTEM INSTABILITY",
   "message": "The university ERP is experiencing unusually high latency.\n\n⚠️ Attendance & Timetable — Severely affected\n⏳ CGPA — ~15s retrieval time\n\nThe ERP itself is struggling. Waiting for it to stabilize.\n\nLet's hope they fix it fast",
   "bugSweep": {
