@@ -466,7 +466,7 @@ export default function NeoAttendance() {
   const generateHighQualityCanvas = useCallback(() => {
     if (!attendanceData || attendanceData.length === 0) return null;
 
-    const groupedCourses = groupAttendanceByCourse(attendanceData);
+    const groupedCourses = groupAttendanceByCourse(attendanceData, includeTcbr);
     if (groupedCourses.length === 0) return null;
 
     const scale = 2;
@@ -600,7 +600,7 @@ export default function NeoAttendance() {
 
     return canvas;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attendanceData, friendCredentials]);
+  }, [attendanceData, friendCredentials, includeTcbr]);
 
   const exportAsImage = useCallback(async () => {
     if (!attendanceData || attendanceData.length === 0) return;
