@@ -1,236 +1,196 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useMemo, useState } from "react";
+import { MdSchedule, MdRocketLaunch } from "react-icons/md";
 import NeoShell from "../Shell.jsx";
-import SeatingPlanModal from "../../components/SeatingPlanModal";
+import { SettingsGroup, SettingsRow, Switch } from "../components/Settings.jsx";
 import EditSlotModal from "../../components/EditSlotModal";
 import Toast from "../../components/Toast.jsx";
+import GuestAuthModal from "../../components/GuestAuthModal.jsx";
 import { getCredentials } from "../../../utils/storage.js";
+import { syncSeatingPlan } from "../../../utils/syncSeatingPlan.js";
 import { getSubjectName } from "../../utils/subjectMapper";
 import { getSlotDetails } from "../../utils/examSlots";
-import GuestAuthModal, { ensureTimetableFetched } from "../../components/GuestAuthModal.jsx";
+import { useNowTick } from "../../hooks/useNowTick";
 
-const minutes = (hours, mins) => hours * 60 + mins;
+const SLOT_ORDER = { MN: 1, MO: 1, AM: 2, FN: 3, PM: 4, EN: 5, AN: 6 };
+const END_OF_DAY = 23 * 60 + 59;
 
-const getSlotInfo = (examType = "", slot = "", slotDetails) => {
-  const normalizedSlot = slot.toUpperCase();
-  const isEndSemester = examType.toLowerCase().includes("end");
-
-  if (isEndSemester) {
-    return {
-      label: normalizedSlot || "N/A",
-      endMinutes: null,
-    };
+function readSeatingPlan() {
+  try {
+    return JSON.parse(localStorage.getItem("seatingPlan") || "[]") || [];
+  } catch {
+    return [];
   }
-
-  return (
-    slotDetails.inSemester[normalizedSlot] || {
-      label: slot || "N/A",
-      endMinutes: null,
-    }
-  );
-};
-
-function findTodayAndNextExam(seatingPlan, slotDetails) {
-  if (!seatingPlan || seatingPlan.length === 0) {
-    return { todayExam: null, nextExam: null };
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes();
-
-  const sortedPlan = [...seatingPlan].sort((a, b) => {
-    const dateA = new Date(a.date);
-    const dateB = new Date(b.date);
-    if (dateA.getTime() !== dateB.getTime()) {
-      return dateA.getTime() - dateB.getTime();
-    }
-    const timeOrder = { MN: 1, MO: 1, AM: 2, FN: 3, PM: 4, EN: 5, AN: 6 };
-    const slotA = (a.time_slot || "").toUpperCase();
-    const slotB = (b.time_slot || "").toUpperCase();
-    return (timeOrder[slotA] || 0) - (timeOrder[slotB] || 0);
-  });
-
-  let todayExam = null;
-  let nextExam = null;
-
-  for (const exam of sortedPlan) {
-    const examDate = new Date(exam.date);
-    examDate.setHours(0, 0, 0, 0);
-
-    if (examDate.getTime() === today.getTime()) {
-      const slotInfo = getSlotInfo(exam.exam_type, exam.time_slot, slotDetails);
-      const slotEnd = slotInfo.endMinutes ?? minutes(23, 59);
-
-      if (currentTime < slotEnd) {
-        todayExam = exam;
-        break;
-      }
-    }
-  }
-
-  for (const exam of sortedPlan) {
-    const examDate = new Date(exam.date);
-    examDate.setHours(0, 0, 0, 0);
-
-    if (examDate.getTime() > today.getTime()) {
-      nextExam = exam;
-      break;
-    } else if (examDate.getTime() === today.getTime() && exam !== todayExam) {
-      const slotInfo = getSlotInfo(exam.exam_type, exam.time_slot, slotDetails);
-      const slotEnd = slotInfo.endMinutes ?? minutes(23, 59);
-
-      if (currentTime < slotEnd) {
-        nextExam = exam;
-        break;
-      }
-    }
-  }
-
-  const formatExam = (exam) => {
-    if (!exam) return null;
-
-    const subjectName = getSubjectName(exam.course_code);
-    const displayName = subjectName !== exam.course_code ? subjectName : exam.course_code;
-    const slotInfo = getSlotInfo(exam.exam_type, exam.time_slot, slotDetails);
-
-    let timeSlot;
-    if (slotDetails.isCustom) {
-      timeSlot = slotInfo.label || exam.time_slot;
-    } else {
-      timeSlot = (exam.time_slot || "").toUpperCase();
-    }
-
-    const date = new Date(exam.date);
-    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-    return {
-      name: displayName,
-      room: exam.room_no,
-      when: `${dateStr} · ${timeSlot}`,
-    };
-  };
-
-  return {
-    todayExam: todayExam ? formatExam(todayExam) : null,
-    nextExam: nextExam ? formatExam(nextExam) : null
-  };
 }
 
+const startOfDay = (value) => {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+/** Exams in order, each with display strings and whether it is over. */
+function buildSchedule(seatingPlan, slotDetails) {
+  const now = new Date();
+  const today = startOfDay(now).getTime();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return seatingPlan
+    .map((exam) => {
+      const slot = (exam.time_slot || "").toUpperCase();
+      const isEndSem = (exam.exam_type || "").toLowerCase().includes("end");
+      const info = isEndSem ? null : slotDetails.inSemester[slot];
+      const date = startOfDay(exam.date);
+      const dayTime = date.getTime();
+
+      return {
+        key: `${exam.course_code}-${exam.date}-${slot}`,
+        name: getSubjectName(exam.course_code),
+        room: exam.room_no,
+        type: exam.exam_type || "",
+        slot,
+        time: info?.label || "",
+        date,
+        isToday: dayTime === today,
+        isOver: dayTime < today || (dayTime === today && nowMinutes >= (info?.endMinutes ?? END_OF_DAY)),
+        order: dayTime * 10 + (SLOT_ORDER[slot] || 0),
+      };
+    })
+    .sort((a, b) => a.order - b.order);
+}
+
+const describe = (exam) => [exam.room && `Room ${exam.room}`, exam.time || exam.slot].filter(Boolean).join(" · ");
+
 export default function NeoExam() {
-  const navigate = useNavigate();
-  const [seatingPlan, setSeatingPlan] = useState(
-    JSON.parse(localStorage.getItem("seatingPlan") || "[]")
-  );
-
-  const [slotDetails, setSlotDetails] = useState(getSlotDetails());
-
-  const [todayExam, setTodayExam] = useState(null);
-  const [nextExam, setNextExam] = useState(null);
-  const [showSeatingModal, setShowSeatingModal] = useState(false);
-  const [showEditSlotsModal, setShowEditSlotsModal] = useState(false);
-  const [showGuestModal, setShowGuestModal] = useState(false);
+  const [seatingPlan, setSeatingPlan] = useState(readSeatingPlan);
+  const [slotDetails, setSlotDetails] = useState(getSlotDetails);
+  const [launchHere, setLaunchHere] = useState(() => localStorage.getItem("examMode") === "true");
+  const [showEditSlots, setShowEditSlots] = useState(false);
+  const [showGuestModal, setShowGuestModal] = useState(() => !getCredentials());
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const nowTick = useNowTick();
 
-  useEffect(() => {
-    localStorage.setItem("examMode", "true");
-    if (!getCredentials()) {
-      setShowGuestModal(true);
-    }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const schedule = useMemo(() => buildSchedule(seatingPlan, slotDetails), [seatingPlan, slotDetails, nowTick]);
+  const next = schedule.find((exam) => !exam.isOver) || null;
+  const signedIn = Boolean(getCredentials());
 
-  useEffect(() => {
-    const { todayExam: today, nextExam: next } = findTodayAndNextExam(seatingPlan, slotDetails);
-    setTodayExam(today);
-    setNextExam(next);
-  }, [seatingPlan, slotDetails]);
-
-  const handleRefresh = () => {
+  const handleSync = async () => {
     if (!getCredentials()) {
       setShowGuestModal(true);
       return;
     }
-    setShowSeatingModal(true);
+    try {
+      const plan = await syncSeatingPlan();
+      setSeatingPlan(plan);
+      setToast({
+        show: true,
+        message: plan.length ? "Seating plan updated." : "No exams scheduled yet.",
+        type: "success",
+      });
+    } catch (error) {
+      setToast({ show: true, message: error.message, type: "error" });
+      throw error;
+    }
   };
 
-  const handleSeatingSuccess = (newSeatingPlan) => {
-    setSeatingPlan(newSeatingPlan);
-    setToast({
-      show: true,
-      message: "Seating plan synced successfully!",
-      type: "success"
+  const toggleLaunchHere = () =>
+    setLaunchHere((prev) => {
+      const value = !prev;
+      if (value) localStorage.setItem("examMode", "true");
+      else localStorage.removeItem("examMode");
+      return value;
     });
-  };
-
-  const handleSlotSave = (newDetails) => {
-    setSlotDetails(newDetails);
-    setToast({
-      show: true,
-      message: "Slot timings updated!",
-      type: "success"
-    });
-  };
 
   return (
-    <NeoShell onRefresh={handleRefresh} refreshMode="direct" refreshLabel="seating" examExit>
+    <NeoShell onRefresh={handleSync} refreshLabel="Sync">
       <div className="np-pagehead">
-        <span className="np-eyebrow np-eyebrow--acid">exam mode on</span>
-        <div className="np-pagehead__row">
-          <h1 className="np-pagehead__title">exams<i>.</i></h1>
-          <button className="np-iconbtn" onClick={() => setShowEditSlotsModal(true)}>
-            edit slots
-          </button>
-        </div>
+        <h1 className="np-pagehead__title">Exams</h1>
       </div>
 
-      {todayExam && (
-        <section className="np-now">
-          <div className="np-now__label">
-            <span className="np-now__pulse" />
-            upcoming exam
-          </div>
-          <div className="np-now__class">{todayExam.name}</div>
-          <div className="np-now__time">room {todayExam.room} · {todayExam.when}</div>
-        </section>
-      )}
-
-      {nextExam && (
-        <section className="np-next">
-          <span className="np-next__label">then</span>
-          <div className="np-next__body">
-            <div className="np-next__class">{nextExam.name}</div>
-            <div className="np-next__time">room {nextExam.room} · {nextExam.when}</div>
-          </div>
-        </section>
-      )}
-
-      {!getCredentials() ? (
-        <div className="np-guest-cta-plaque">
-          <h2>You're very near! 📝</h2>
-          <p>Log in with your KL ERP credentials to view your exam schedule and seating plan.</p>
-          <button type="button" className="np-btn" onClick={() => setShowGuestModal(true)}>Log In Now</button>
-        </div>
-      ) : !todayExam && !nextExam ? (
+      {!signedIn ? (
         <div className="np-empty">
-          <h2 className="np-empty__title">no exams found</h2>
-          <p className="np-empty__text">
-            If exams are scheduled, hit "seating" up top to pull the latest seating plan.
-          </p>
+          <h2 className="np-empty__title">See your exam seating</h2>
+          <p className="np-empty__text">Log in with your KL ERP account to load your exam dates and rooms.</p>
+          <button type="button" className="np-btn" onClick={() => setShowGuestModal(true)}>Log in</button>
         </div>
-      ) : null}
+      ) : schedule.length === 0 ? (
+        <div className="np-empty">
+          <h2 className="np-empty__title">No exams yet</h2>
+          <p className="np-empty__text">Once ERP publishes the seating plan, sync to pull it in.</p>
+        </div>
+      ) : (
+        <>
+          {next && (
+            <section className="np-now">
+              <div className="np-now__label">
+                <span className="np-now__pulse" />
+                <span>
+                  {next.isToday
+                    ? "Today"
+                    : next.date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+                </span>
+              </div>
+              <div className="np-now__class">{next.name}</div>
+              <div className="np-now__time">{describe(next)}</div>
+            </section>
+          )}
 
-      <SeatingPlanModal
-        isOpen={showSeatingModal}
-        onClose={() => setShowSeatingModal(false)}
-        onSuccess={handleSeatingSuccess}
-      />
+          <section className="np-shelf" style={{ marginTop: next ? 22 : 0 }}>
+            <div className="np-shelf__head">
+              <h2 className="np-shelf__title">Schedule</h2>
+              <span className="np-shelf__meta">
+                {schedule.length} {schedule.length === 1 ? "exam" : "exams"}
+              </span>
+            </div>
+            <div className="np-timeline">
+              {schedule.map((exam) => (
+                <div key={exam.key} className={`np-slot${exam.isOver ? " is-done" : ""}`}>
+                  <div className="np-slot__time np-slot__time--date">
+                    <b>{exam.date.getDate()}</b>
+                    <small>{exam.date.toLocaleDateString("en-US", { month: "short" })}</small>
+                  </div>
+                  <div className="np-slot__body">
+                    <div className="np-slot__name">{exam.name}</div>
+                    <div className="np-slot__meta">{describe(exam)}</div>
+                    {exam.type && <div className="np-slot__meta">{exam.type}</div>}
+                  </div>
+                  {exam === next && <span className="np-slot__live">Next</span>}
+                </div>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
+
+      {signedIn && (
+        <div style={{ marginTop: 26 }}>
+          <SettingsGroup>
+            <SettingsRow
+              icon={<MdSchedule size={22} />}
+              title="Slot timings"
+              description="When each exam slot starts and ends"
+              onClick={() => setShowEditSlots(true)}
+            />
+            <SettingsRow
+              icon={<MdRocketLaunch size={22} />}
+              title="Open on Exams"
+              description="Launch the app here during exam weeks"
+              role="switch"
+              aria-checked={launchHere}
+              trailing={<Switch on={launchHere} />}
+              onClick={toggleLaunchHere}
+            />
+          </SettingsGroup>
+        </div>
+      )}
 
       <EditSlotModal
-        isOpen={showEditSlotsModal}
-        onClose={() => setShowEditSlotsModal(false)}
-        onSave={handleSlotSave}
+        isOpen={showEditSlots}
+        onClose={() => setShowEditSlots(false)}
+        onSave={(details) => {
+          setSlotDetails(details);
+          setToast({ show: true, message: "Slot timings saved.", type: "success" });
+        }}
       />
 
       <GuestAuthModal
@@ -239,8 +199,7 @@ export default function NeoExam() {
         pageType="exam"
         onSuccess={async () => {
           setShowGuestModal(false);
-          setShowSeatingModal(true);
-          ensureTimetableFetched();
+          handleSync().catch(() => {});
         }}
       />
 
@@ -248,9 +207,8 @@ export default function NeoExam() {
         message={toast.message}
         type={toast.type}
         isVisible={toast.show}
-        onClose={() => setToast(prev => ({ ...prev, show: false }))}
+        onClose={() => setToast((prev) => ({ ...prev, show: false }))}
       />
     </NeoShell>
   );
 }
-

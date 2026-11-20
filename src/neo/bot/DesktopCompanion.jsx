@@ -9,7 +9,7 @@ import { STATE_BY_ID } from './states.js'
 import { SHAPES, DEFAULT_SHAPE_INDEX } from './shapes.js'
 import { EXPRESSIONS } from './expressions.js'
 import { clamp } from './math.js'
-import { getCSSColor } from '../utils/themeEngine'
+import { getCSSColor } from '../utils/cssColor'
 
 const BOT_SIZE = 190
 

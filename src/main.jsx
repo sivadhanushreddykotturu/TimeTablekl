@@ -9,21 +9,15 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   </React.StrictMode>
 );
 
-// PWA installation prompt
-let deferredPrompt;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevent Chrome 67 and earlier from automatically showing the prompt
-  e.preventDefault();
-  // Stash the event so it can be triggered later
-  deferredPrompt = e;
-  
-  // Show install button or notification
-  console.log('PWA install prompt ready');
+// The browser offers "install" once, early. Keep the event so the Profile
+// screen can show an Install row whenever the user gets there.
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  window.__installPrompt = event;
+  window.dispatchEvent(new Event("installprompt_changed"));
 });
 
-// Handle successful installation
-window.addEventListener('appinstalled', (evt) => {
-  console.log('PWA was installed');
-  deferredPrompt = null;
+window.addEventListener("appinstalled", () => {
+  window.__installPrompt = null;
+  window.dispatchEvent(new Event("installprompt_changed"));
 });

@@ -1,16 +1,15 @@
 import React, { useState } from "react";
 
 /* ============================================================
-   neoPOP component kit — primitives shared by all neo pages
+   Component kit — primitives shared by all neo pages
    ============================================================ */
 
-/** 3D extruded "plunk" button. Presses into its own shadow. */
+/** Primary button with a built-in loading state. */
 export function NeoButton({ children, loading = false, loadingText = "working…", ...props }) {
   return (
     <div className="np-btn-zone">
       <button type="submit" className="np-btn" disabled={loading} {...props}>
         {loading ? loadingText : children}
-        {!loading && <span className="np-btn__arrow" aria-hidden="true">→</span>}
       </button>
     </div>
   );
@@ -45,7 +44,7 @@ export function NeoField({ label, type = "text", ...props }) {
   );
 }
 
-/** Labeled select with acid chevron. */
+/** Labeled select. */
 export function NeoSelect({ label, children, ...props }) {
   return (
     <div className="np-field">
@@ -59,14 +58,10 @@ export function NeoSelect({ label, children, ...props }) {
   );
 }
 
-/** Card with neoPOP corner ticks. */
+/** Card surface. */
 export function NeoCard({ children, ...props }) {
   return (
     <div className="np-card" {...props}>
-      <i className="np-tick np-tick--tl" aria-hidden="true" />
-      <i className="np-tick np-tick--tr" aria-hidden="true" />
-      <i className="np-tick np-tick--bl" aria-hidden="true" />
-      <i className="np-tick np-tick--br" aria-hidden="true" />
       {children}
     </div>
   );

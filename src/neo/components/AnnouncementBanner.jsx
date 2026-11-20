@@ -1,64 +1,49 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { MdCampaign, MdClose } from "react-icons/md";
 
+const DISMISSED_KEY = "announcement_dismissed";
+
+/**
+ * A notice the team can switch on by editing public/announcements.json
+ * ({ active, title, message }) — e.g. when ERP is down. Dismissing hides
+ * that particular notice; a new one shows again.
+ * (On desktop the mascot delivers it instead, so this hides itself there.)
+ */
 export default function AnnouncementBanner() {
   const [announcement, setAnnouncement] = useState(null);
 
   useEffect(() => {
-    const fetchAnnouncement = async () => {
-      try {
-        const res = await axios.get(`/announcements.json?t=${Date.now()}`);
-        if (res.data && res.data.active) {
-          setAnnouncement(res.data);
-        } else {
-          setAnnouncement(null);
-        }
-      } catch {
-        setAnnouncement(null);
-      }
+    let cancelled = false;
+    fetch(`/announcements.json?t=${Date.now()}`, { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.active) return;
+        const id = `${data.title || ""}|${data.message || ""}`;
+        if (localStorage.getItem(DISMISSED_KEY) !== id) setAnnouncement({ ...data, id });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
     };
-    fetchAnnouncement();
   }, []);
 
-  if (!announcement || !announcement.active) return null;
+  if (!announcement) return null;
+
+  const dismiss = () => {
+    localStorage.setItem(DISMISSED_KEY, announcement.id);
+    setAnnouncement(null);
+  };
 
   return (
-    <div
-      className="np-board np-announce-banner"
-      style={{
-        borderColor: "var(--np-acid)",
-        background: "rgba(207, 255, 4, 0.05)",
-        padding: "16px 14px 12px",
-        textAlign: "center",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "6px",
-        marginTop: "16px",
-      }}
-    >
-      <div
-        style={{
-          font: "700 11px/1.4 var(--np-font-ui)",
-          letterSpacing: "0.22em",
-          textTransform: "uppercase",
-          color: "var(--np-acid)",
-          paddingTop: "2px",
-        }}
-      >
-        {announcement.title || "ANNOUNCEMENT"}
+    <aside className="np-announce np-announce-banner" role="status">
+      <MdCampaign className="np-announce__icon" size={22} aria-hidden="true" />
+      <div className="np-announce__body">
+        <div className="np-announce__title">{announcement.title || "Announcement"}</div>
+        <p className="np-announce__text">{announcement.message}</p>
       </div>
-      <div
-        style={{
-          fontSize: "11px",
-          color: "var(--np-cream)",
-          fontFamily: "var(--np-font-ui)",
-          lineHeight: "1.4",
-          whiteSpace: "pre-line",
-        }}
-      >
-        {announcement.message}
-      </div>
-    </div>
+      <button className="np-toast__close" onClick={dismiss} aria-label="Dismiss announcement">
+        <MdClose size={17} />
+      </button>
+    </aside>
   );
 }

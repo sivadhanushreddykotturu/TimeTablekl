@@ -108,7 +108,7 @@ export function matchesCourse(slotContent, courseCode, courseName) {
     const subjectMappings = JSON.parse(localStorage.getItem("subjectMappings") || "{}");
     const mapped = subjectMappings[extractMainCode(courseCode)] || subjectMappings[courseCode];
     if (mapped && token === String(mapped).toUpperCase().replace(/[^A-Z0-9]/g, "")) return true;
-  } catch (_) {}
+  } catch { /* ignore */ }
 
   return false;
 }

@@ -1,38 +1,15 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React from "react";
+import { Navigate } from "react-router-dom";
 import { getCredentials } from "../../utils/storage.js";
 
+/**
+ * Wraps the login route: signed-in users go straight to their day.
+ * Decided synchronously from localStorage, so there is no loading flash.
+ */
 export default function AuthGuard({ children }) {
-  const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
+  const signedIn = Boolean(getCredentials() && localStorage.getItem("timetable"));
+  if (!signedIn) return children;
 
-  useEffect(() => {
-    // Check if user has credentials and timetable data
-    const credentials = getCredentials();
-    const timetable = localStorage.getItem("timetable");
-    const examMode = localStorage.getItem("examMode") === "true";
-    
-    if (credentials && timetable) {
-      // User is logged in, check if exam mode is active
-      if (examMode) {
-        navigate("/exam", { replace: true });
-      } else {
-        navigate("/home", { replace: true });
-      }
-    } else {
-      // User is not logged in, stay on current page (login)
-      setIsLoading(false);
-    }
-  }, [navigate]);
-
-  if (isLoading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  return children;
-} 
+  const examMode = localStorage.getItem("examMode") === "true";
+  return <Navigate to={examMode ? "/exam" : "/home"} replace />;
+}

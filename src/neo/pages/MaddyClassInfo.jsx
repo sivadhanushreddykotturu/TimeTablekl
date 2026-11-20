@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiCalendar } from "react-icons/fi";
-import NeoShell from "../Shell.jsx";
+import NeoShell, { NeoLoading } from "../Shell.jsx";
 import ClassTimer, { ClassTimerReadout, ClassProgressBar } from "../components/ClassTimer.jsx";
 import Toast from "../../components/Toast.jsx";
 import { getSlotTimes, getMaxSlots } from "../../utils/slotTimes";
@@ -147,10 +147,7 @@ export default function NeoMaddyClassInfo() {
   if (!maddy) {
     return (
       <NeoShell>
-        <div className="np-loading">
-          <div className="np-loading__blocks" aria-hidden="true"><span /><span /><span /><span /></div>
-          <div className="np-loading__text">loading…</div>
-        </div>
+        <NeoLoading />
         <Toast
           message={toast.message}
           type={toast.type}
@@ -164,9 +161,6 @@ export default function NeoMaddyClassInfo() {
   return (
     <NeoShell>
       <div className="np-pagehead">
-        <button className="np-iconbtn" style={{ marginBottom: 14 }} onClick={() => navigate("/maddys")}>
-          <FiArrowLeft size={13} /> back to docs
-        </button>
         <span className="np-eyebrow">
           {SEMESTER_NAMES[maddy.semester] || maddy.semester} · {maddy.academicYear}
         </span>
@@ -176,7 +170,7 @@ export default function NeoMaddyClassInfo() {
       <section className={`np-now${current ? "" : " np-now--idle"}`}>
         <div className="np-now__label">
           <span className="np-now__pulse" />
-          <span>{current ? "happening now" : "nothing right now"}</span>
+          <span>{current ? "Happening now" : "Nothing right now"}</span>
           {current && (
             <ClassTimerReadout
               startTimeMs={current.startTimeMs}
@@ -197,7 +191,7 @@ export default function NeoMaddyClassInfo() {
       </section>
 
       <section className="np-next">
-        <span className="np-next__label">up<br />next</span>
+        <span className="np-next__label">Up next</span>
         <div className="np-next__body">
           <div className="np-next__class">
             {next ? replaceCourseCodeWithCustomName(next.name) : "No more classes today"}
@@ -211,7 +205,7 @@ export default function NeoMaddyClassInfo() {
         onClick={() => navigate(`/maddys/${id}/timetable`)}
       >
         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <FiCalendar size={15} /> view full timetable
+          <FiCalendar size={15} /> View full timetable
         </span>
         <span className="np-linkrow__go">→</span>
       </button>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import { FiShare2 } from "react-icons/fi";
-import { LuCalendarCheck2 } from "react-icons/lu";
+import { MdCalculate, MdChevronRight, MdIosShare } from "react-icons/md";
 import axios from "axios";
 import NeoShell, { NeoModal, NeoLoading } from "../Shell.jsx";
 import { NeoButton } from "../NeoKit.jsx";
@@ -14,8 +13,8 @@ import { trackEvent } from "../../utils/analytics";
 import { getCredentials, handleSessionRefresh } from "../../../utils/storage.js";
 import { getFormData, getRegisterDetailFormData, API_CONFIG } from "../../config/api.js";
 import { getSubjectName } from "../../utils/subjectMapper";
-import { getCSSColor } from "../utils/themeEngine";
-import GuestAuthModal, { ensureTimetableFetched } from "../../components/GuestAuthModal.jsx";
+import { getCSSColor } from "../utils/cssColor";
+import GuestAuthModal from "../../components/GuestAuthModal.jsx";
 import { decodeHtml } from "../../utils/gradesUtils.js";
 
 
@@ -43,6 +42,20 @@ function formatTimeAgo(isoString) {
   return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`;
 }
 
+const COMPONENT_NAMES = { L: "Lecture", T: "Tutorial", P: "Practical", S: "Skill" };
+const SMALL_WORDS = new Set(["and", "of", "the", "in", "for", "to", "with", "a", "an", "on"]);
+
+/** "PROBABILITY AND STATISTICS" → "Probability and Statistics" */
+function titleCase(text) {
+  return (text || "")
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word, index) =>
+      index > 0 && SMALL_WORDS.has(word) ? word : word.charAt(0).toUpperCase() + word.slice(1)
+    )
+    .join(" ");
+}
+
 export default function NeoAttendance() {
   const location = useLocation();
   const friendCredentials = location.state?.friendCredentials || null;
@@ -54,11 +67,11 @@ export default function NeoAttendance() {
   const [calculatorInitialCourse, setCalculatorInitialCourse] = useState(null);
   // "new" = tap-to-skip simulator, "old" = the original attendance calculator. Remembered per device.
   const [bunkMode, setBunkModeState] = useState(() => {
-    try { return localStorage.getItem("bunkCalcMode") === "old" ? "old" : "new"; } catch (_) { return "new"; }
+    try { return localStorage.getItem("bunkCalcMode") === "old" ? "old" : "new"; } catch { return "new"; }
   });
   const setBunkMode = (m) => {
     setBunkModeState(m);
-    try { localStorage.setItem("bunkCalcMode", m); } catch (_) {}
+    try { localStorage.setItem("bunkCalcMode", m); } catch { /* storage unavailable */ }
   };
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [selectedRegisterData, setSelectedRegisterData] = useState(null);
@@ -93,7 +106,7 @@ export default function NeoAttendance() {
   useEffect(() => {
     try {
       localStorage.removeItem("include_tcbr");
-    } catch (_) {}
+    } catch { /* storage unavailable */ }
   }, []);
 
   const hasAnyTcbr = attendanceData && attendanceData.length > 0 && attendanceData.some(item => {
@@ -215,13 +228,6 @@ export default function NeoAttendance() {
         /* ignore storage write error */
       }
       setLastFetchedTime(nowIso);
-    }
-    if (!isBackground) {
-      setToast({
-        show: true,
-        message: "Attendance fetched successfully!",
-        type: "success"
-      });
     }
   }, [friendCredentials]);
 
@@ -368,7 +374,7 @@ export default function NeoAttendance() {
     setTargetPercentage(value);
     try {
       localStorage.setItem("attendanceTargetPercentage", String(value));
-    } catch (_) { }
+    } catch { /* storage unavailable */ }
   };
 
   const classesToReachTarget = (present, total, target) => {
@@ -809,184 +815,202 @@ export default function NeoAttendance() {
     setRegisterLoadingText("fetching register…");
   };
 
+  const courses = isLoading || error ? [] : groupAttendanceByCourse(attendanceData, includeTcbr);
+  const belowTarget = courses.filter((c) => c.overallPercentage < targetPercentage).length;
+  const average = courses.length
+    ? Math.round(courses.reduce((sum, c) => sum + c.overallPercentage, 0) / courses.length)
+    : 0;
+
+  const openSimulator = (course = null) => {
+    setSimulatorCourseCode(course ? course.courseCode : "");
+    setCalculatorInitialCourse(
+      course
+        ? course.sections
+            .map((section) => ({
+              type: section.ltps.charAt(0).toUpperCase(),
+              attended: section.totalAttended,
+              conducted: section.totalConducted,
+              tcbr: includeTcbr ? section.tcbr || "0" : "0",
+            }))
+            .filter((item) => ["L", "T", "P", "S"].includes(item.type))
+        : null
+    );
+    setShowSimulatorModal(true);
+  };
+
   return (
-    <NeoShell onRefresh={fetchAttendanceData} refreshMode="direct" refreshLabel="refetch" autoSyncing={autoSyncing}>
+    <NeoShell onRefresh={fetchAttendanceData} autoSyncing={autoSyncing}>
       <div className="np-pagehead">
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
-          <span className="np-eyebrow" style={{ margin: 0 }}>
-            {friendCredentials ? `${friendCredentials.name}'s numbers` : "your numbers"}
-          </span>
-          {(lastFetchedTime || autoSyncing) && !friendCredentials && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                padding: "3px 8px",
-                background: "var(--np-panel, #17171b)",
-                border: "1px solid var(--np-line, #2a2a31)",
-                color: "var(--np-cream, #f4f2ea)",
-                fontSize: "10px",
-                fontWeight: 600,
-                textTransform: "lowercase",
-                letterSpacing: "0.02em",
-                borderRadius: 0,
-              }}
-            >
-              <span
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  background: autoSyncing ? "var(--np-cyan, #00e5ff)" : "var(--np-acid, #cfff04)",
-                  boxShadow: autoSyncing ? "0 0 6px var(--np-cyan, #00e5ff)" : "0 0 6px var(--np-acid, #cfff04)",
-                  flexShrink: 0,
-                }}
-              />
-              {autoSyncing ? "syncing…" : `fetched ${formatTimeAgo(lastFetchedTime)}`}
-            </span>
+        <div className="np-pagehead__row">
+          <h1 className="np-pagehead__title">
+            {friendCredentials ? `${friendCredentials.name}'s attendance` : "Attendance"}
+          </h1>
+          {attendanceData.length > 0 && (
+            <div className="np-pagehead__actions">
+              <button
+                className="np-iconbtn"
+                onClick={() => openSimulator()}
+                aria-label="Bunk calculator"
+                title="Bunk calculator"
+              >
+                <MdCalculate size={20} />
+              </button>
+              <button
+                className="np-iconbtn"
+                onClick={exportAsImage}
+                disabled={exporting}
+                aria-label="Share attendance"
+                title="Share attendance"
+              >
+                <MdIosShare size={19} />
+              </button>
+            </div>
           )}
         </div>
-        <div className="np-pagehead__row">
-          <h1 className="np-pagehead__title">attendance<i>.</i></h1>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {hasAnyTcbr && (
-              <button
-                type="button"
-                className="np-iconbtn"
-                onClick={toggleTcbr}
-                title={includeTcbr ? "TCBR included in attendance. Click to turn off." : "TCBR excluded. Click to turn on."}
-              >
-                tcbr · {includeTcbr ? "on" : "off"}
-              </button>
-            )}
-            <button className="np-iconbtn" onClick={() => setShowTargetModal(true)}>
-              safe % · {targetPercentage}
-            </button>
-          </div>
-        </div>
+        {(lastFetchedTime || autoSyncing) && !friendCredentials && (
+          <p className="np-pagehead__sub">
+            {autoSyncing ? "Updating…" : `Updated ${formatTimeAgo(lastFetchedTime)}`}
+          </p>
+        )}
       </div>
 
       {isLoading ? (
-        <NeoLoading text={`fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} attendance…`} />
+        <NeoLoading text={`Fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} attendance…`} />
       ) : error ? (
         error.includes("Session expired") || error.includes("log in") ? (
-          <div className="np-guest-cta-plaque">
-            <h2>You're very near! 🎯</h2>
-            <p>Log in with your KL ERP credentials to view your live attendance and safe margin calculator.</p>
-            <NeoButton onClick={() => setShowGuestModal(true)}>Log In Now</NeoButton>
+          <div className="np-empty">
+            <h2 className="np-empty__title">See your attendance</h2>
+            <p className="np-empty__text">Log in with your KL ERP account to load it and plan your bunks.</p>
+            <button type="button" className="np-btn" onClick={() => setShowGuestModal(true)}>Log in</button>
           </div>
         ) : (
-          <div className="np-error">
-            <p>{error}</p>
-            <button onClick={fetchAttendanceData} className="np-iconbtn">retry</button>
+          <div className="np-empty">
+            <h2 className="np-empty__title">Couldn't load attendance</h2>
+            <p className="np-empty__text">{error}</p>
+            <button type="button" className="np-btn" onClick={fetchAttendanceData}>Try again</button>
           </div>
         )
-      ) : attendanceData.length === 0 ? (
+      ) : courses.length === 0 ? (
         <div className="np-empty">
-          <h2 className="np-empty__title">no attendance data</h2>
+          <h2 className="np-empty__title">No attendance yet</h2>
           <p className="np-empty__text">Nothing came back from ERP for this semester.</p>
         </div>
       ) : (
-        groupAttendanceByCourse(attendanceData, includeTcbr).map((course, index) => (
-          <div key={index} className="np-att">
-            <div className="np-att__head">
-              <div className="np-att__code">{getSubjectName(course.courseCode)}</div>
-              <h3 className="np-att__name">{course.courseName}</h3>
+        <>
+          <section className="np-attsum">
+            <div>
+              <div className={`np-attsum__pct ${getPctClass(average)}`}>{average}%</div>
+              <div className="np-attsum__label">
+                {belowTarget === 0
+                  ? `All ${courses.length} subjects at or above ${targetPercentage}%`
+                  : `${belowTarget} of ${courses.length} subjects below ${targetPercentage}%`}
+              </div>
             </div>
+            <div className="np-attsum__controls">
+              <button type="button" className="np-chipbtn" onClick={() => setShowTargetModal(true)}>
+                Target {targetPercentage}%
+              </button>
+              {hasAnyTcbr && (
+                <button
+                  type="button"
+                  className={`np-chipbtn${includeTcbr ? " is-on" : ""}`}
+                  role="switch"
+                  aria-checked={includeTcbr}
+                  onClick={toggleTcbr}
+                  title="Count TCBR (condoned classes) in your percentage"
+                >
+                  TCBR {includeTcbr ? "on" : "off"}
+                </button>
+              )}
+            </div>
+          </section>
 
-            <div className="np-att__total">
-              <div>
-                <div className="np-panel__label" style={{ marginBottom: 4 }}>overall</div>
-                <div className="np-att__total-meta">
-                  {course.averageType || "Weighted"} · {course.sections.length} component{course.sections.length !== 1 ? "s" : ""}
-                </div>
-                <div className="np-att__tools">
-                  <button
-                    className="np-minibtn"
-                    onClick={() => {
-                      setSimulatorCourseCode(course.courseCode);
-                      setCalculatorInitialCourse(
-                        course.sections.map(section => ({
-                          type: section.ltps.charAt(0).toUpperCase(),
-                          attended: section.totalAttended,
-                          conducted: section.totalConducted,
-                          tcbr: includeTcbr ? (section.tcbr || "0") : "0"
-                        })).filter(item => ["L", "T", "P", "S"].includes(item.type))
-                      );
-                      setShowSimulatorModal(true);
-                    }}
-                  >
-                    bunk / attend
+          {courses.map((course) => {
+            const nickname = getSubjectName(course.courseCode);
+            return (
+              <article key={course.courseCode} className="np-att">
+                <header className="np-att__head">
+                  <div className="np-att__title">
+                    <h2 className="np-att__name">{titleCase(course.courseName)}</h2>
+                    <div className="np-att__code">
+                      {course.courseCode}
+                      {nickname !== course.courseCode &&
+                        nickname.toLowerCase() !== course.courseName.toLowerCase() &&
+                        ` · ${nickname}`}
+                    </div>
+                  </div>
+                  <div className={`np-att__total-pct ${getPctClass(course.overallPercentage)}`}>
+                    {course.overallPercentage}%
+                  </div>
+                </header>
+
+                {course.sections.map((section) => {
+                  const attended = parseInt(section.totalAttended);
+                  const conducted = parseInt(section.totalConducted);
+                  const tcbr = parseInt(section.tcbr || "0");
+                  const effectiveTcbr = includeTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
+                  const effectiveConducted = includeTcbr ? Math.max(0, conducted - effectiveTcbr) : conducted;
+                  const safeAttended = Number.isFinite(attended) ? attended : 0;
+                  const hasNums = Number.isFinite(attended) && Number.isFinite(conducted) && effectiveConducted > 0;
+                  const currentPct = hasNums ? (safeAttended / effectiveConducted) * 100 : 0;
+                  const type = section.ltps.charAt(0).toUpperCase();
+                  const hasRegister = ["L", "P", "S", "T"].includes(type);
+
+                  return (
+                    <button
+                      key={`${section.ltps}-${section.section}`}
+                      type="button"
+                      className="np-att__section"
+                      disabled={!hasRegister}
+                      onClick={() => handleRegisterFetch(course, section)}
+                      aria-label={`${COMPONENT_NAMES[type] || section.ltps} register`}
+                    >
+                      <span className="np-att__ltps">{section.ltps}</span>
+                      <span className="np-att__section-info">
+                        <span className="np-att__section-name">
+                          {COMPONENT_NAMES[type] || section.ltps} · {section.section}
+                        </span>
+                        <span className="np-att__detail">
+                          {section.totalAttended} of {section.totalConducted} · {section.totalAbsent} absent
+                          {tcbr > 0 && ` · TCBR ${tcbr}${includeTcbr ? "" : " (off)"}`}
+                        </span>
+                      </span>
+                      <span className="np-att__nums">
+                        <span className={`np-att__pct ${getPctClass(section.rawPercentage)}`}>
+                          {Math.ceil(parseFloat(section.rawPercentage))}%
+                        </span>
+                        {hasNums && (
+                          <span className="np-att__hint">
+                            {currentPct >= targetPercentage
+                              ? `Can miss ${safeBunksAtTarget(safeAttended, effectiveConducted, targetPercentage)}`
+                              : `Attend ${classesToReachTarget(safeAttended, effectiveConducted, targetPercentage)} more`}
+                          </span>
+                        )}
+                      </span>
+                      {hasRegister && <MdChevronRight className="np-att__chev" size={20} aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+
+                <footer className="np-att__tools">
+                  <button type="button" className="np-minibtn" onClick={() => openSimulator(course)}>
+                    Plan bunks
                   </button>
                   <button
+                    type="button"
                     className="np-minibtn"
                     onClick={() => {
                       setSelectedCourseData(course);
                       setShowCalculationModal(true);
                     }}
                   >
-                    breakdown
+                    How it's calculated
                   </button>
-                </div>
-              </div>
-              <div className={`np-att__total-pct ${getPctClass(course.overallPercentage)}`}>
-                {course.overallPercentage}%
-              </div>
-            </div>
-
-            {course.sections.map((section, sectionIndex) => {
-              const attended = parseInt(section.totalAttended);
-              const conducted = parseInt(section.totalConducted);
-              const tcbr = parseInt(section.tcbr || "0");
-              const effectiveTcbr = includeTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
-              const effectiveConducted = includeTcbr ? Math.max(0, conducted - effectiveTcbr) : conducted;
-              const safeAttended = Number.isFinite(attended) ? attended : 0;
-              const hasNums = Number.isFinite(attended) && Number.isFinite(conducted) && effectiveConducted > 0;
-              const currentPct = hasNums ? (safeAttended / effectiveConducted) * 100 : 0;
-
-              return (
-                <div key={sectionIndex} className="np-att__section">
-                  <span className="np-att__ltps">{section.ltps}</span>
-                  <div className="np-att__section-info">
-                    <div className="np-att__section-name">{section.section}</div>
-                    {["L", "P", "S", "T"].includes(section.ltps.charAt(0).toUpperCase()) && (
-                      <button
-                        className="np-minibtn"
-                        onClick={() => handleRegisterFetch(course, section)}
-                      >
-                        register
-                      </button>
-                    )}
-                  </div>
-                  <div className="np-att__nums">
-                    <div className={`np-att__pct ${getPctClass(section.rawPercentage)}`}>
-                      {Math.ceil(parseFloat(section.rawPercentage))}%{" "}
-                      {section.totalConducted > 0 && section.rawPercentage && (
-                        <small>({section.rawPercentage}%)</small>
-                      )}
-                    </div>
-                    <div className="np-att__detail">
-                      {section.totalAttended}/{section.totalConducted} · {section.totalAbsent} absent
-                      {tcbr > 0 ? (includeTcbr ? ` · tcbr ${tcbr} (condoned: ${section.totalAttended}/${effectiveConducted})` : ` · tcbr ${tcbr} (off)`) : ""}
-                    </div>
-                    {hasNums && (
-                      currentPct >= targetPercentage ? (
-                        <div className="np-att__hint">
-                          safe bunks at {targetPercentage}%: <b>{safeBunksAtTarget(safeAttended, effectiveConducted, targetPercentage)} hrs</b>
-                        </div>
-                      ) : (
-                        <div className="np-att__hint">
-                          attend <b>{classesToReachTarget(safeAttended, effectiveConducted, targetPercentage)} hrs</b> for {targetPercentage}%
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))
+                </footer>
+              </article>
+            );
+          })}
+        </>
       )}
 
       <CalculatorModal
@@ -1026,69 +1050,54 @@ export default function NeoAttendance() {
         onToggleTcbr={toggleTcbr}
       />
 
-      {attendanceData.length > 0 && (
-        <button
-          className="np-fab np-fab--2"
-          onClick={exportAsImage}
-          disabled={exporting}
-          title="Share attendance"
-        >
-          {exporting ? "…" : <FiShare2 size={20} />}
-        </button>
-      )}
-
-      <button
-        className="np-fab np-fab--1"
-        onClick={() => {
-          setSimulatorCourseCode("");
-          setCalculatorInitialCourse(null);
-          setShowSimulatorModal(true);
-        }}
-        title="Bunk / Attend Simulator"
-      >
-        <LuCalendarCheck2 size={20} />
-      </button>
-
       {/* register details */}
-      <NeoModal open={showRegisterModal} title="register details" onClose={closeRegisterModal} wide>
+      <NeoModal open={showRegisterModal} title="Register" onClose={closeRegisterModal}>
         {registerLoading ? (
           <NeoLoading text={registerLoadingText} />
-        ) : selectedRegisterData ? (
-          <div className="np-table">
-            <div className="np-table__row is-head">
-              <span className="np-table__cell" style={{ flex: "0 0 60%" }}>date & time</span>
-              <span className="np-table__cell" style={{ textAlign: "center" }}>status</span>
-            </div>
-            {selectedRegisterData.daily_attendance && selectedRegisterData.daily_attendance.length > 0 ? (
-              [...selectedRegisterData.daily_attendance].reverse().map((entry, index) => (
-                <div key={index} className="np-table__row">
-                  <span className="np-table__cell" style={{ flex: "0 0 60%" }}>
-                    {entry.date_slot.split(' H ')[0]} H{entry.date_slot.split(' H ')[1]}
+        ) : selectedRegisterData?.daily_attendance?.length > 0 ? (
+          <div className="np-reglist">
+            {[...selectedRegisterData.daily_attendance].reverse().map((entry, index) => {
+              const [date, hour] = entry.date_slot.split(" H ");
+              const present = entry.status === "P";
+              return (
+                <div key={index} className="np-reglist__row">
+                  <span>
+                    {date}
+                    {hour && <small> · Hour {hour}</small>}
                   </span>
-                  <span
-                    className={`np-table__cell ${entry.status === 'P' ? "np-good" : "np-bad"}`}
-                    style={{ textAlign: "center", fontWeight: 700 }}
-                  >
-                    {entry.status === 'P' ? 'Present' : 'Absent'}
-                  </span>
+                  <b className={present ? "np-good" : "np-bad"}>{present ? "Present" : "Absent"}</b>
                 </div>
-              ))
-            ) : (
-              <div className="np-table__row">
-                <span className="np-table__cell np-dim">No daily attendance data available</span>
-              </div>
-            )}
+              );
+            })}
           </div>
         ) : (
-          <p className="np-note">No register data found.</p>
+          <p className="np-note">No class-by-class record is available for this component yet.</p>
         )}
       </NeoModal>
 
       {/* safe % target */}
-      <NeoModal open={showTargetModal} title="edit safe percentage" onClose={() => setShowTargetModal(false)}>
+      <NeoModal open={showTargetModal} title="Target attendance" onClose={() => setShowTargetModal(false)}>
+        <p className="np-note" style={{ marginBottom: 16 }}>
+          The percentage you want to stay above. "Can miss" and "Attend more" are worked out against it.
+        </p>
+        <div className="np-chips" style={{ marginBottom: 16 }}>
+          {[75, 80, 85, 90].map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              className={`np-chipbtn${Number(targetInput) === preset ? " is-on" : ""}`}
+              onClick={() => {
+                setTargetInput(String(preset));
+                setTargetError("");
+              }}
+            >
+              {preset}%
+            </button>
+          ))}
+        </div>
         <div className="np-field">
           <div className="np-field__head">
-            <label className="np-field__label" htmlFor="np-target">target % (0–100)</label>
+            <label className="np-field__label" htmlFor="np-target">Target %</label>
           </div>
           <input
             id="np-target"
@@ -1102,7 +1111,7 @@ export default function NeoAttendance() {
             onChange={(e) => setTargetInput(e.target.value)}
           />
         </div>
-        {targetError && <p className="np-note np-bad" style={{ marginBottom: 12 }}>{targetError}</p>}
+        {targetError && <p className="np-formerror" role="alert">{targetError}</p>}
         <NeoButton
           type="button"
           onClick={() => {
@@ -1115,7 +1124,7 @@ export default function NeoAttendance() {
             setShowTargetModal(false);
           }}
         >
-          save target
+          Save
         </NeoButton>
       </NeoModal>
 
@@ -1126,7 +1135,6 @@ export default function NeoAttendance() {
         onSuccess={async () => {
           setShowGuestModal(false);
           await fetchAttendanceData();
-          ensureTimetableFetched();
         }}
       />
 

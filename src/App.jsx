@@ -1,88 +1,129 @@
-import React, { lazy, Suspense, useEffect } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { HeadProvider } from "react-head";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { ThemeProvider } from "./contexts/ThemeContext";
 import { SyncProvider } from "./contexts/SyncContext";
 import AuthGuard from "./components/AuthGuard.jsx";
-import PerformanceMonitor from "./components/PerformanceMonitor.jsx";
 import GoogleAnalytics from "./components/GoogleAnalytics.jsx";
-import DesktopCompanion from "./neo/bot/DesktopCompanion.jsx";
-import LoginPage from "./neo/Login.jsx";
 import HomePage from "./neo/pages/Home.jsx";
-import TimetablePage from "./neo/pages/Timetable.jsx";
-import SubjectsPage from "./neo/pages/Subjects.jsx";
-import MaddysPage from "./neo/pages/Maddys.jsx";
-import MaddyClassInfo from "./neo/pages/MaddyClassInfo.jsx";
-import MaddyTimetable from "./neo/pages/MaddyTimetable.jsx";
-import AttendancePage from "./neo/pages/Attendance.jsx";
-import GradesPage from "./neo/pages/Grades.jsx";
-import ProfilePage from "./neo/pages/Profile.jsx";
-import RegisterPage from "./pages/Register.jsx";
-import ExamPage from "./neo/pages/Exam.jsx";
-import Customization from "./neo/pages/Customization.jsx";
-import { ToasterProvider } from "./components/Toast.jsx";
-import { loadAndApplyTheme } from "./neo/utils/themeEngine";
+import AppNav from "./neo/components/AppNav.jsx";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import "./neo/neo.css";
-const CalculatorPage = lazy(() => import("./pages/Calculator.jsx"));
+import "./neo/core.css";
 
-// Lazy load analytics to reduce initial bundle size
-const Analytics = lazy(() => import("@vercel/analytics/react").then(module => ({ default: module.Analytics })));
+// Today is in the main bundle so a returning user sees their day at once.
+// Every other screen is its own chunk, fetched (from the service-worker cache
+// after the first visit) when it is first needed.
+const pages = {
+  login: () => import("./neo/Login.jsx"),
+  timetable: () => import("./neo/pages/Timetable.jsx"),
+  attendance: () => import("./neo/pages/Attendance.jsx"),
+  profile: () => import("./neo/pages/Profile.jsx"),
+  grades: () => import("./neo/pages/Grades.jsx"),
+  subjects: () => import("./neo/pages/Subjects.jsx"),
+  maddys: () => import("./neo/pages/Maddys.jsx"),
+  maddyClass: () => import("./neo/pages/MaddyClassInfo.jsx"),
+  maddyTimetable: () => import("./neo/pages/MaddyTimetable.jsx"),
+  exam: () => import("./neo/pages/Exam.jsx"),
+  calculator: () => import("./neo/pages/Calculator.jsx"),
+};
+
+const LoginPage = lazy(pages.login);
+const TimetablePage = lazy(pages.timetable);
+const AttendancePage = lazy(pages.attendance);
+const ProfilePage = lazy(pages.profile);
+const GradesPage = lazy(pages.grades);
+const SubjectsPage = lazy(pages.subjects);
+const MaddysPage = lazy(pages.maddys);
+const MaddyClassInfo = lazy(pages.maddyClass);
+const MaddyTimetable = lazy(pages.maddyTimetable);
+const ExamPage = lazy(pages.exam);
+const CalculatorPage = lazy(pages.calculator);
+
+const DesktopCompanion = lazy(() => import("./neo/bot/DesktopCompanion.jsx"));
+const Analytics = lazy(() => import("@vercel/analytics/react").then((module) => ({ default: module.Analytics })));
+
+const DESKTOP = "(min-width: 1024px)";
+
+/** The mascot animates at 60fps, so it is only loaded where it is shown. */
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia(DESKTOP).matches);
+  useEffect(() => {
+    const query = window.matchMedia(DESKTOP);
+    const onChange = (event) => setIsDesktop(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+  return isDesktop;
+}
+
+const whenIdle = (fn) =>
+  "requestIdleCallback" in window ? window.requestIdleCallback(fn, { timeout: 4000 }) : setTimeout(fn, 1500);
 
 function App() {
-  // Silent auto-updater for iOS / Android PWAs (zero stale cache)
+  // New builds download in the background and swap in when the app isn't in use
   useAppUpdater();
+  const isDesktop = useIsDesktop();
+  const [idle, setIdle] = useState(false);
 
-  // neoPOP full-bleed black canvas, app-wide
+  // full-bleed dark canvas, app-wide
   useEffect(() => {
     document.body.classList.add("np-body");
-    loadAndApplyTheme();
     return () => document.body.classList.remove("np-body");
+  }, []);
+
+  // Once the first screen is up, warm the other tabs so switching is instant.
+  useEffect(() => {
+    whenIdle(() => {
+      setIdle(true);
+      pages.timetable();
+      pages.attendance();
+      pages.profile();
+    });
   }, []);
 
   return (
     <HeadProvider>
-      <ThemeProvider>
         <SyncProvider>
-          <PerformanceMonitor />
           <Router>
             <GoogleAnalytics />
             {/* Companion lives here — above Routes, never remounts */}
-            <DesktopCompanion />
+            {isDesktop && (
+              <Suspense fallback={null}>
+                <DesktopCompanion />
+              </Suspense>
+            )}
+            {/* The tab bar is mounted once, outside the routes, so its motion survives navigation */}
+            <AppNav />
             <div className="app-wrapper">
-              <Suspense fallback={<div className="loading-container">Loading...</div>}>
-              <Routes>
-                <Route path="/" element={
-                  <AuthGuard>
-                    <LoginPage />
-                  </AuthGuard>
-                } />
-                <Route path="/home" element={<HomePage />} />
-                <Route path="/timetable" element={<TimetablePage />} />
-                <Route path="/subjects" element={<SubjectsPage />} />
-                <Route path="/maddys" element={<MaddysPage />} />
-                <Route path="/maddys/:id/class" element={<MaddyClassInfo />} />
-                <Route path="/maddys/:id/timetable" element={<MaddyTimetable />} />
-                <Route path="/attendance" element={<AttendancePage />} />
-                <Route path="/grades" element={<GradesPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/customize" element={<Customization />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/exam" element={<ExamPage />} />
-                <Route path="/games" element={<HomePage />} />
-                <Route path="/games/flappy-bird" element={<HomePage />} />
-                <Route path="/kl-calculator" element={<CalculatorPage />} />
-                <Route path="/kl-attendance-calculator" element={<CalculatorPage />} />
-              </Routes>
+              <Suspense fallback={<div className="np-boot" aria-busy="true" />}>
+                <Routes>
+                  <Route path="/" element={
+                    <AuthGuard>
+                      <LoginPage />
+                    </AuthGuard>
+                  } />
+                  <Route path="/home" element={<HomePage />} />
+                  <Route path="/timetable" element={<TimetablePage />} />
+                  <Route path="/subjects" element={<SubjectsPage />} />
+                  <Route path="/maddys" element={<MaddysPage />} />
+                  <Route path="/maddys/:id/class" element={<MaddyClassInfo />} />
+                  <Route path="/maddys/:id/timetable" element={<MaddyTimetable />} />
+                  <Route path="/attendance" element={<AttendancePage />} />
+                  <Route path="/grades" element={<GradesPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/exam" element={<ExamPage />} />
+                  <Route path="/kl-calculator" element={<CalculatorPage />} />
+                  <Route path="/kl-attendance-calculator" element={<CalculatorPage />} />
+                </Routes>
               </Suspense>
             </div>
           </Router>
-          <Suspense fallback={null}>
-            <Analytics />
-          </Suspense>
-          <ToasterProvider />
+          {idle && (
+            <Suspense fallback={null}>
+              <Analytics />
+            </Suspense>
+          )}
         </SyncProvider>
-      </ThemeProvider>
     </HeadProvider>
   );
 }

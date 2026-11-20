@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { FiShare2 } from "react-icons/fi";
+import { MdChevronRight, MdIosShare } from "react-icons/md";
 import axios from "axios";
 import NeoShell, { NeoModal, NeoLoading } from "../Shell.jsx";
-import { NeoSelect } from "../NeoKit.jsx";
 import Toast from "../../components/Toast.jsx";
 import { getCredentials, handleSessionRefresh } from "../../../utils/storage.js";
 import {
@@ -18,9 +17,9 @@ import {
   filterCoursesBySemester,
   formatSemesterLabel,
 } from "../../utils/gradesUtils.js";
-import { getCSSColor } from "../utils/themeEngine";
+import { getCSSColor } from "../utils/cssColor";
 import { trackEvent } from "../../utils/analytics";
-import GuestAuthModal, { ensureTimetableFetched } from "../../components/GuestAuthModal.jsx";
+import GuestAuthModal from "../../components/GuestAuthModal.jsx";
 
 
 const MARKS_DETAIL_FIELDS = [
@@ -44,6 +43,19 @@ function getGradeClass(grade, course) {
   if (g === "B" || g === "C") return "np-warn";
   if (g === "P") return "np-dim";
   return "np-bad";
+}
+
+const SMALL_WORDS = new Set(["and", "of", "the", "in", "for", "to", "with", "a", "an", "on"]);
+
+/** "DATA STRUCTURES AND ALGORITHMS" → "Data Structures and Algorithms" */
+function titleCase(text) {
+  return (text || "")
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word, index) =>
+      index > 0 && SMALL_WORDS.has(word) ? word : word.charAt(0).toUpperCase() + word.slice(1)
+    )
+    .join(" ");
 }
 
 export default function NeoGrades() {
@@ -128,12 +140,6 @@ export default function NeoGrades() {
           cgpa: calculateGPA(rows),
           is_friend: !!friendCredentials,
           friend_name: friendCredentials?.name || null,
-        });
-
-        setToast({
-          show: true,
-          message: "Grades fetched successfully!",
-          type: "success",
         });
       } else {
         setError(res.data.message || "Failed to fetch grades. Please try again.");
@@ -234,7 +240,7 @@ export default function NeoGrades() {
     if (viewMode === "sgpa" && selectedSemesterKey) {
       return semesterOptions.find((o) => o.key === selectedSemesterKey)?.label || "";
     }
-    return "all semesters · credit-weighted";
+    return "All semesters, credit-weighted";
   }, [viewMode, selectedSemesterKey, semesterOptions]);
 
   const shareTitle = friendCredentials
@@ -451,17 +457,33 @@ export default function NeoGrades() {
     }).filter(Boolean);
   }, [marksDetail]);
 
+  const hasCourses = displayedCourses.length > 0 && !isLoading && !error;
+
   return (
-    <NeoShell onRefresh={fetchCgpaData} refreshMode="direct" refreshLabel="refetch">
+    <NeoShell onRefresh={fetchCgpaData}>
       <div className="np-pagehead">
-        <span className="np-eyebrow">
-          {friendCredentials ? `${friendCredentials.name}'s report` : "your report"}
-        </span>
-        <h1 className="np-pagehead__title">grades<i>.</i></h1>
+        <div className="np-pagehead__row">
+          <h1 className="np-pagehead__title">
+            {friendCredentials ? `${friendCredentials.name}'s grades` : "Grades"}
+          </h1>
+          {hasCourses && (
+            <div className="np-pagehead__actions">
+              <button
+                type="button"
+                className="np-iconbtn"
+                onClick={exportAsImage}
+                disabled={exporting}
+                aria-label={`Share ${gpaLabel}`}
+                title={`Share ${gpaLabel}`}
+              >
+                <MdIosShare size={19} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="np-seg" role="tablist" aria-label="GPA view">
-        <div className={`np-seg__slider${viewMode === "sgpa" ? " is-right" : ""}`} aria-hidden />
         <button
           type="button"
           role="tab"
@@ -469,7 +491,7 @@ export default function NeoGrades() {
           className={`np-seg__btn${viewMode === "cgpa" ? " is-active" : ""}`}
           onClick={() => setViewMode("cgpa")}
         >
-          cgpa
+          CGPA
         </button>
         <button
           type="button"
@@ -478,136 +500,108 @@ export default function NeoGrades() {
           className={`np-seg__btn${viewMode === "sgpa" ? " is-active" : ""}`}
           onClick={() => setViewMode("sgpa")}
         >
-          sgpa
+          SGPA
         </button>
       </div>
 
       {viewMode === "sgpa" && semesterOptions.length > 0 && (
-        <NeoSelect
-          id="np-sem-picker"
-          label="semester"
-          value={selectedSemesterKey}
-          onChange={(e) => setSelectedSemesterKey(e.target.value)}
-        >
+        <div className="np-tabs" role="tablist" aria-label="Semester">
           {semesterOptions.map((option) => (
-            <option key={option.key} value={option.key}>{option.label}</option>
+            <button
+              key={option.key}
+              type="button"
+              role="tab"
+              aria-selected={selectedSemesterKey === option.key}
+              className={`np-tab${selectedSemesterKey === option.key ? " is-active" : ""}`}
+              onClick={() => setSelectedSemesterKey(option.key)}
+            >
+              {option.label}
+            </button>
           ))}
-        </NeoSelect>
+        </div>
       )}
 
       {isLoading ? (
-        <NeoLoading text={`fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} grades…`} />
+        <NeoLoading text={`Fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} grades…`} />
       ) : error ? (
         error.includes("Session expired") || error.includes("log in") ? (
-          <div className="np-guest-cta-plaque">
-            <h2>You're very near! 📊</h2>
-            <p>Log in with your KL ERP credentials to calculate and track your CGPA / SGPA grades.</p>
-            <button type="button" className="np-btn" onClick={() => setShowGuestModal(true)}>Log In Now</button>
+          <div className="np-empty">
+            <h2 className="np-empty__title">See your grades</h2>
+            <p className="np-empty__text">Log in with your KL ERP account to load your CGPA, SGPA and marks.</p>
+            <button type="button" className="np-btn" onClick={() => setShowGuestModal(true)}>Log in</button>
           </div>
         ) : (
-          <div className="np-error">
-            <p>{error}</p>
-            <button onClick={fetchCgpaData} className="np-iconbtn">retry</button>
+          <div className="np-empty">
+            <h2 className="np-empty__title">Couldn't load grades</h2>
+            <p className="np-empty__text">{error}</p>
+            <button type="button" className="np-btn" onClick={fetchCgpaData}>Try again</button>
           </div>
         )
+      ) : displayedCourses.length === 0 ? (
+        <div className="np-empty">
+          <h2 className="np-empty__title">No grades yet</h2>
+          <p className="np-empty__text">Nothing came back from ERP.</p>
+        </div>
       ) : (
         <>
           {headlineGpa !== null && (
-            <div className="np-gpa">
-              <span className="np-gpa__badge">{gpaLabel}</span>
+            <section className="np-gpa">
+              <div className="np-gpa__label">{gpaLabel}</div>
               <div className="np-gpa__value">{headlineGpa}</div>
               <p className="np-gpa__sub">{gpaSubtitle}</p>
-            </div>
+            </section>
           )}
 
-          {displayedCourses.length === 0 ? (
-            <div className="np-empty">
-              <h2 className="np-empty__title">no grade data</h2>
-              <p className="np-empty__text">Nothing came back from ERP.</p>
-            </div>
-          ) : (
-            displayedCourses.map((course, index) => (
-              <div key={`${course.course_code}-${index}`} className="np-att">
-                <div className="np-att__head">
-                  <div className="np-att__code">{course.course_code}</div>
-                  <h3 className="np-att__name">{decodeHtml(course.course_name)}</h3>
-                </div>
-
-                <div className="np-grade-grid">
-                  <div className="np-stat">
-                    <div className="np-stat__label">grade</div>
-                    <div className={`np-stat__value ${getGradeClass(course.grade, course)}`}>
-                      {course.grade}
-                    </div>
-                  </div>
-                  <div className="np-stat">
-                    <div className="np-stat__label">gp</div>
-                    <div className="np-stat__value">{course.grade_point}</div>
-                  </div>
-                  <div className="np-stat">
-                    <div className="np-stat__label">credits</div>
-                    <div className="np-stat__value">{course.credits}</div>
-                  </div>
-                  <div className="np-stat">
-                    <div className="np-stat__label">status</div>
-                    <div className="np-stat__value">{course.promotion_status}</div>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderTop: "1px solid var(--np-line)" }}>
-                  <span className="np-note">
-                    {formatSemesterLabel(course.academic_year, course.semester)}
+          <div className="np-timeline">
+            {displayedCourses.map((course, index) => {
+              const failed = /detain|fail/i.test(course.promotion_status || "");
+              const Row = course.target_href ? "button" : "div";
+              return (
+                <Row
+                  key={`${course.course_code}-${index}`}
+                  {...(course.target_href ? { type: "button", onClick: () => openMarksDetail(course) } : {})}
+                  className="np-slot np-graderow"
+                >
+                  <span className={`np-graderow__grade ${getGradeClass(course.grade, course)}`}>
+                    {course.grade || "–"}
                   </span>
-                  {course.target_href && (
-                    <button
-                      type="button"
-                      className="np-minibtn"
-                      onClick={() => openMarksDetail(course)}
-                    >
-                      more details
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
+                  <span className="np-slot__body">
+                    <span className="np-slot__name">{titleCase(decodeHtml(course.course_name))}</span>
+                    <span className="np-slot__meta">
+                      {course.course_code} · {course.credits} credits · GP {course.grade_point}
+                    </span>
+                    {(viewMode === "cgpa" || failed) && (
+                      <span className="np-slot__meta">
+                        {failed && <b className="np-bad">{course.promotion_status}</b>}
+                        {failed && viewMode === "cgpa" && " · "}
+                        {viewMode === "cgpa" && formatSemesterLabel(course.academic_year, course.semester)}
+                      </span>
+                    )}
+                  </span>
+                  {course.target_href && <MdChevronRight className="np-att__chev" size={20} aria-hidden="true" />}
+                </Row>
+              );
+            })}
+          </div>
         </>
       )}
 
-      {displayedCourses.length > 0 && !isLoading && !error && (
-        <button
-          type="button"
-          className="np-fab np-fab--1"
-          onClick={exportAsImage}
-          disabled={exporting}
-          title={`Share ${gpaLabel}`}
-        >
-          {exporting ? "…" : <FiShare2 size={20} />}
-        </button>
-      )}
-
-      <NeoModal open={showMarksModal} title="marks details" onClose={closeMarksModal} wide>
-        {marksCourseLabel && (
-          <p className="np-note" style={{ marginBottom: 12, color: "var(--np-cream)", fontWeight: 700 }}>
-            {marksCourseLabel}
-          </p>
-        )}
+      <NeoModal open={showMarksModal} title="Marks" onClose={closeMarksModal}>
+        {marksCourseLabel && <p className="np-note" style={{ marginBottom: 14 }}>{marksCourseLabel}</p>}
 
         {marksLoading ? (
-          <NeoLoading text="fetching marks…" />
-        ) : marksDetail ? (
-          <div className="np-table">
+          <NeoLoading text="Fetching marks…" />
+        ) : marksRows.length > 0 ? (
+          <div className="np-reglist">
             {marksRows.map((row) => (
-              <div key={row.key} className="np-table__row">
-                <span className="np-table__cell" style={{ flex: "0 0 48%", fontWeight: 700 }}>
-                  {row.label}
-                </span>
-                <span className="np-table__cell np-dim">{row.value}</span>
+              <div key={row.key} className="np-reglist__row">
+                <span>{row.label}</span>
+                <b>{row.value}</b>
               </div>
             ))}
           </div>
         ) : (
-          <p className="np-note">No marks data found.</p>
+          <p className="np-note">No marks are available for this course yet.</p>
         )}
       </NeoModal>
 
@@ -618,7 +612,6 @@ export default function NeoGrades() {
         onSuccess={async () => {
           setShowGuestModal(false);
           await fetchCgpaData();
-          ensureTimetableFetched();
         }}
       />
 

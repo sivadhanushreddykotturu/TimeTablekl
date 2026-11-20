@@ -1,19 +1,27 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FiEdit3,
-  FiZap,
-  FiMessageSquare,
-  FiLogOut,
-  FiGithub,
-  FiLinkedin,
-  FiRefreshCw,
-  FiClock,
-  FiDroplet,
-} from "react-icons/fi";
+  MdPerson,
+  MdCalendarMonth,
+  MdSchool,
+  MdPeople,
+  MdEdit,
+  MdEventNote,
+  MdSchedule,
+  MdInstallMobile,
+  MdFeedback,
+  MdInfo,
+  MdLogout,
+  MdShuffle,
+} from "react-icons/md";
+import { FiGithub, FiLinkedin } from "react-icons/fi";
 import NeoShell, { NeoModal } from "../Shell.jsx";
 import { NeoField, NeoSelect, NeoButton } from "../NeoKit.jsx";
+import { SettingsGroup, SettingsRow, Switch } from "../components/Settings.jsx";
+import { avatarUrl, getAvatarSeed, nextAvatar, setAvatarSeed as storeAvatarSeed } from "../utils/avatar.js";
 import Toast from "../../components/Toast.jsx";
+import { BUILD_ID } from "../../utils/buildInfo.js";
+import { useInstallPrompt } from "../../hooks/useInstallPrompt.js";
 import {
   clearCookies,
   clearCredentials,
@@ -23,10 +31,10 @@ import {
 import { getCurrentAcademicYearOptions } from "../../config/api.js";
 
 const SEMESTER_NAMES = {
-  odd: "odd sem",
-  even: "even sem",
-  summer: "summer",
-  term3: "term 3",
+  odd: "Odd sem",
+  even: "Even sem",
+  summer: "Summer",
+  term3: "Term 3",
 };
 
 export default function NeoProfile() {
@@ -36,9 +44,9 @@ export default function NeoProfile() {
   const [semester, setSemester] = useState("odd");
   const [academicYear, setAcademicYear] = useState("");
   const [yearOptions, setYearOptions] = useState([]);
-  const [avatarSeed, setAvatarSeed] = useState(
-    () => localStorage.getItem("avatarSeed") || Math.random().toString(36).substring(7)
-  );
+  const [avatarSeed, setAvatarSeed] = useState(getAvatarSeed);
+  const [sheet, setSheet] = useState(null); // "account" | "semester" | "about" | null
+  const { canInstall, install } = useInstallPrompt();
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [timeFormat, setTimeFormat] = useState(
@@ -75,14 +83,18 @@ export default function NeoProfile() {
     setYearOptions(Array.from(new Set([storedYear, ...getCurrentAcademicYearOptions()])));
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("avatarSeed", avatarSeed);
-  }, [avatarSeed]);
-
   const handleRandomizeAvatar = () => {
-    if (!navigator.onLine) return;
-    setAvatarSeed(Math.random().toString(36).substring(7));
+    const seed = nextAvatar(avatarSeed);
+    setAvatarSeed(seed);
+    storeAvatarSeed(seed);
   };
+
+  const toggleTimeFormat = () =>
+    setTimeFormat((prev) => {
+      const next = prev === "12" ? "24" : "12";
+      localStorage.setItem("time_format", next);
+      return next;
+    });
 
   const handleSaveCreds = () => {
     const snapshot = credsSnapshotRef.current;
@@ -95,6 +107,7 @@ export default function NeoProfile() {
 
     saveCredentials({ username: username.trim(), password });
     credsSnapshotRef.current = { username: username.trim(), password };
+    setSheet(null);
     setToast({ show: true, message: "Credentials saved.", type: "success" });
   };
 
@@ -110,8 +123,9 @@ export default function NeoProfile() {
 
   const confirmLogout = () => {
     clearCredentials();
-    localStorage.removeItem("timetable");
-    localStorage.removeItem("examMode");
+    clearCookies();
+    ["timetable", "timetable_last_sync", "examMode", "seatingPlan", "cached_attendance", "cached_attendance_time"]
+      .forEach((key) => localStorage.removeItem(key));
     navigate("/");
   };
 
@@ -155,60 +169,145 @@ export default function NeoProfile() {
     }
   };
 
+  const savedId = credsSnapshotRef.current.username;
+
   return (
     <NeoShell>
-      <div className="np-pagehead">
-        <span className="np-eyebrow">your space</span>
-        <h1 className="np-pagehead__title">profile<i>.</i></h1>
-      </div>
+      <header className="np-profile">
+        <button
+          className="np-profile__avatar"
+          onClick={handleRandomizeAvatar}
+          aria-label="Change avatar"
+          title="Change avatar"
+        >
+          <img src={avatarUrl(avatarSeed)} alt="" />
+          <span className="np-profile__badge" aria-hidden="true">
+            <MdShuffle size={16} />
+          </span>
+        </button>
+        <h1 className="np-profile__name">{savedId || "Guest"}</h1>
+        <p className="np-profile__meta">
+          {SEMESTER_NAMES[semester] || semester} · {academicYear}
+        </p>
+      </header>
 
-      <div className="np-profile-head">
-        <span className="np-avatar">
-          <img
-            src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${avatarSeed}&backgroundColor=transparent`}
-            alt="Avatar"
+      <SettingsGroup title="You">
+        <SettingsRow
+          icon={<MdPerson size={24} />}
+          title="Account"
+          description={savedId ? "ERP ID and password" : "Add your ERP ID and password"}
+          onClick={() => setSheet("account")}
+        />
+        <SettingsRow
+          icon={<MdCalendarMonth size={24} />}
+          title="Semester"
+          description={`${SEMESTER_NAMES[semester] || semester} · ${academicYear}`}
+          onClick={() => setSheet("semester")}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup title="Study">
+        <SettingsRow
+          icon={<MdSchool size={24} />}
+          title="Grades"
+          description="CGPA, SGPA and marks"
+          onClick={() => navigate("/grades")}
+        />
+        <SettingsRow
+          icon={<MdPeople size={24} />}
+          title="Docs"
+          description="Friends' timetables and attendance"
+          onClick={() => navigate("/maddys")}
+        />
+        <SettingsRow
+          icon={<MdEdit size={24} />}
+          title="Subject names"
+          description="Short nicknames for course codes"
+          onClick={() => navigate("/subjects")}
+        />
+        <SettingsRow
+          icon={<MdEventNote size={24} />}
+          title="Exams"
+          description="Exam dates and seating"
+          onClick={() => navigate("/exam")}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup title="App">
+        <SettingsRow
+          icon={<MdSchedule size={24} />}
+          title="24-hour time"
+          description={timeFormat === "24" ? "Showing 13:50" : "Showing 1:50 PM"}
+          role="switch"
+          aria-checked={timeFormat === "24"}
+          trailing={<Switch on={timeFormat === "24"} />}
+          onClick={toggleTimeFormat}
+        />
+        {canInstall && (
+          <SettingsRow
+            icon={<MdInstallMobile size={24} />}
+            title="Install app"
+            description="Add TimeTable to your home screen"
+            onClick={install}
           />
-        </span>
-        <div>
-          <div className="np-profile-head__id">{username || "student"}</div>
-          <div className="np-profile-head__meta">
-            {SEMESTER_NAMES[semester] || semester} · {academicYear}
-          </div>
-          <button className="np-minibtn" style={{ marginTop: 8 }} onClick={handleRandomizeAvatar}>
-            <FiRefreshCw size={10} style={{ marginRight: 5 }} />
-            new avatar
-          </button>
-        </div>
-      </div>
+        )}
+        <SettingsRow
+          icon={<MdFeedback size={24} />}
+          title="Send feedback"
+          description="Report a bug or suggest an idea"
+          onClick={() => setShowFeedback(true)}
+        />
+        <SettingsRow
+          icon={<MdInfo size={24} />}
+          title="About"
+          description="Local-first, made at KL"
+          onClick={() => setSheet("about")}
+        />
+      </SettingsGroup>
 
-      {/* credentials */}
-      <section className="np-panel">
-        <div className="np-panel__label">erp credentials</div>
+      <SettingsGroup>
+        <SettingsRow
+          icon={<MdLogout size={24} />}
+          title="Log out"
+          description="Clears your data from this device"
+          danger
+          trailing={null}
+          onClick={() => setShowLogoutConfirm(true)}
+        />
+      </SettingsGroup>
+
+      {/* account sheet */}
+      <NeoModal open={sheet === "account"} title="Account" onClose={() => setSheet(null)}>
+        <p className="np-note" style={{ marginBottom: 16 }}>
+          Your ERP login. It is stored on this device only.
+        </p>
         <NeoField
           id="np-prof-user"
-          label="university id"
+          label="University ID"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
         <NeoField
           id="np-prof-pass"
-          label="password"
+          label="Password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
         <NeoButton type="button" onClick={handleSaveCreds}>
-          save credentials
+          Save
         </NeoButton>
-      </section>
+      </NeoModal>
 
-      {/* semester */}
-      <section className="np-panel">
-        <div className="np-panel__label">active semester</div>
+      {/* semester sheet */}
+      <NeoModal open={sheet === "semester"} title="Semester" onClose={() => setSheet(null)}>
+        <p className="np-note" style={{ marginBottom: 16 }}>
+          Used for every sync and fetch across the app.
+        </p>
         <div className="np-row">
           <NeoSelect
             id="np-prof-sem"
-            label="semester"
+            label="Semester"
             value={semester}
             onChange={(e) => handleSemesterChange(e.target.value)}
           >
@@ -219,7 +318,7 @@ export default function NeoProfile() {
           </NeoSelect>
           <NeoSelect
             id="np-prof-year"
-            label="academic year"
+            label="Academic year"
             value={academicYear}
             onChange={(e) => handleAcademicYearChange(e.target.value)}
           >
@@ -228,80 +327,38 @@ export default function NeoProfile() {
             ))}
           </NeoSelect>
         </div>
-        <p className="np-note">Used for every resync and fetch across the app.</p>
-      </section>
+        <NeoButton type="button" onClick={() => setSheet(null)}>
+          Done
+        </NeoButton>
+      </NeoModal>
 
-      {/* quick actions */}
-      <div className="np-panel__label" style={{ margin: "20px 0 10px" }}>tools</div>
-
-      <button className="np-linkrow" onClick={() => navigate("/subjects")}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <FiEdit3 size={15} /> manage subject names
-        </span>
-        <span className="np-linkrow__go">→</span>
-      </button>
-
-      <button className="np-linkrow" onClick={() => navigate("/customize")}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <FiDroplet size={15} /> customize theme
-        </span>
-        <span className="np-linkrow__go">→</span>
-      </button>
-
-      <button
-        className="np-linkrow"
-        onClick={() => {
-          localStorage.setItem("examMode", "true");
-          navigate("/exam");
-        }}
-      >
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <FiZap size={15} /> exam mode
-        </span>
-        <span className="np-linkrow__go">→</span>
-      </button>
-
-      <button className="np-linkrow" onClick={() => setShowFeedback(true)}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <FiMessageSquare size={15} /> send feedback
-        </span>
-        <span className="np-linkrow__go">→</span>
-      </button>
-
-      <button
-        className="np-linkrow"
-        onClick={() =>
-          setTimeFormat((prev) => {
-            const next = prev === "12" ? "24" : "12";
-            localStorage.setItem("time_format", next);
-            return next;
-          })
-        }
-      >
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <FiClock size={15} /> time format
-        </span>
-        <span className={`np-toggle${timeFormat === "24" ? " np-toggle--on" : ""}`}>
-          {timeFormat === "24" ? "24 hr" : "12 hr"}
-        </span>
-      </button>
-
-      <button className="np-linkrow np-linkrow--danger" onClick={() => setShowLogoutConfirm(true)}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <FiLogOut size={15} /> log out
-        </span>
-        <span className="np-linkrow__go" style={{ color: "var(--np-pink)" }}>→</span>
-      </button>
-
-      {/* about */}
-      <section className="np-panel" style={{ marginTop: 20 }}>
-        <div className="np-panel__label">about</div>
+      {/* about sheet */}
+      <NeoModal open={sheet === "about"} title="About" onClose={() => setSheet(null)}>
         <p className="np-note">
-          local-first PWA for KL University students. your data never leaves this
-          device. fully vibecoded.
+          Local-first PWA for KL University students. Your data never leaves this
+          device. Fully vibecoded.
         </p>
         <p className="np-note" style={{ marginTop: 8 }}>
-          developed by <a href="https://dhanushkotturu.vercel.app" target="_blank" rel="noopener noreferrer" style={{ color: "var(--np-acid)", textDecoration: "none", fontWeight: 600 }}>dhanush kotturu<span style={{ color: "var(--np-pink)" }}>.</span></a>
+          Developed by{" "}
+          <a
+            href="https://dhanushkotturu.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--np-cream)", fontWeight: 600 }}
+          >
+            Dhanush Kotturu
+          </a>
+          .
+        </p>
+        <p className="np-note" style={{ marginTop: 8 }}>
+          <a
+            href="http://timetableklbenchmarks.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--np-cream)", fontWeight: 600 }}
+          >
+            Performance benchmarks
+          </a>
         </p>
         <div className="np-social">
           <a
@@ -323,14 +380,15 @@ export default function NeoProfile() {
             <FiGithub size={16} />
           </a>
         </div>
-      </section>
+        <p className="np-note np-dim" style={{ marginTop: 14 }}>Build {BUILD_ID}</p>
+      </NeoModal>
 
       {/* feedback modal */}
-      <NeoModal open={showFeedback} title="send feedback" onClose={() => setShowFeedback(false)}>
+      <NeoModal open={showFeedback} title="Send feedback" onClose={() => setShowFeedback(false)}>
         <form onSubmit={handleFeedbackSubmit}>
           <NeoSelect
             id="np-fb-type"
-            label="what is this about?"
+            label="What is this about?"
             value={feedbackType}
             onChange={(e) => setFeedbackType(e.target.value)}
           >
@@ -341,7 +399,7 @@ export default function NeoProfile() {
 
           <div className="np-field">
             <div className="np-field__head">
-              <label className="np-field__label" htmlFor="np-fb-desc">describe it</label>
+              <label className="np-field__label" htmlFor="np-fb-desc">Describe it</label>
             </div>
             <textarea
               id="np-fb-desc"
@@ -357,27 +415,27 @@ export default function NeoProfile() {
 
           <NeoField
             id="np-fb-contact"
-            label="contact"
-            placeholder="email or phone"
+            label="Contact"
+            placeholder="Email or phone"
             value={contact}
             required
             onChange={(e) => setContact(e.target.value)}
           />
 
-          <NeoButton loading={isSubmitting} loadingText="sending…">
-            submit feedback
+          <NeoButton loading={isSubmitting} loadingText="Sending…">
+            Submit feedback
           </NeoButton>
         </form>
       </NeoModal>
 
       {/* logout confirm */}
-      <NeoModal open={showLogoutConfirm} title="log out?" onClose={() => setShowLogoutConfirm(false)}>
+      <NeoModal open={showLogoutConfirm} title="Log out?" onClose={() => setShowLogoutConfirm(false)}>
         <p className="np-note" style={{ marginBottom: 16 }}>
           This clears your credentials and timetable from this device.
         </p>
         <div className="np-modal__actions">
-          <button className="secondary" onClick={() => setShowLogoutConfirm(false)}>Cancel</button>
-          <button className="danger" onClick={confirmLogout}>Log out</button>
+          <button type="button" className="np-btn np-btn--quiet" onClick={() => setShowLogoutConfirm(false)}>Cancel</button>
+          <button type="button" className="np-btn np-btn--pink" onClick={confirmLogout}>Log out</button>
         </div>
       </NeoModal>
 

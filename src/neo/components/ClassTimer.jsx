@@ -1,26 +1,18 @@
 import React, { useState, useEffect } from "react";
 
 /**
- * ClassTimer — Isolated component for live class countdown & progress.
+ * ClassTimer — live countdown & progress for the class in session.
  *
- * Performance Note:
- * This component runs its own isolated 1s setInterval loop.
- * It reads Date.now() every tick (Timestamp Math — zero drift across app sleeps/minimize)
- * and only re-renders itself, keeping the rest of the page completely static.
+ * Runs its own 1s interval and reads Date.now() on every tick (timestamp math,
+ * so no drift when the app sleeps), re-rendering only itself.
  */
 export default function ClassTimer({ startTimeMs, endTimeMs, mode = "both" }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     if (!startTimeMs || !endTimeMs) return;
-
-    // Immediately sync on mount
     setNowMs(Date.now());
-
-    const interval = setInterval(() => {
-      setNowMs(Date.now());
-    }, 1000);
-
+    const interval = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(interval);
   }, [startTimeMs, endTimeMs]);
 
@@ -29,47 +21,36 @@ export default function ClassTimer({ startTimeMs, endTimeMs, mode = "both" }) {
   const totalMs = endTimeMs - startTimeMs;
   const elapsedMs = Math.max(0, nowMs - startTimeMs);
   const remainingMs = Math.max(0, endTimeMs - nowMs);
-  const progressPercent = totalMs > 0 ? Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100)) : 100;
+  const progressPercent = totalMs > 0 ? Math.min(100, (elapsedMs / totalMs) * 100) : 100;
 
-  const isWarning = remainingMs > 0 && remainingMs <= 5 * 60 * 1000; // <= 5 minutes
-  const isFinished = remainingMs <= 0;
-
+  const isWarning = remainingMs > 0 && remainingMs <= 5 * 60 * 1000;
   const mins = Math.floor(remainingMs / 60000);
   const secs = Math.floor((remainingMs % 60000) / 1000);
-  const formattedTime = `${mins}:${secs.toString().padStart(2, "0")}`;
 
-  if (mode === "readout") {
-    return (
-      <span className={`np-timer-readout${isWarning ? " np-timer-readout--warning" : ""}`}>
-        {isFinished ? "ending..." : `${formattedTime} left`}
-      </span>
-    );
-  }
-
-  if (mode === "bar") {
-    return (
-      <div className="np-now__progress-track">
-        <div
-          className={`np-now__progress-bar${isWarning ? " np-now__progress-bar--warning" : ""}`}
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <span className={`np-timer-readout${isWarning ? " np-timer-readout--warning" : ""}`}>
-        {isFinished ? "ending..." : `${formattedTime} left`}
-      </span>
-      <div className="np-now__progress-track">
-        <div
-          className={`np-now__progress-bar${isWarning ? " np-now__progress-bar--warning" : ""}`}
-          style={{ width: `${progressPercent}%` }}
-        />
-      </div>
-    </>
+  const readout = (
+    <span className={`np-timer-readout${isWarning ? " np-timer-readout--warning" : ""}`}>
+      {remainingMs <= 0 ? "Ending…" : `${mins}:${secs.toString().padStart(2, "0")} left`}
+    </span>
   );
+
+  const bar = (
+    <div
+      className="np-progress"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(progressPercent)}
+    >
+      <div
+        className={`np-progress__fill${isWarning ? " np-progress__fill--warning" : ""}`}
+        style={{ width: `${progressPercent}%` }}
+      />
+    </div>
+  );
+
+  if (mode === "readout") return readout;
+  if (mode === "bar") return bar;
+  return <>{readout}{bar}</>;
 }
 
 export function ClassTimerReadout({ startTimeMs, endTimeMs }) {
