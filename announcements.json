@@ -1,5 +1,5 @@
 {
-  "active": false,
+  "active": true,
   "type": "warning",
   "title": "Title of the announcement",
   "message": "Message text.\nNew lines are kept. Set \"active\" to true to show it.\n\ntype can be: info, warning, critical or success."
