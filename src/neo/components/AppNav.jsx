@@ -2,10 +2,26 @@ import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { MdHome, MdCalendarMonth, MdPieChart } from "react-icons/md";
 import JellyNav from "./JellyNav.jsx";
+import SideRail from "./SideRail.jsx";
+import KeyboardLayer from "./KeyboardLayer.jsx";
 import { avatarUrl, getAvatarSeed } from "../utils/avatar.js";
 
 // Screens that show the tab bar (everything inside the signed-in app).
 const NAV_ROUTES = /^\/(home|timetable|attendance|profile|grades|subjects|maddys|exam)(\/|$)/;
+
+const LAPTOP = "(min-width: 1024px) and (hover: hover) and (pointer: fine)";
+
+/** True on laptop / desktop screens (wide, with a mouse or trackpad). */
+function useLaptop() {
+  const [match, setMatch] = useState(() => window.matchMedia(LAPTOP).matches);
+  useEffect(() => {
+    const query = window.matchMedia(LAPTOP);
+    const onChange = (event) => setMatch(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+  return match;
+}
 
 const SCROLL_THRESHOLD = 60;
 
@@ -111,6 +127,7 @@ export default function AppNav() {
   const { pathname } = useLocation();
   const [avatarSeed, setAvatarSeed] = useState(getAvatarSeed);
   const compact = useCompactOnScroll(pathname);
+  const laptop = useLaptop();
 
   // every screen starts at its top
   useEffect(() => {
@@ -137,15 +154,25 @@ export default function AppNav() {
     },
   ];
 
+  const railItems = items.map((item) =>
+    item.to === "/profile"
+      ? { ...item, icon: <img className="np-side__avatar" src={avatarUrl(avatarSeed)} alt="" draggable={false} /> }
+      : { ...item, icon: React.cloneElement(item.icon, { size: 24 }) }
+  );
+
   return (
-    <JellyNav
-      items={items}
-      compact={compact}
-      onReselect={(item) => {
-        // tapping the tab you're on: Attendance refetches, the others scroll up
-        if (item.to === "/attendance") window.dispatchEvent(new CustomEvent("refresh_attendance_tab"));
-        else window.scrollTo({ top: 0, behavior: "smooth" });
-      }}
-    />
+    <>
+      <JellyNav
+        items={items}
+        compact={compact}
+        onReselect={(item) => {
+          // tapping the tab you're on: Attendance refetches, the others scroll up
+          if (item.to === "/attendance") window.dispatchEvent(new CustomEvent("refresh_attendance_tab"));
+          else window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
+      <SideRail items={railItems} showKeys={laptop} />
+      {laptop && <KeyboardLayer />}
+    </>
   );
 }

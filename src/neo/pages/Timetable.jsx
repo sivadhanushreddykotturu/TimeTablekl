@@ -43,6 +43,21 @@ export default function NeoTimetable() {
   const todayName = DAYS[new Date().getDay()];
   const isToday = activeDay === todayName;
 
+  // laptop keys: arrows step through the days, T jumps back to today
+  useEffect(() => {
+    const onDay = (event) => {
+      if (event.detail === "today") {
+        if (days.includes(todayName)) setActiveDay(todayName);
+        return;
+      }
+      const at = days.indexOf(activeDay);
+      const next = event.detail === "next" ? at + 1 : at - 1;
+      if (days[next]) setActiveDay(days[next]);
+    };
+    window.addEventListener("kbd_day", onDay);
+    return () => window.removeEventListener("kbd_day", onDay);
+  }, [days, activeDay, todayName]);
+
   useEffect(() => {
     const dayCount = Object.keys(timetable).length;
     trackEvent("timetable_page_viewed", {

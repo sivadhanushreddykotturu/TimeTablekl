@@ -1,27 +1,46 @@
 import React, { useEffect, useState } from "react";
-import { MdCampaign, MdClose } from "react-icons/md";
+import {
+  MdChevronRight,
+  MdClose,
+  MdErrorOutline,
+  MdInfoOutline,
+  MdCheckCircleOutline,
+  MdWarningAmber,
+} from "react-icons/md";
+import { NeoModal } from "../Shell.jsx";
+import { NeoButton } from "../NeoKit.jsx";
+import { fetchAnnouncement } from "../../utils/announcement.js";
 
 const DISMISSED_KEY = "announcement_dismissed";
 
 /**
- * A notice the team can switch on by editing public/announcements.json
- * ({ active, title, message }) — e.g. when ERP is down. Dismissing hides
- * that particular notice; a new one shows again.
+ * A single quiet line under the Today header. Tapping it opens the full text
+ * in a sheet, so even a very long announcement never pushes the page around.
+ * The X (or "Got it") hides that particular notice; a new one shows again.
  * (On desktop the mascot delivers it instead, so this hides itself there.)
  */
+const TYPES = {
+  info: { Icon: MdInfoOutline, label: "Info" },
+  warning: { Icon: MdWarningAmber, label: "Heads up" },
+  critical: { Icon: MdErrorOutline, label: "Important" },
+  success: { Icon: MdCheckCircleOutline, label: "Good news" },
+};
+
+// "⚠️ ERP ARC" → "ERP ARC": the type icon already says it
+const stripLeadingSymbols = (text) =>
+  (text || "").replace(/^[\s\p{Extended_Pictographic}️‍]+/u, "").trim();
+
 export default function AnnouncementBanner() {
   const [announcement, setAnnouncement] = useState(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/announcements.json?t=${Date.now()}`, { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (cancelled || !data?.active) return;
-        const id = `${data.title || ""}|${data.message || ""}`;
-        if (localStorage.getItem(DISMISSED_KEY) !== id) setAnnouncement({ ...data, id });
-      })
-      .catch(() => {});
+    fetchAnnouncement().then((data) => {
+      if (cancelled || !data) return;
+      if (localStorage.getItem(DISMISSED_KEY) !== data.id) setAnnouncement(data);
+    });
     return () => {
       cancelled = true;
     };
@@ -29,21 +48,51 @@ export default function AnnouncementBanner() {
 
   if (!announcement) return null;
 
+  const type = TYPES[announcement.type] ? announcement.type : "warning";
+  const { Icon, label } = TYPES[type];
+  const title = stripLeadingSymbols(announcement.title) || "Announcement";
+  const message = (announcement.message || "").trim();
+
   const dismiss = () => {
     localStorage.setItem(DISMISSED_KEY, announcement.id);
-    setAnnouncement(null);
+    setSheetOpen(false);
+    setLeaving(true);
+    setTimeout(() => setAnnouncement(null), 220);
   };
 
   return (
-    <aside className="np-announce np-announce-banner" role="status">
-      <MdCampaign className="np-announce__icon" size={22} aria-hidden="true" />
-      <div className="np-announce__body">
-        <div className="np-announce__title">{announcement.title || "Announcement"}</div>
-        <p className="np-announce__text">{announcement.message}</p>
-      </div>
-      <button className="np-toast__close" onClick={dismiss} aria-label="Dismiss announcement">
-        <MdClose size={17} />
-      </button>
-    </aside>
+    <>
+      <aside
+        className={`np-notice np-notice--${type} np-announce-banner${leaving ? " is-leaving" : ""}`}
+        role="status"
+      >
+        <button
+          type="button"
+          className="np-notice__main"
+          onClick={() => setSheetOpen(true)}
+          aria-haspopup="dialog"
+        >
+          <span className="np-notice__icon" aria-hidden="true">
+            <Icon size={18} />
+          </span>
+          <span className="np-notice__title">{title}</span>
+          <MdChevronRight className="np-notice__chev" size={20} aria-hidden="true" />
+        </button>
+        <button className="np-notice__close" onClick={dismiss} aria-label="Dismiss announcement">
+          <MdClose size={18} />
+        </button>
+      </aside>
+
+      <NeoModal open={sheetOpen} title="Announcement" onClose={() => setSheetOpen(false)}>
+        <div className={`np-notice--${type}`}>
+          <div className="np-notice-sheet__eyebrow">{label}</div>
+        </div>
+        <h3 className="np-notice-sheet__title">{title}</h3>
+        {message && <p className="np-notice-sheet__text">{message}</p>}
+        <NeoButton type="button" onClick={dismiss}>
+          Got it
+        </NeoButton>
+      </NeoModal>
+    </>
   );
 }

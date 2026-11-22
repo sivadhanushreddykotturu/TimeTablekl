@@ -3,6 +3,7 @@
 // click reactions, a theme-colored body, and random shape-shifting.
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import { fetchAnnouncement } from '../../utils/announcement.js'
 import BloubBot from './BloubBot.jsx'
 import { useAutonomousLife } from './useAutonomousLife.js'
 import { STATE_BY_ID } from './states.js'
@@ -129,10 +130,9 @@ export default function DesktopCompanion() {
   // ── Fetch the active announcement (same source as the old banner) ──
   useEffect(() => {
     let cancelled = false
-    fetch(`/announcements.json?t=${Date.now()}`)
-      .then((r) => (r.ok ? r.json() : null))
+    fetchAnnouncement()
       .then((data) => {
-        if (!cancelled && data && data.active) setAnnouncement(data)
+        if (!cancelled && data) setAnnouncement(data)
       })
       .catch(() => { /* no announcement reachability — bot just stays calm */ })
     return () => { cancelled = true }

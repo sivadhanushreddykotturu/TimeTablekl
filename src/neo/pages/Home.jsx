@@ -234,6 +234,8 @@ export default function NeoHome() {
         </div>
       </section>
 
+      <AnnouncementBanner />
+
       {state.blocks.length > 0 && (
         <section className="np-shelf">
           <div className="np-shelf__head">
@@ -274,8 +276,6 @@ export default function NeoHome() {
           </div>
         </section>
       )}
-
-      <AnnouncementBanner />
 
       {/* what the last sync changed */}
       <NeoModal open={changes.length > 0} title="Timetable changes found" onClose={clearChanges}>

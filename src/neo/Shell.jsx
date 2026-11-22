@@ -11,18 +11,24 @@ import "./core.css";
    NeoModal — dialog on desktop, bottom sheet on phones
    ============================================================ */
 
+// How many dialogs are open. The page behind them is locked while any is, and
+// unlocked only when the last one closes, whatever order they close in.
+let openDialogs = 0;
+let pageOverflow = "";
+
 export function NeoModal({ open, title, onClose, children, wide = false }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") onClose?.();
     };
-    // the page behind a sheet must not scroll
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (openDialogs++ === 0) {
+      pageOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
     window.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = previous;
+      if (--openDialogs === 0) document.body.style.overflow = pageOverflow;
       window.removeEventListener("keydown", onKey);
     };
   }, [open, onClose]);
