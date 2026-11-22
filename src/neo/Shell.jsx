@@ -58,6 +58,32 @@ export function NeoModal({ open, title, onClose, children, wide = false }) {
   );
 }
 
+/** Marks which edges of a horizontal card row have more to scroll (drives the edge fades). */
+function updateRailFade(el) {
+  const left = el.scrollLeft > 4;
+  const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+  el.dataset.fadeLeft = left ? "1" : "0";
+  el.dataset.fadeRight = right ? "1" : "0";
+}
+
+function useRailFades() {
+  useEffect(() => {
+    const all = () => document.querySelectorAll(".np-rail").forEach(updateRailFade);
+    const onScroll = (event) => {
+      if (event.target instanceof Element && event.target.classList.contains("np-rail")) updateRailFade(event.target);
+    };
+    all();
+    const timer = setTimeout(all, 400); // cards render a moment after the page
+    document.addEventListener("scroll", onScroll, true); // scroll does not bubble
+    window.addEventListener("resize", all);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", all);
+    };
+  }, []);
+}
+
 /* ============================================================
    Loading
    ============================================================ */
@@ -216,6 +242,7 @@ export default function NeoShell({ children, onRefresh, refreshLabel, onBack, au
 
   // Slide between the primary tabs with a horizontal swipe on mobile
   useSwipeNavigation();
+  useRailFades();
 
   // The four tabs carry the logo; every other screen gets a back button.
   const isTab = PRIMARY_TABS.includes(location.pathname);

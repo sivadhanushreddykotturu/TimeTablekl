@@ -2601,3 +2601,27 @@ body.np-body button.np-notice__close:hover { background: color-mix(in srgb, var(
 @media (prefers-reduced-motion: reduce) {
   .np-notice { animation: none; transition: none; }
 }
+
+/* ---------- wide screens: soften the hard edges of the phone column ---------- */
+
+@media (min-width: 768px) {
+  /* the header card is a rounded card here, not a full-bleed band */
+  .np-hero {
+    margin: 0;
+    padding-top: calc(var(--np-topbar-h) + 8px);
+    border-radius: var(--np-r-xl);
+  }
+  .np-hero__art { border-radius: var(--np-r-xl); }
+
+  /* horizontal card rows fade at an edge only when there is more to scroll that way
+     (Shell.jsx sets data-fade-left / data-fade-right) */
+  .np-rail {
+    --fade-l: 0px;
+    --fade-r: 0px;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent 100%);
+  }
+  .np-rail[data-fade-left="1"] { --fade-l: 44px; }
+  .np-rail[data-fade-right="1"] { --fade-r: 44px; }
+  .np-rail::after { content: ""; flex: 0 0 36px; }
+}
