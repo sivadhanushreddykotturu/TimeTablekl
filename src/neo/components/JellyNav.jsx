@@ -90,39 +90,9 @@ function panelOffset(raw, width) {
   return (fraction < 0 ? -4 : 4) * eased;
 }
 
-// The original app plays a soft system click on tab taps (no vibration), so we
-// synthesise a tiny click with Web Audio instead of using navigator.vibrate.
-let audioCtx = null;
-function primeAudio() {
-  try {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
-    audioCtx = audioCtx || new Ctx();
-    if (audioCtx.state !== "running") audioCtx.resume();
-  } catch {
-    /* audio not available */
-  }
-}
-function haptic() {
-  try {
-    if (!audioCtx) return;
-    if (audioCtx.state === "suspended") audioCtx.resume();
-    const t = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(1800, t);
-    osc.frequency.exponentialRampToValueAtTime(900, t + 0.03);
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.12, t + 0.002);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
-    osc.connect(gain).connect(audioCtx.destination);
-    osc.start(t);
-    osc.stop(t + 0.05);
-  } catch {
-    /* audio not available */
-  }
-}
+// No custom sound or vibration: the system's own touch sound (the one every other
+// PWA gets) plays when a tap reaches a real link, so taps are left to the <Link>s.
+function haptic() {}
 
 function createMotion(index) {
   const distortion = 18 / (2 * Math.sqrt(240 * 0.9));
@@ -348,15 +318,9 @@ export default function JellyNav({ items, compact = false, onReselect }) {
   goRef.current = go;
 
   const onPointerDown = (event) => {
-    primeAudio(); // iOS only allows audio to start from a touch gesture
     if (event.button > 0) return;
     const m = motionRef.current;
     const bar = barRef.current;
-    try {
-      bar.setPointerCapture(event.pointerId);
-    } catch {
-      /* pointer already gone */
-    }
     // measured once per gesture: the bar itself moves while it is being dragged
     m.rect = bar.getBoundingClientRect();
     m.pointerId = event.pointerId;
@@ -394,6 +358,13 @@ export default function JellyNav({ items, compact = false, onReselect }) {
     if (!m.swollen && m.moved >= TAP_SLOP) {
       // it is a drag now: the pill swells and magnifies under the finger
       m.swollen = true;
+      try {
+        // capture only once it is a drag, so plain taps still reach the <Link>
+        // as a normal click (that is what triggers the system touch sound)
+        barRef.current.setPointerCapture(event.pointerId);
+      } catch {
+        /* pointer already gone */
+      }
       m.pressTarget = 1;
       m.shapeTarget = 1.3;
     }
