@@ -31,11 +31,11 @@
 
 /* ---------- base ---------- */
 
-html { background: var(--np-void); overscroll-behavior-y: none; }
+html { background: var(--np-void); overscroll-behavior-y: none; touch-action: pan-x pan-y; }
 
 body.np-body {
-  /* no double-tap zoom delay on taps */
-  touch-action: manipulation;
+  /* scrolling and swiping only: no pinch zoom, no double-tap zoom */
+  touch-action: pan-x pan-y;
   overscroll-behavior-y: none;
 }
 
