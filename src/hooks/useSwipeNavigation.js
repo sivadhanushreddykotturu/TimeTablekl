@@ -121,18 +121,12 @@ export function useSwipeNavigation() {
           // Swiped LEFT -> go forward to next tab
           if (currentIndex < PRIMARY_TABS.length - 1) {
             const nextTab = PRIMARY_TABS[currentIndex + 1];
-            try {
-              if (navigator.vibrate) navigator.vibrate(10);
-            } catch {}
             navigate(nextTab, { state: { slideDirection: "left" } });
           }
         } else {
           // Swiped RIGHT -> go back to previous tab
           if (currentIndex > 0) {
             const prevTab = PRIMARY_TABS[currentIndex - 1];
-            try {
-              if (navigator.vibrate) navigator.vibrate(10);
-            } catch {}
             navigate(prevTab, { state: { slideDirection: "right" } });
           }
         }

@@ -1056,7 +1056,11 @@ export default function NeoAttendance() {
           <NeoLoading text={registerLoadingText} />
         ) : selectedRegisterData?.daily_attendance?.length > 0 ? (
           <div className="np-reglist">
-            {[...selectedRegisterData.daily_attendance].reverse().map((entry, index) => {
+            {[...selectedRegisterData.daily_attendance]
+              // keep real class rows only; drop trailing summary rows (e.g. weighted % / absent totals)
+              .filter((entry) => /\sH\s*\d/.test(entry?.date_slot || "") && ["P", "A"].includes(entry?.status))
+              .reverse()
+              .map((entry, index) => {
               const [date, hour] = entry.date_slot.split(" H ");
               const present = entry.status === "P";
               return (

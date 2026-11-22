@@ -270,7 +270,7 @@ export default function BunkSimulatorModal({
 
 
   const buzz = () => {
-    try { if (navigator.vibrate) navigator.vibrate(8); } catch { /* ignore */ }
+    /* no vibration, matching the original app */
   };
 
   // Tap a class to flip it between present (default) and absent

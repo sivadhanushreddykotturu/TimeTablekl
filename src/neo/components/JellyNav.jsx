@@ -90,11 +90,37 @@ function panelOffset(raw, width) {
   return (fraction < 0 ? -4 : 4) * eased;
 }
 
+// The original app plays a soft system click on tab taps (no vibration), so we
+// synthesise a tiny click with Web Audio instead of using navigator.vibrate.
+let audioCtx = null;
+function primeAudio() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    audioCtx = audioCtx || new Ctx();
+    if (audioCtx.state !== "running") audioCtx.resume();
+  } catch {
+    /* audio not available */
+  }
+}
 function haptic() {
   try {
-    navigator.vibrate?.(8);
+    if (!audioCtx) return;
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(1800, t);
+    osc.frequency.exponentialRampToValueAtTime(900, t + 0.03);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.12, t + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.05);
   } catch {
-    /* not supported */
+    /* audio not available */
   }
 }
 
@@ -322,6 +348,7 @@ export default function JellyNav({ items, compact = false, onReselect }) {
   goRef.current = go;
 
   const onPointerDown = (event) => {
+    primeAudio(); // iOS only allows audio to start from a touch gesture
     if (event.button > 0) return;
     const m = motionRef.current;
     const bar = barRef.current;

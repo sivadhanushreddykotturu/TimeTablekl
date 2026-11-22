@@ -71,7 +71,8 @@ export default function NeoExam() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const schedule = useMemo(() => buildSchedule(seatingPlan, slotDetails), [seatingPlan, slotDetails, nowTick]);
-  const next = schedule.find((exam) => !exam.isOver) || null;
+  const upcoming = useMemo(() => schedule.filter((exam) => !exam.isOver), [schedule]);
+  const next = upcoming[0] || null;
   const signedIn = Boolean(getCredentials());
 
   const handleSync = async () => {
@@ -139,11 +140,11 @@ export default function NeoExam() {
             <div className="np-shelf__head">
               <h2 className="np-shelf__title">Schedule</h2>
               <span className="np-shelf__meta">
-                {schedule.length} {schedule.length === 1 ? "exam" : "exams"}
+                {upcoming.length} {upcoming.length === 1 ? "exam" : "exams"} left
               </span>
             </div>
             <div className="np-timeline">
-              {schedule.map((exam) => (
+              {upcoming.map((exam) => (
                 <div key={exam.key} className={`np-slot${exam.isOver ? " is-done" : ""}`}>
                   <div className="np-slot__time np-slot__time--date">
                     <b>{exam.date.getDate()}</b>
