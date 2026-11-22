@@ -1,8 +1,7 @@
 /**
  * "Smart" lines for the Today screen: what the day looks like, how long you are
- * free, room changes, exams coming up, and whether you can afford to skip the
- * class you are about to have. Pure functions over data the app already has
- * (timetable state, cached attendance, seating plan); nothing is fetched.
+ * free, room changes and exams coming up. Pure functions over data the app
+ * already has (timetable state, seating plan); nothing is fetched.
  */
 import { formatTimeStr } from "./slotTimes";
 import { formatDuration } from "./schedule";
@@ -16,33 +15,6 @@ const readJson = (key, fallback) => {
   }
 };
 
-const mainCode = (code) => ((code || "").match(/^[A-Za-z0-9]+/) || [""])[0].toUpperCase();
-
-/** Attendance numbers for one component (Lecture / Practical …) of a class block. */
-function attendanceFor(block, attendance, target) {
-  if (!Array.isArray(attendance) || !block?.code) return null;
-  const code = mainCode(block.code);
-  const type = (block.type || "").toUpperCase();
-  const item = attendance.find(
-    (a) => mainCode(a.course_code ?? a.Coursecode) === code && (a.type ?? a.Ltps ?? "").charAt(0).toUpperCase() === type
-  );
-  if (!item) return null;
-
-  const conducted = parseInt(item.conducted ?? item["Total Conducted"], 10);
-  const attended = parseInt(item.attended ?? item["Total Attended"], 10);
-  const tcbr = Math.max(0, parseInt(item.tcbr ?? item.Tcbr ?? "0", 10) || 0);
-  const total = Math.max(0, (Number.isFinite(conducted) ? conducted : 0) - tcbr);
-  if (!Number.isFinite(attended) || total <= 0) return null;
-
-  const pct = ceilPct((attended / total) * 100);
-  const canMiss = Math.max(0, Math.floor((100 * attended - target * total) / target));
-  const needMore = target >= 100 ? Infinity : Math.max(0, Math.ceil((target * total - 100 * attended) / (100 - target)));
-  return { pct, canMiss, needMore, below: pct < target };
-}
-
-/** Rounded up like ERP and the Attendance screen (never shown with decimals). */
-const ceilPct = (value) => Math.min(100, Math.ceil(value - 1e-9));
-
 const building = (room) => ((room || "").match(/^[A-Za-z]+/) || [""])[0].toUpperCase();
 
 const overlapsLunch = (fromMin, toMin) => fromMin < 14 * 60 + 30 && toMin > 11 * 60 + 30;
@@ -51,19 +23,16 @@ const dayWord = (offset) => (offset === 0 ? "today" : offset === 1 ? "tomorrow" 
 
 /**
  * @returns {Array<{id, icon, tone, title, text}>} at most `limit` lines, most useful first.
- *   icon: free | room | risk | ok | exam | day | done
+ *   icon: free | room | exam | day | done
  *   tone: good | warn | info
  */
 export function buildInsights(state, { now = new Date(), limit = 3 } = {}) {
   const format = localStorage.getItem("time_format") || "12";
-  const target = parseFloat(localStorage.getItem("attendanceTargetPercentage")) || 85;
-  const attendance = readJson("cached_attendance", []);
   const seating = readJson("seatingPlan", []);
   const lines = [];
   const add = (priority, line) => lines.push({ priority, ...line });
 
   const { current, next, blocks, ahead, nowMin } = state;
-  const focus = current || next; // the class this moment is about
   const hhmm = (time) => formatTimeStr(time, format);
 
   // ── exams that are close ──
@@ -87,36 +56,6 @@ export function buildInsights(state, { now = new Date(), limit = 3 } = {}) {
         text: `${exam.course_code}${room}${exam.time_slot ? ` · slot ${exam.time_slot}` : ""}`,
       });
     });
-
-  // ── the class you are in / about to have: can you skip it? ──
-  if (focus) {
-    const stats = attendanceFor(focus, attendance, target);
-    if (stats?.below) {
-      add(90, {
-        id: "risk",
-        icon: "risk",
-        tone: "warn",
-        title: `${focus.title} is at ${stats.pct}%`,
-        text: `Below your ${target}% target. Attend ${stats.needMore} more ${stats.needMore === 1 ? "class" : "classes"} to get back above it.`,
-      });
-    } else if (stats && stats.canMiss >= 1) {
-      add(40, {
-        id: "ok",
-        icon: "ok",
-        tone: "good",
-        title: `${focus.title} is at ${stats.pct}%`,
-        text: `Comfortable: you can miss ${stats.canMiss} more and stay above ${target}%.`,
-      });
-    } else if (stats) {
-      add(70, {
-        id: "risk",
-        icon: "risk",
-        tone: "warn",
-        title: `${focus.title} is right at the line`,
-        text: `${stats.pct}% against a ${target}% target. Missing the next one would drop you below.`,
-      });
-    }
-  }
 
   // ── free time before the next class ──
   if (!current && next) {

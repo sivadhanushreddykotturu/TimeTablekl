@@ -2,8 +2,6 @@ import React, { useMemo } from "react";
 import {
   MdCoffee,
   MdDirectionsWalk,
-  MdTrendingDown,
-  MdThumbUp,
   MdEditNote,
   MdViewDay,
   MdCelebration,
@@ -13,8 +11,6 @@ import { buildInsights } from "../../utils/insights.js";
 const ICONS = {
   free: MdCoffee,
   room: MdDirectionsWalk,
-  risk: MdTrendingDown,
-  ok: MdThumbUp,
   exam: MdEditNote,
   day: MdViewDay,
   done: MdCelebration,
@@ -22,7 +18,7 @@ const ICONS = {
 
 /**
  * A few lines under the Today header that read the day for you: how long you are
- * free, room changes, exams close by, and whether you can skip the class at hand.
+ * free, room changes, exams close by and the shape of the day.
  * Recomputed whenever the schedule state changes (every 30s tick).
  */
 export default function SmartStrip({ state }) {
