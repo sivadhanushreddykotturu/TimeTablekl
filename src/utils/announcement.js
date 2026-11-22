@@ -1,3 +1,5 @@
+import { MdErrorOutline, MdInfoOutline, MdCheckCircleOutline, MdWarningAmber } from "react-icons/md";
+
 /**
  * Where announcements come from.
  *
@@ -30,4 +32,23 @@ export async function fetchAnnouncement() {
     (await getJson(BRANCH_URL, 4000)) || (await getJson(`/announcements.json?t=${Date.now()}`, 4000));
   if (!data?.active) return null;
   return { ...data, id: `${data.title || ""}|${data.message || ""}` };
+}
+
+const TYPES = {
+  info: { Icon: MdInfoOutline, label: "Info" },
+  warning: { Icon: MdWarningAmber, label: "Heads up" },
+  critical: { Icon: MdErrorOutline, label: "Important" },
+  success: { Icon: MdCheckCircleOutline, label: "Good news" },
+};
+
+/** What to show for an announcement: its type, icon, label, clean title and message. */
+export function describeAnnouncement(announcement) {
+  const type = TYPES[announcement?.type] ? announcement.type : "warning";
+  return {
+    type,
+    ...TYPES[type],
+    // "⚠️ ERP ARC" → "ERP ARC": the type icon already says it
+    title: (announcement?.title || "").replace(/^[\s\p{Extended_Pictographic}️‍]+/u, "").trim() || "Announcement",
+    message: (announcement?.message || "").trim(),
+  };
 }

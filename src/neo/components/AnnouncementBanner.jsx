@@ -1,15 +1,7 @@
 import React, { useEffect, useState } from "react";
-import {
-  MdChevronRight,
-  MdClose,
-  MdErrorOutline,
-  MdInfoOutline,
-  MdCheckCircleOutline,
-  MdWarningAmber,
-} from "react-icons/md";
-import { NeoModal } from "../Shell.jsx";
-import { NeoButton } from "../NeoKit.jsx";
-import { fetchAnnouncement } from "../../utils/announcement.js";
+import { MdChevronRight, MdClose } from "react-icons/md";
+import AnnouncementSheet from "./AnnouncementSheet.jsx";
+import { describeAnnouncement, fetchAnnouncement } from "../../utils/announcement.js";
 
 const DISMISSED_KEY = "announcement_dismissed";
 
@@ -19,17 +11,6 @@ const DISMISSED_KEY = "announcement_dismissed";
  * The X (or "Got it") hides that particular notice; a new one shows again.
  * (On desktop the mascot delivers it instead, so this hides itself there.)
  */
-const TYPES = {
-  info: { Icon: MdInfoOutline, label: "Info" },
-  warning: { Icon: MdWarningAmber, label: "Heads up" },
-  critical: { Icon: MdErrorOutline, label: "Important" },
-  success: { Icon: MdCheckCircleOutline, label: "Good news" },
-};
-
-// "⚠️ ERP ARC" → "ERP ARC": the type icon already says it
-const stripLeadingSymbols = (text) =>
-  (text || "").replace(/^[\s\p{Extended_Pictographic}️‍]+/u, "").trim();
-
 export default function AnnouncementBanner() {
   const [announcement, setAnnouncement] = useState(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -48,10 +29,7 @@ export default function AnnouncementBanner() {
 
   if (!announcement) return null;
 
-  const type = TYPES[announcement.type] ? announcement.type : "warning";
-  const { Icon, label } = TYPES[type];
-  const title = stripLeadingSymbols(announcement.title) || "Announcement";
-  const message = (announcement.message || "").trim();
+  const { type, Icon, title } = describeAnnouncement(announcement);
 
   const dismiss = () => {
     localStorage.setItem(DISMISSED_KEY, announcement.id);
@@ -83,16 +61,12 @@ export default function AnnouncementBanner() {
         </button>
       </aside>
 
-      <NeoModal open={sheetOpen} title="Announcement" onClose={() => setSheetOpen(false)}>
-        <div className={`np-notice--${type}`}>
-          <div className="np-notice-sheet__eyebrow">{label}</div>
-        </div>
-        <h3 className="np-notice-sheet__title">{title}</h3>
-        {message && <p className="np-notice-sheet__text">{message}</p>}
-        <NeoButton type="button" onClick={dismiss}>
-          Got it
-        </NeoButton>
-      </NeoModal>
+      <AnnouncementSheet
+        announcement={announcement}
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onConfirm={dismiss}
+      />
     </>
   );
 }
