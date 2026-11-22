@@ -85,6 +85,12 @@ export default defineConfig({
             purpose: 'any maskable'
           }
         ],
+        shortcuts: [
+          { name: 'Today', short_name: 'Today', description: "What's on now and next", url: '/home', icons: [{ src: 'icon-v2-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Week timetable', short_name: 'Week', description: 'Your full week', url: '/timetable', icons: [{ src: 'icon-v2-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Attendance', short_name: 'Attendance', description: 'Percentages and bunk planner', url: '/attendance', icons: [{ src: 'icon-v2-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Exams', short_name: 'Exams', description: 'Exam dates and seating', url: '/exam', icons: [{ src: 'icon-v2-192.png', sizes: '192x192', type: 'image/png' }] }
+        ],
         categories: ['education', 'productivity'],
         lang: 'en',
         dir: 'ltr'

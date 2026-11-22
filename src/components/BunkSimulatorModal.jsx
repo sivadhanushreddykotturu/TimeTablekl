@@ -394,7 +394,7 @@ export default function BunkSimulatorModal({
   }
 
   return (
-    <NeoModal open={isOpen} title="Plan bunks" onClose={onClose}>
+    <NeoModal open={isOpen} title="Plan bunks" onClose={onClose} steady>
       <div className="bc">
         {modeSwitch}
 

@@ -16,7 +16,7 @@ import "./core.css";
 let openDialogs = 0;
 let pageOverflow = "";
 
-export function NeoModal({ open, title, onClose, children, wide = false }) {
+export function NeoModal({ open, title, onClose, children, wide = false, steady = false }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
@@ -37,7 +37,7 @@ export function NeoModal({ open, title, onClose, children, wide = false }) {
   return (
     <div className="np-modal-overlay" onClick={onClose}>
       <div
-        className="np-modal"
+        className={`np-modal${steady ? " np-modal--steady" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -93,6 +93,31 @@ export function NeoLoading({ text = "Loading…" }) {
     <div className="np-loading" role="status">
       <span className="np-loading__spinner" aria-hidden="true" />
       <div className="np-loading__text">{text}</div>
+    </div>
+  );
+}
+
+/**
+ * Grey placeholder shapes where content will land (instead of a lone spinner),
+ * so the page keeps its layout while data loads.
+ *   variant "card": attendance-style cards   "list": two-line rows   "rows": single-line rows
+ */
+export function NeoSkeleton({ variant = "card", count = 3, text = "Loading…" }) {
+  return (
+    <div className={`np-skel np-skel--${variant}`} role="status" aria-label={text}>
+      {text && <div className="np-skel__caption">{text}</div>}
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="np-skel__item" style={{ animationDelay: `${i * 90}ms` }} aria-hidden="true">
+          <span className="np-skel__bar np-skel__bar--title" />
+          {variant !== "rows" && <span className="np-skel__bar np-skel__bar--sub" />}
+          {variant === "card" && (
+            <>
+              <span className="np-skel__bar np-skel__bar--row" />
+              <span className="np-skel__bar np-skel__bar--row" />
+            </>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -258,7 +283,10 @@ export default function NeoShell({ children, onRefresh, refreshLabel, onBack, au
     ? "np-slide-enter-left"
     : slideDirection === "right"
     ? "np-slide-enter-right"
-    : "";
+    // every other screen change: tabs settle in, detail screens slide in from the right
+    : isTab
+    ? "np-page-enter"
+    : "np-page-enter np-page-enter--detail";
 
   const busy = syncing || autoSyncing;
   const syncTitle = busy ? "Syncing" : synced ? "Synced" : refreshLabel || "Sync";

@@ -2625,3 +2625,139 @@ body.np-body button.np-notice__close:hover { background: color-mix(in srgb, var(
   .np-rail[data-fade-right="1"] { --fade-r: 44px; }
   .np-rail::after { content: ""; flex: 0 0 36px; }
 }
+
+/* register sheet: same height while loading and once the list is in, so it never jumps */
+.np-regbox {
+  display: flex;
+  flex-direction: column;
+  height: min(56vh, 480px);
+  height: min(56dvh, 480px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.np-regbox > .np-loading,
+.np-regbox > .np-note { margin: auto; text-align: center; }
+
+/* ============================================================
+   SMART STRIP (Today): the day, read for you
+   ============================================================ */
+
+.np-smart { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+
+.np-smart__item {
+  --tone: var(--np-muted);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--np-r-lg);
+  background: var(--np-carbon);
+  animation: np-notice-in 320ms var(--np-ease) backwards;
+}
+.np-smart__item:nth-child(2) { animation-delay: 60ms; }
+.np-smart__item:nth-child(3) { animation-delay: 120ms; }
+
+.np-smart__item--good { --tone: var(--np-good); }
+.np-smart__item--warn { --tone: var(--np-orange); }
+.np-smart__item--info { --tone: #7aa7ff; }
+
+.np-smart__icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tone) 16%, transparent);
+  color: var(--tone);
+}
+
+.np-smart__body { min-width: 0; padding-top: 1px; }
+.np-smart__title { font: 600 14px/1.3 var(--np-font-ui); color: var(--np-cream); }
+.np-smart__text { margin-top: 2px; font: 400 13px/1.45 var(--np-font-ui); color: var(--np-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .np-smart__item { animation: none; }
+}
+
+/* Plan bunks (both modes): one fixed size, so switching Today / Tomorrow / Week / Manual never resizes it */
+.np-modal--steady {
+  height: min(86vh, 720px);
+  height: min(86dvh, 720px);
+}
+@media (max-width: 560px) {
+  .np-modal--steady {
+    height: 86vh;
+    height: 86dvh;
+  }
+}
+
+/* ============================================================
+   SKELETONS: placeholder shapes while data loads
+   ============================================================ */
+
+.np-skel { display: flex; flex-direction: column; gap: 12px; padding-top: 6px; }
+.np-skel__caption { font: 500 12.5px/1 var(--np-font-ui); color: var(--np-muted); padding: 0 2px 2px; }
+
+.np-skel--card .np-skel__item {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: var(--np-r-lg);
+  background: var(--np-carbon);
+}
+.np-skel--list .np-skel__item {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px 16px;
+  border-radius: var(--np-r);
+  background: var(--np-carbon);
+}
+.np-skel--rows { gap: 0; }
+.np-skel--rows .np-skel__item { padding: 14px 0; border-bottom: 1px solid color-mix(in srgb, var(--np-line) 70%, transparent); }
+
+.np-skel__bar {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--np-cream) 7%, transparent) 30%,
+    color-mix(in srgb, var(--np-cream) 15%, transparent) 50%,
+    color-mix(in srgb, var(--np-cream) 7%, transparent) 70%
+  );
+  background-size: 250% 100%;
+  animation: np-shimmer 1.4s ease-in-out infinite;
+}
+.np-skel__bar--title { width: 58%; height: 15px; }
+.np-skel__bar--sub { width: 34%; }
+.np-skel__bar--row { width: 100%; height: 38px; border-radius: 10px; }
+
+@keyframes np-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-skel__bar { animation: none; }
+}
+
+/* ---------- screen changes ---------- */
+
+.np-page-enter { animation: np-page-in 260ms var(--np-ease) backwards; }
+.np-page-enter--detail { animation-name: np-page-in-detail; }
+
+@keyframes np-page-in {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes np-page-in-detail {
+  from { opacity: 0; transform: translate3d(28px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-page-enter { animation: none; }
+}

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FiShare2, FiGrid } from "react-icons/fi";
 import NeoShell, { NeoModal } from "../Shell.jsx";
+import TimetableChangesModal from "../components/TimetableChangesModal.jsx";
 import { ClassProgressBar } from "../components/ClassTimer.jsx";
 import Toast from "../../components/Toast.jsx";
 import GuestAuthModal from "../../components/GuestAuthModal.jsx";
@@ -30,7 +31,7 @@ import {
 const MIN_GAP_SHOWN = 20; // minutes — shorter gaps are just the walk between rooms
 
 export default function NeoTimetable() {
-  const { timetable, autoSyncing, refresh, reload } = useTimetable("timetable_page");
+  const { timetable, autoSyncing, changes, clearChanges, refresh, reload } = useTimetable("timetable_page");
   const nowTick = useNowTick();
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [exporting, setExporting] = useState(false);
@@ -267,6 +268,8 @@ export default function NeoTimetable() {
           reload();
         }}
       />
+
+      <TimetableChangesModal changes={changes} onClose={clearChanges} />
 
       <Toast
         message={toast.message}

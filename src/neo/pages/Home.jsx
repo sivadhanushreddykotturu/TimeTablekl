@@ -4,6 +4,8 @@ import { MdLogin, MdSync } from "react-icons/md";
 import NeoShell, { NeoModal } from "../Shell.jsx";
 import { ClassTimerReadout, ClassProgressBar } from "../components/ClassTimer.jsx";
 import AnnouncementBanner from "../components/AnnouncementBanner.jsx";
+import SmartStrip from "../components/SmartStrip.jsx";
+import TimetableChangesModal from "../components/TimetableChangesModal.jsx";
 import Toast from "../../components/Toast.jsx";
 
 import { getCredentials } from "../../../utils/storage.js";
@@ -236,6 +238,8 @@ export default function NeoHome() {
 
       <AnnouncementBanner />
 
+      <SmartStrip state={state} />
+
       {state.blocks.length > 0 && (
         <section className="np-shelf">
           <div className="np-shelf__head">
@@ -278,24 +282,7 @@ export default function NeoHome() {
       )}
 
       {/* what the last sync changed */}
-      <NeoModal open={changes.length > 0} title="Timetable changes found" onClose={clearChanges}>
-        <p className="np-note" style={{ marginBottom: 14 }}>
-          These slots changed after the sync:
-        </p>
-        <div style={{ maxHeight: 280, overflowY: "auto" }}>
-          {changes.map((change, index) => (
-            <div key={`${change.day}-${change.slot}-${index}`} className="np-panel" style={{ marginBottom: 10 }}>
-              <div className="np-panel__label" style={{ marginBottom: 8 }}>
-                {change.day} · Slot {change.slot}
-              </div>
-              <div className="np-note">
-                <div><b style={{ color: "var(--np-pink)" }}>Old</b> — {change.oldClass}</div>
-                <div style={{ marginTop: 4 }}><b style={{ color: "var(--np-good)" }}>New</b> — {change.newClass}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </NeoModal>
+      <TimetableChangesModal changes={changes} onClose={clearChanges} />
 
       <Toast
         message={toast.message}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { MdCalculate, MdChevronRight, MdIosShare } from "react-icons/md";
 import axios from "axios";
-import NeoShell, { NeoModal, NeoLoading } from "../Shell.jsx";
+import NeoShell, { NeoModal, NeoSkeleton } from "../Shell.jsx";
 import { NeoButton } from "../NeoKit.jsx";
 import BunkSimulatorModal from "../../components/BunkSimulatorModal";
 import CalculatorModal from "../../components/CalculatorModal";
@@ -875,7 +875,7 @@ export default function NeoAttendance() {
       </div>
 
       {isLoading ? (
-        <NeoLoading text={`Fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} attendance…`} />
+        <NeoSkeleton variant="card" count={4} text={`Fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} attendance…`} />
       ) : error ? (
         error.includes("Session expired") || error.includes("log in") ? (
           <div className="np-empty">
@@ -1052,31 +1052,34 @@ export default function NeoAttendance() {
 
       {/* register details */}
       <NeoModal open={showRegisterModal} title="Register" onClose={closeRegisterModal}>
-        {registerLoading ? (
-          <NeoLoading text={registerLoadingText} />
-        ) : selectedRegisterData?.daily_attendance?.length > 0 ? (
-          <div className="np-reglist">
-            {[...selectedRegisterData.daily_attendance]
-              // keep real class rows only; drop trailing summary rows (e.g. weighted % / absent totals)
-              .filter((entry) => /\sH\s*\d/.test(entry?.date_slot || "") && ["P", "A"].includes(entry?.status))
-              .reverse()
-              .map((entry, index) => {
-              const [date, hour] = entry.date_slot.split(" H ");
-              const present = entry.status === "P";
-              return (
-                <div key={index} className="np-reglist__row">
-                  <span>
-                    {date}
-                    {hour && <small> · Hour {hour}</small>}
-                  </span>
-                  <b className={present ? "np-good" : "np-bad"}>{present ? "Present" : "Absent"}</b>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="np-note">No class-by-class record is available for this component yet.</p>
-        )}
+        {/* one fixed height while loading and after, so the sheet never jumps */}
+        <div className="np-regbox">
+          {registerLoading ? (
+            <NeoSkeleton variant="rows" count={9} text={registerLoadingText} />
+          ) : selectedRegisterData?.daily_attendance?.length > 0 ? (
+            <div className="np-reglist">
+              {[...selectedRegisterData.daily_attendance]
+                // keep real class rows only; drop trailing summary rows (e.g. weighted % / absent totals)
+                .filter((entry) => /\sH\s*\d/.test(entry?.date_slot || "") && ["P", "A"].includes(entry?.status))
+                .reverse()
+                .map((entry, index) => {
+                const [date, hour] = entry.date_slot.split(" H ");
+                const present = entry.status === "P";
+                return (
+                  <div key={index} className="np-reglist__row">
+                    <span>
+                      {date}
+                      {hour && <small> · Hour {hour}</small>}
+                    </span>
+                    <b className={present ? "np-good" : "np-bad"}>{present ? "Present" : "Absent"}</b>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="np-note">No class-by-class record is available for this component yet.</p>
+          )}
+        </div>
       </NeoModal>
 
       {/* safe % target */}

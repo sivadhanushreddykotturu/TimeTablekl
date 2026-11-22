@@ -10,6 +10,18 @@ function readStoredTimetable() {
   }
 }
 
+const PENDING_KEY = "timetable_pending_changes";
+
+/** Changes found by a sync that the user has not seen yet (survives a screen change or reload). */
+function readPendingChanges() {
+  try {
+    const list = JSON.parse(localStorage.getItem(PENDING_KEY) || "[]");
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Slot-level diff between two timetables: [{ day, slot, oldClass, newClass }]. */
 export function getTimetableChanges(oldTimetable = {}, newTimetable = {}) {
   const changes = [];
@@ -40,7 +52,18 @@ export function getTimetableChanges(oldTimetable = {}, newTimetable = {}) {
 export function useTimetable(syncLocation) {
   const [timetable, setTimetable] = useState(readStoredTimetable);
   const [autoSyncing, setAutoSyncing] = useState(false);
-  const [changes, setChanges] = useState([]);
+  const [changes, setChanges] = useState(readPendingChanges);
+
+  // new changes replace the unseen ones; a sync with no changes leaves them be
+  const showChanges = useCallback((list) => {
+    if (!list.length) return;
+    setChanges(list);
+    try {
+      localStorage.setItem(PENDING_KEY, JSON.stringify(list));
+    } catch {
+      /* storage full: the dialog still shows this time */
+    }
+  }, []);
 
   const sync = useCallback(async (method) => {
     const previous = readStoredTimetable();
@@ -63,7 +86,7 @@ export function useTimetable(syncLocation) {
       .then((result) => {
         if (cancelled) return;
         setTimetable(result.next);
-        setChanges(result.changes);
+        showChanges(result.changes);
       })
       .catch(() => {
         // Silent: the manual sync button is right there.
@@ -79,11 +102,18 @@ export function useTimetable(syncLocation) {
   const refresh = useCallback(async () => {
     const result = await sync("direct");
     setTimetable(result.next);
-    setChanges(result.changes);
-  }, [sync]);
+    showChanges(result.changes);
+  }, [sync, showChanges]);
 
   const reload = useCallback(() => setTimetable(readStoredTimetable()), []);
-  const clearChanges = useCallback(() => setChanges([]), []);
+  const clearChanges = useCallback(() => {
+    setChanges([]);
+    try {
+      localStorage.removeItem(PENDING_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   return { timetable, autoSyncing, changes, clearChanges, refresh, reload };
 }

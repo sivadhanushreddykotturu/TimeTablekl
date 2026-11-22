@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { MdChevronRight, MdIosShare } from "react-icons/md";
 import axios from "axios";
-import NeoShell, { NeoModal, NeoLoading } from "../Shell.jsx";
+import NeoShell, { NeoModal, NeoLoading, NeoSkeleton } from "../Shell.jsx";
 import Toast from "../../components/Toast.jsx";
 import { getCredentials, handleSessionRefresh } from "../../../utils/storage.js";
 import {
@@ -522,7 +522,7 @@ export default function NeoGrades() {
       )}
 
       {isLoading ? (
-        <NeoLoading text={`Fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} grades…`} />
+        <NeoSkeleton variant="list" count={6} text={`Fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} grades…`} />
       ) : error ? (
         error.includes("Session expired") || error.includes("log in") ? (
           <div className="np-empty">
