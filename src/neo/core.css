@@ -2236,3 +2236,47 @@ body.np-body .np-friend__tools button.np-iconbtn {
 }
 
 .np-ptr.is-busy svg { animation: np-spin 0.9s linear infinite; }
+
+/* ---------- profile picture picker ---------- */
+
+.np-avatarpick {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+body.np-body button.np-avatarpick__item {
+  min-height: 0;
+  margin: 0;
+  padding: 3px;
+  aspect-ratio: 1;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+body.np-body button.np-avatarpick__item.is-on {
+  border-color: var(--np-acid);
+}
+
+.np-avatarpick__item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--np-panel);
+}
+
+body.np-body button.np-avatarpick__upload {
+  width: 100%;
+  margin-top: 10px;
+  padding: 13px;
+  background: transparent;
+  border: none;
+  border-radius: var(--np-r-full);
+  color: var(--np-soft);
+  font: 600 14px/1 var(--np-font-ui);
+  cursor: pointer;
+}

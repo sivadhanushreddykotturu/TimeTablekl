@@ -12,13 +12,20 @@ import {
   MdFeedback,
   MdInfo,
   MdLogout,
-  MdShuffle,
+  MdPhotoCamera,
 } from "react-icons/md";
 import { FiGithub, FiLinkedin } from "react-icons/fi";
 import NeoShell, { NeoModal } from "../Shell.jsx";
 import { NeoField, NeoSelect, NeoButton } from "../NeoKit.jsx";
 import { SettingsGroup, SettingsRow, Switch } from "../components/Settings.jsx";
-import { avatarUrl, getAvatarSeed, nextAvatar, setAvatarSeed as storeAvatarSeed } from "../utils/avatar.js";
+import {
+  AVATARS,
+  avatarUrl,
+  getAvatarSeed,
+  setAvatarSeed as storeAvatarSeed,
+  setAvatarFromFile,
+  setAvatarFromPinterest,
+} from "../utils/avatar.js";
 import Toast from "../../components/Toast.jsx";
 import { BUILD_ID } from "../../utils/buildInfo.js";
 import { useInstallPrompt } from "../../hooks/useInstallPrompt.js";
@@ -45,7 +52,11 @@ export default function NeoProfile() {
   const [academicYear, setAcademicYear] = useState("");
   const [yearOptions, setYearOptions] = useState([]);
   const [avatarSeed, setAvatarSeed] = useState(getAvatarSeed);
-  const [sheet, setSheet] = useState(null); // "account" | "semester" | "about" | null
+  const [sheet, setSheet] = useState(null); // "account" | "semester" | "about" | "avatar" | null
+  const [pinLink, setPinLink] = useState("");
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+  const fileInputRef = useRef(null);
   const { canInstall, install } = useInstallPrompt();
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -83,10 +94,42 @@ export default function NeoProfile() {
     setYearOptions(Array.from(new Set([storedYear, ...getCurrentAcademicYearOptions()])));
   }, []);
 
-  const handleRandomizeAvatar = () => {
-    const seed = nextAvatar(avatarSeed);
+  const pickPreset = (seed) => {
     setAvatarSeed(seed);
     storeAvatarSeed(seed);
+    setAvatarError("");
+    setSheet(null);
+  };
+
+  const runAvatarChange = async (task) => {
+    setAvatarBusy(true);
+    setAvatarError("");
+    try {
+      await task();
+      setAvatarSeed(getAvatarSeed());
+      setPinLink("");
+      setSheet(null);
+      setToast({ show: true, message: "Profile picture updated.", type: "success" });
+    } catch (error) {
+      setAvatarError(error.message || "Couldn't use that picture.");
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
+  const handlePinterest = (e) => {
+    e.preventDefault();
+    if (!pinLink.trim()) {
+      setAvatarError("Paste a Pinterest pin or profile link.");
+      return;
+    }
+    runAvatarChange(() => setAvatarFromPinterest(pinLink));
+  };
+
+  const handleFilePicked = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) runAvatarChange(() => setAvatarFromFile(file));
   };
 
   const toggleTimeFormat = () =>
@@ -176,13 +219,16 @@ export default function NeoProfile() {
       <header className="np-profile">
         <button
           className="np-profile__avatar"
-          onClick={handleRandomizeAvatar}
+          onClick={() => {
+            setAvatarError("");
+            setSheet("avatar");
+          }}
           aria-label="Change avatar"
           title="Change avatar"
         >
           <img src={avatarUrl(avatarSeed)} alt="" />
           <span className="np-profile__badge" aria-hidden="true">
-            <MdShuffle size={16} />
+            <MdPhotoCamera size={16} />
           </span>
         </button>
         <h1 className="np-profile__name">{savedId || "Guest"}</h1>
@@ -297,6 +343,57 @@ export default function NeoProfile() {
         <NeoButton type="button" onClick={handleSaveCreds}>
           Save
         </NeoButton>
+      </NeoModal>
+
+      {/* profile picture sheet */}
+      <NeoModal open={sheet === "avatar"} title="Profile picture" onClose={() => setSheet(null)}>
+        <div className="np-avatarpick">
+          {AVATARS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              className={`np-avatarpick__item${avatarSeed === name ? " is-on" : ""}`}
+              onClick={() => pickPreset(name)}
+              aria-label={`Use ${name}`}
+            >
+              <img src={avatarUrl(name)} alt="" draggable={false} />
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handlePinterest} style={{ marginTop: 18 }}>
+          <NeoField
+            id="np-pin-link"
+            label="Pinterest link"
+            type="text"
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            placeholder="pin.it/… or a Pinterest profile"
+            value={pinLink}
+            onChange={(e) => setPinLink(e.target.value)}
+          />
+          {avatarError && <p className="np-formerror" role="alert">{avatarError}</p>}
+          <NeoButton loading={avatarBusy} loadingText="Fetching…">
+            Use this picture
+          </NeoButton>
+        </form>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={handleFilePicked}
+        />
+        <button
+          type="button"
+          className="np-avatarpick__upload"
+          disabled={avatarBusy}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          Choose from this device
+        </button>
       </NeoModal>
 
       {/* semester sheet */}
