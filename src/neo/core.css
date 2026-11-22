@@ -2280,3 +2280,42 @@ body.np-body button.np-avatarpick__upload {
   font: 600 14px/1 var(--np-font-ui);
   cursor: pointer;
 }
+
+/* ---------- avatar cropper ---------- */
+
+.np-crop { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+.np-crop__view {
+  position: relative;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--np-panel);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.np-crop__view img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.np-crop__hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  font: 600 13px/1.3 var(--np-font-ui);
+  color: var(--np-soft);
+}
+
+.np-crop__zoom { width: min(260px, 100%); accent-color: var(--np-acid); }
+.np-crop__tip { margin: 0; text-align: center; }
+.np-crop + .np-modal__actions, .np-crop .np-modal__actions { width: 100%; }

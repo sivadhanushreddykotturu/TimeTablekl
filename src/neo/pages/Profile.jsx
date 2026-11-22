@@ -23,9 +23,11 @@ import {
   avatarUrl,
   getAvatarSeed,
   setAvatarSeed as storeAvatarSeed,
-  setAvatarFromFile,
-  setAvatarFromPinterest,
+  setCustomAvatar,
+  deviceImageSource,
+  pinterestImageSource,
 } from "../utils/avatar.js";
+import AvatarCropper from "../components/AvatarCropper.jsx";
 import Toast from "../../components/Toast.jsx";
 import { BUILD_ID } from "../../utils/buildInfo.js";
 import { useInstallPrompt } from "../../hooks/useInstallPrompt.js";
@@ -56,6 +58,7 @@ export default function NeoProfile() {
   const [pinLink, setPinLink] = useState("");
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState("");
+  const [cropSrc, setCropSrc] = useState(""); // picture waiting to be cropped
   const fileInputRef = useRef(null);
   const { canInstall, install } = useInstallPrompt();
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
@@ -101,35 +104,47 @@ export default function NeoProfile() {
     setSheet(null);
   };
 
-  const runAvatarChange = async (task) => {
-    setAvatarBusy(true);
-    setAvatarError("");
-    try {
-      await task();
-      setAvatarSeed(getAvatarSeed());
-      setPinLink("");
-      setSheet(null);
-      setToast({ show: true, message: "Profile picture updated.", type: "success" });
-    } catch (error) {
-      setAvatarError(error.message || "Couldn't use that picture.");
-    } finally {
-      setAvatarBusy(false);
-    }
+  const closeCropper = () => {
+    if (cropSrc.startsWith("blob:")) URL.revokeObjectURL(cropSrc);
+    setCropSrc("");
   };
 
-  const handlePinterest = (e) => {
+  const handlePinterest = async (e) => {
     e.preventDefault();
     if (!pinLink.trim()) {
       setAvatarError("Paste a Pinterest pin or profile link.");
       return;
     }
-    runAvatarChange(() => setAvatarFromPinterest(pinLink));
+    setAvatarBusy(true);
+    setAvatarError("");
+    try {
+      setCropSrc(await pinterestImageSource(pinLink));
+    } catch (error) {
+      setAvatarError(error.message || "Couldn't read that link.");
+    } finally {
+      setAvatarBusy(false);
+    }
   };
 
   const handleFilePicked = (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (file) runAvatarChange(() => setAvatarFromFile(file));
+    if (!file) return;
+    try {
+      setAvatarError("");
+      setCropSrc(deviceImageSource(file));
+    } catch (error) {
+      setAvatarError(error.message);
+    }
+  };
+
+  const handleCropSaved = (dataUrl) => {
+    setCustomAvatar(dataUrl);
+    setAvatarSeed(getAvatarSeed());
+    closeCropper();
+    setPinLink("");
+    setSheet(null);
+    setToast({ show: true, message: "Profile picture updated.", type: "success" });
   };
 
   const toggleTimeFormat = () =>
@@ -346,7 +361,18 @@ export default function NeoProfile() {
       </NeoModal>
 
       {/* profile picture sheet */}
-      <NeoModal open={sheet === "avatar"} title="Profile picture" onClose={() => setSheet(null)}>
+      <NeoModal
+        open={sheet === "avatar"}
+        title={cropSrc ? "Crop picture" : "Profile picture"}
+        onClose={() => {
+          closeCropper();
+          setSheet(null);
+        }}
+      >
+        {cropSrc ? (
+          <AvatarCropper src={cropSrc} onSave={handleCropSaved} onCancel={closeCropper} />
+        ) : (
+        <>
         <div className="np-avatarpick">
           {AVATARS.map((name) => (
             <button
@@ -394,6 +420,8 @@ export default function NeoProfile() {
         >
           Choose from this device
         </button>
+        </>
+        )}
       </NeoModal>
 
       {/* semester sheet */}

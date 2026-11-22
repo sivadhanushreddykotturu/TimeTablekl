@@ -7,7 +7,6 @@ export const AVATARS = ["violet", "silas", "rowan", "nico", "moss"];
 
 const BASE = "https://api.nuvio.tv/storage/v1/object/public/avatars/sketches";
 const CUSTOM = "custom";
-const SIZE = 256;
 
 const readCustom = () => {
   try {
@@ -50,56 +49,21 @@ export function setCustomAvatar(image) {
   setAvatarSeed(CUSTOM);
 }
 
-/** Centre-crops any image source to a small square JPEG data URL. */
-function toSquareDataUrl(source) {
-  return new Promise((resolveImage, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const side = Math.min(img.naturalWidth, img.naturalHeight);
-      if (!side) return reject(new Error("empty image"));
-      const canvas = document.createElement("canvas");
-      canvas.width = canvas.height = SIZE;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(
-        img,
-        (img.naturalWidth - side) / 2,
-        (img.naturalHeight - side) / 2,
-        side,
-        side,
-        0,
-        0,
-        SIZE,
-        SIZE
-      );
-      try {
-        resolveImage(canvas.toDataURL("image/jpeg", 0.88));
-      } catch (error) {
-        reject(error); // canvas tainted (no CORS on the source)
-      }
-    };
-    img.onerror = () => reject(new Error("image failed to load"));
-    img.src = source;
-  });
-}
+/** Side of the saved square picture, in pixels. */
+export const AVATAR_SIZE = 256;
 
-/** A file picked from the device becomes the avatar. */
-export async function setAvatarFromFile(file) {
+/** A device photo, as a temporary link the cropper can open. Revoke it when done. */
+export function deviceImageSource(file) {
   if (!file || !file.type.startsWith("image/")) throw new Error("Pick an image file.");
-  const url = URL.createObjectURL(file);
-  try {
-    setCustomAvatar(await toSquareDataUrl(url));
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  return URL.createObjectURL(file);
 }
 
 /**
  * Resolves a Pinterest pin or profile link through our /api/pinterest function
- * and uses its picture. Saved as a small local copy when the CDN allows it,
- * otherwise the Pinterest image link itself.
+ * and returns a same-origin link to its picture (via /api/pinimg), which the
+ * cropper can draw on a canvas.
  */
-export async function setAvatarFromPinterest(link) {
+export async function pinterestImageSource(link) {
   let data;
   try {
     const res = await fetch(`/api/pinterest?url=${encodeURIComponent(link.trim())}`);
@@ -108,9 +72,5 @@ export async function setAvatarFromPinterest(link) {
     throw new Error("Couldn't reach the server. Check your connection.");
   }
   if (!data?.success) throw new Error(data?.error || "Couldn't read that link.");
-  try {
-    setCustomAvatar(await toSquareDataUrl(data.image));
-  } catch {
-    setCustomAvatar(data.thumbnail || data.image);
-  }
+  return `/api/pinimg?src=${encodeURIComponent(data.image)}`;
 }
