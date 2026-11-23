@@ -1,0 +1,11 @@
+{
+  "active": false,
+  "image": "",
+  "version": "1",
+  "strength": 0.5,
+  "accent": "",
+  "focus": "50% 25%",
+  "glow": false,
+  "devices": ["mobile", "tablet", "desktop"],
+  "expires": ""
+}

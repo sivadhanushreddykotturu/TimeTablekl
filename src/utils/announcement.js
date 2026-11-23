@@ -10,8 +10,10 @@ import { MdErrorOutline, MdInfoOutline, MdCheckCircleOutline, MdWarningAmber } f
  *
  * Shape: { active, type?: info|warning|critical|success, title, message }
  */
-const BRANCH_URL =
-  "https://raw.githubusercontent.com/sivadhanushreddykotturu/TimeTablekl/announcements/announcements.json";
+/** Folder on the `announcements` branch that holds announcements.json, theme.json and theme images. */
+export const BRANCH_BASE =
+  "https://raw.githubusercontent.com/sivadhanushreddykotturu/TimeTablekl/announcements/";
+const BRANCH_URL = `${BRANCH_BASE}announcements.json`;
 
 async function getJson(url, ms) {
   const controller = new AbortController();

@@ -13,6 +13,7 @@ import {
   MdInfo,
   MdLogout,
   MdPhotoCamera,
+  MdImage,
 } from "react-icons/md";
 import { FiGithub, FiLinkedin } from "react-icons/fi";
 import NeoShell, { NeoModal } from "../Shell.jsx";
@@ -27,6 +28,7 @@ import {
   deviceImageSource,
   pinterestImageSource,
 } from "../utils/avatar.js";
+import { eventBackgroundEnabled, setEventBackgroundEnabled } from "../../utils/eventTheme.js";
 import AvatarCropper from "../components/AvatarCropper.jsx";
 import Toast from "../../components/Toast.jsx";
 import { BUILD_ID } from "../../utils/buildInfo.js";
@@ -66,6 +68,7 @@ export default function NeoProfile() {
   const [timeFormat, setTimeFormat] = useState(
     () => localStorage.getItem("time_format") || "12"
   );
+  const [eventBg, setEventBg] = useState(eventBackgroundEnabled);
   const credsSnapshotRef = useRef({ username: "", password: "" });
 
   // feedback state
@@ -146,6 +149,12 @@ export default function NeoProfile() {
     setSheet(null);
     setToast({ show: true, message: "Profile picture updated.", type: "success" });
   };
+
+  const toggleEventBg = () =>
+    setEventBg((prev) => {
+      setEventBackgroundEnabled(!prev);
+      return !prev;
+    });
 
   const toggleTimeFormat = () =>
     setTimeFormat((prev) => {
@@ -303,6 +312,15 @@ export default function NeoProfile() {
           aria-checked={timeFormat === "24"}
           trailing={<Switch on={timeFormat === "24"} />}
           onClick={toggleTimeFormat}
+        />
+        <SettingsRow
+          icon={<MdImage size={24} />}
+          title="Event backgrounds"
+          description="A subtle image behind Today during releases and events"
+          role="switch"
+          aria-checked={eventBg}
+          trailing={<Switch on={eventBg} />}
+          onClick={toggleEventBg}
         />
         {canInstall && (
           <SettingsRow

@@ -2761,3 +2761,114 @@ body.np-body button.np-notice__close:hover { background: color-mix(in srgb, var(
 @media (prefers-reduced-motion: reduce) {
   .np-page-enter { animation: none; }
 }
+
+/* ============================================================
+   EVENT BACKGROUND: a subtle image in the upper part of the Today header
+   ============================================================ */
+
+.np-hero__event {
+  position: absolute;
+  inset: 0 0 32% 0;
+  background-image:
+    linear-gradient(135deg, color-mix(in srgb, var(--event-accent, transparent) 38%, transparent), transparent 62%),
+    var(--event-img);
+  background-size: cover;
+  background-position: center, var(--event-focus, 50% 25%);
+  background-repeat: no-repeat;
+  opacity: 0;
+  filter: saturate(1.08);
+  /* melts into the page at the bottom, so the title area stays dark and readable */
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 36%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 36%, transparent 100%);
+  pointer-events: none;
+  animation: np-event-in 1600ms var(--np-ease) 80ms forwards;
+}
+
+@keyframes np-event-in {
+  to { opacity: calc(var(--event-strength, 0.5) * 0.9); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-hero__event { animation-duration: 1ms; animation-delay: 0s; }
+}
+
+/* phones: the header is narrow and tall, so give the image more of it */
+@media (max-width: 767px) {
+  .np-hero__event { inset: 0 0 18% 0; }
+}
+
+/* laptops: less of the dark overlay over the event image (tablets and phones keep theirs) */
+@media (min-width: 1024px) {
+  .np-hero--event .np-hero__art::after {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--np-void) 12%, transparent) 0%,
+      color-mix(in srgb, var(--np-void) 0%, transparent) 30%,
+      color-mix(in srgb, var(--np-void) 22%, transparent) 58%,
+      color-mix(in srgb, var(--np-void) 82%, transparent) 100%
+    );
+  }
+}
+
+/* laptops: let the event image reach a little lower before it fades out */
+@media (min-width: 1024px) {
+  .np-hero__event {
+    inset: 0 0 16% 0;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 52%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 52%, transparent 100%);
+  }
+}
+
+/* ---------- event image: a cleaner fade ---------- */
+
+/* the coloured glow would show through where the image fades (a purple haze on dark pictures),
+   so with an event image the header is plain dark underneath; theme.json "glow": true brings it back */
+.np-hero--event:not(.np-hero--event-glow) .np-hero__art,
+.np-hero--event.np-hero--idle:not(.np-hero--event-glow) .np-hero__art {
+  background: var(--np-carbon);
+}
+
+/* the image melts away over many soft steps, so there is no visible edge */
+.np-hero__event {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%, #000 38%,
+    rgba(0, 0, 0, 0.88) 48%, rgba(0, 0, 0, 0.68) 58%,
+    rgba(0, 0, 0, 0.44) 69%, rgba(0, 0, 0, 0.22) 80%,
+    rgba(0, 0, 0, 0.07) 91%, transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%, #000 38%,
+    rgba(0, 0, 0, 0.88) 48%, rgba(0, 0, 0, 0.68) 58%,
+    rgba(0, 0, 0, 0.44) 69%, rgba(0, 0, 0, 0.22) 80%,
+    rgba(0, 0, 0, 0.07) 91%, transparent 100%
+  );
+}
+
+/* and one smooth dark overlay (top for the buttons, bottom for the text) */
+.np-hero--event .np-hero__art::after {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--np-carbon) 28%, transparent) 0%,
+    color-mix(in srgb, var(--np-carbon) 4%, transparent) 24%,
+    color-mix(in srgb, var(--np-carbon) 14%, transparent) 46%,
+    color-mix(in srgb, var(--np-carbon) 44%, transparent) 66%,
+    color-mix(in srgb, var(--np-carbon) 74%, transparent) 84%,
+    color-mix(in srgb, var(--np-carbon) 90%, transparent) 100%
+  );
+}
+
+@media (min-width: 1024px) {
+  .np-hero--event .np-hero__art::after {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--np-carbon) 16%, transparent) 0%,
+      color-mix(in srgb, var(--np-carbon) 0%, transparent) 24%,
+      color-mix(in srgb, var(--np-carbon) 8%, transparent) 46%,
+      color-mix(in srgb, var(--np-carbon) 34%, transparent) 66%,
+      color-mix(in srgb, var(--np-carbon) 66%, transparent) 84%,
+      color-mix(in srgb, var(--np-carbon) 86%, transparent) 100%
+    );
+  }
+}

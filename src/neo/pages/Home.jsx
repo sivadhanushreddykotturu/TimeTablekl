@@ -12,6 +12,8 @@ import { getCredentials } from "../../../utils/storage.js";
 import { trackEvent } from "../../utils/analytics";
 import { useNowTick } from "../../hooks/useNowTick";
 import { useTimetable } from "../../hooks/useTimetable";
+import { useEventBackground } from "../../hooks/useEventBackground";
+import { useSync } from "../../contexts/SyncContext.jsx";
 import { formatTimeStr } from "../../utils/slotTimes";
 import {
   getDayState,
@@ -67,8 +69,11 @@ export default function NeoHome() {
   const navigate = useNavigate();
   const { timetable, autoSyncing, changes, clearChanges, refresh } = useTimetable("home_page");
   const nowTick = useNowTick();
+  const { isSyncing } = useSync();
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [syncing, setSyncing] = useState(false);
+  // the event image is the last thing to load: only once nothing is syncing
+  const eventBg = useEventBackground(syncing || autoSyncing || isSyncing);
   const focusCardRef = useRef(null);
 
   // Recomputed every 30s and when the app returns to the foreground.
@@ -132,11 +137,23 @@ export default function NeoHome() {
   return (
     <NeoShell onRefresh={handleRefresh} autoSyncing={autoSyncing}>
       <section
-        className={`np-hero${block ? "" : " np-hero--idle"}`}
+        className={`np-hero${block ? "" : " np-hero--idle"}${eventBg ? ` np-hero--event${eventBg.glow ? " np-hero--event-glow" : ""}` : ""}`}
         style={block ? { "--hue": subjectHue(block.code) } : undefined}
         aria-live="polite"
       >
-        <div className="np-hero__art" aria-hidden="true" />
+        <div className="np-hero__art" aria-hidden="true">
+          {eventBg && (
+            <div
+              className="np-hero__event"
+              style={{
+                "--event-img": `url("${eventBg.url}")`,
+                "--event-strength": eventBg.strength,
+                "--event-focus": eventBg.focus,
+                ...(eventBg.accent ? { "--event-accent": eventBg.accent } : null),
+              }}
+            />
+          )}
+        </div>
 
         <div className="np-hero__status">
           {feature.kind === "live" && (
