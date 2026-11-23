@@ -1,15 +1,13 @@
 {
   "active": true,
-  "image": "theme/event-1795469850967.jpg",
-  "version": "1795469850967",
-  "strength": 0.8,
+  "image": "theme/event-1795468307257.jpg",
+  "version": "1795470056959",
+  "strength": 0.83,
   "accent": "",
-  "focus": "52% 42%",
+  "focus": "52% 8%",
   "glow": false,
   "devices": [
-    "mobile",
-    "tablet",
-    "desktop"
+    "mobile"
   ],
   "expires": "2026-11-27"
 }
