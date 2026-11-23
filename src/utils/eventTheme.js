@@ -5,7 +5,8 @@
  *
  *   {
  *     "active": true,
- *     "image": "doomsday.jpg",          // file next to theme.json, or a full https link
+ *     "image": "doomsday.jpg",          // file next to theme.json, or a full https link (tablets and laptops)
+ *     "imageMobile": "doomsday-m.jpg",  // optional smaller picture for phones; phones use "image" if missing
  *     "version": "1",                   // change it when you swap the image (busts caches)
  *     "strength": 0.5,                  // 0.1 to 0.9, how visible
  *     "accent": "#2f8fa0",              // optional tint for the header glow
@@ -75,9 +76,15 @@ function clean(raw, base) {
   const devices = Array.isArray(raw.devices) ? raw.devices.filter((d) => DEVICES.includes(d)) : DEVICES;
   if (!devices.includes(deviceClass())) return null;
 
+  // phones get the smaller picture when there is one, so they download less
+  const chosen =
+    deviceClass() === "mobile" && typeof raw.imageMobile === "string" && raw.imageMobile.trim()
+      ? raw.imageMobile
+      : raw.image;
+
   let url;
   try {
-    url = new URL(raw.image.trim(), base);
+    url = new URL(chosen.trim(), base);
   } catch {
     return null;
   }
