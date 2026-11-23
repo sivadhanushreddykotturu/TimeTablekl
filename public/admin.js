@@ -47,7 +47,9 @@ function friendly(status, data) {
   if (status === 404) {
     return "Not found. Check the token only needs the TimeTablekl repo, and that the 'announcements' branch exists.";
   }
-  if (status === 409 || status === 422) return "The file changed at the same time. Try again.";
+  if (status === 409 || status === 422) {
+    return "GitHub says the file changed while saving (another publish at the same moment?). Wait a few seconds and try again.";
+  }
   return data?.message || `GitHub error ${status}`;
 }
 
@@ -56,6 +58,7 @@ async function gh(path, { method = "GET", body } = {}) {
   try {
     res = await fetch(`${API}${path}`, {
       method,
+      cache: "no-store",
       headers: {
         Authorization: `Bearer ${getToken()}`,
         Accept: "application/vnd.github+json",
@@ -105,7 +108,9 @@ async function readJson(path) {
 
 /** Writes a JSON file next to what is already there; retries once if it changed meanwhile. */
 async function saveJson(path, patch, message) {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  let lastError = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 600 * attempt));
     const { sha, data } = await readJson(path);
     const text = `${JSON.stringify({ ...data, ...patch }, null, 2)}\n`;
     try {
@@ -114,11 +119,12 @@ async function saveJson(path, patch, message) {
         body: { message, content: toB64(text), branch: BRANCH, ...(sha ? { sha } : {}) },
       });
     } catch (error) {
-      if (attempt === 0 && (error.status === 409 || error.status === 422)) continue;
+      lastError = error;
+      if (error.status === 409 || error.status === 422) continue;
       throw error;
     }
   }
-  return null;
+  throw lastError;
 }
 
 async function saveImage(path, base64, message) {
