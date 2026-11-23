@@ -55,6 +55,7 @@ body {
 .muted { color: var(--muted); font-size: 13.5px; margin: 0 0 12px; }
 .error { color: var(--bad); font-size: 13.5px; margin: 10px 0 0; }
 .warn { color: var(--warn); font-size: 13.5px; margin: 8px 0 0; }
+.good { color: var(--good); font-size: 13.5px; margin: 8px 0 0; }
 
 .field { display: block; margin-bottom: 14px; }
 .field > span { display: flex; justify-content: space-between; margin-bottom: 6px; color: var(--soft); font-size: 13.5px; }

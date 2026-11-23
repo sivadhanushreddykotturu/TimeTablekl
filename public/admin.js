@@ -9,7 +9,8 @@ const BRANCH = "announcements";
 const API = "https://api.github.com";
 const RAW = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/`;
 const TOKEN_KEY = "tt_admin_token";
-const MAX_WIDTH = 1080;
+const PHONE_WIDTH = 840; // the picture phones download
+const LAPTOP_WIDTH = 1600; // the picture tablets and laptops download (sharp on retina screens too)
 
 const $ = (id) => document.getElementById(id);
 
@@ -181,12 +182,18 @@ async function busy(buttons, work) {
 /* ---------------- background tab ---------------- */
 
 const state = {
-  blob: null, // the new picture, already resized (JPEG)
-  blobUrl: "", // preview link for it
+  large: null, // the new picture for tablets and laptops (JPEG)
+  largeUrl: "", // preview link for it
+  phone: null, // the new smaller picture for phones, or null when one picture is enough
+  phoneUrl: "",
   liveImage: "", // path of the picture that is live now (relative to the branch)
+  liveImageMobile: "",
   liveVersion: "",
-  liveUrl: "", // full link of the live picture, for the preview
+  liveUrl: "", // full links of the live pictures, for the preview
+  liveUrlMobile: "",
 };
+
+const kb = (blob) => `${Math.round(blob.size / 1024)} KB`;
 
 const devicesChecked = () => [...document.querySelectorAll("#devices input:checked")].map((i) => i.value);
 const focusValue = () => `${$("fx").value}% ${$("fy").value}%`;
@@ -198,8 +205,9 @@ function syncActiveLabel() {
 }
 
 function renderPreview() {
-  const url = state.blobUrl || state.liveUrl;
-  for (const id of ["pv-phone", "pv-laptop"]) {
+  const phoneUrl = state.phoneUrl || state.largeUrl || state.liveUrlMobile || state.liveUrl;
+  const laptopUrl = state.largeUrl || state.liveUrl;
+  for (const [id, url] of [["pv-phone", phoneUrl], ["pv-laptop", laptopUrl]]) {
     const el = $(id);
     el.style.setProperty("--img", url ? `url("${url}")` : "none");
     el.style.setProperty("--strength", String(Number($("strength").value) / 100));
@@ -211,41 +219,67 @@ function renderPreview() {
   $("fy-val").textContent = `${$("fy").value}%`;
 }
 
-async function toJpeg(blob) {
-  const bitmap = await createImageBitmap(blob);
-  const scale = Math.min(1, MAX_WIDTH / bitmap.width);
+/** Scales a decoded picture down to at most maxWidth (never up) and returns a JPEG. */
+async function resizeJpeg(bitmap, maxWidth, quality) {
+  const scale = Math.min(1, maxWidth / bitmap.width);
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
   const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingQuality = "high";
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  const out = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.86));
-  return { blob: out, width: bitmap.width, height: bitmap.height, outWidth: canvas.width, outHeight: canvas.height };
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  return { blob, width: canvas.width, height: canvas.height };
 }
 
-async function setPicture(source) {
+/** How sharp the picture will look, judged on the original's width. */
+function judgeQuality(width) {
+  if (width >= 1400) return { ok: true, text: "Sharp on phones and laptops." };
+  if (width >= 1000) return { ok: true, text: "Good on phones. A little soft on big laptop screens." };
+  if (width >= 800) {
+    return { ok: false, text: "Fine on phones but soft on laptops. A pin with a larger picture would look better." };
+  }
+  return { ok: false, text: "Too small: it will look blurry. Pick a pin with a larger picture." };
+}
+
+async function setPicture(source, { gotOriginal = true } = {}) {
   showError("pin-error", "");
-  const result = await toJpeg(source);
-  if (!result.blob) throw new Error("Could not read that picture.");
-  if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
-  state.blob = result.blob;
-  state.blobUrl = URL.createObjectURL(result.blob);
+  const bitmap = await createImageBitmap(source);
+  const large = await resizeJpeg(bitmap, LAPTOP_WIDTH, 0.85);
+  if (!large.blob) throw new Error("Could not read that picture.");
+  // phones get their own, smaller file; if the picture is already that small one file does both jobs
+  const needsPhone = bitmap.width > PHONE_WIDTH + 40;
+  const phone = needsPhone ? await resizeJpeg(bitmap, PHONE_WIDTH, 0.82) : null;
+
+  for (const url of [state.largeUrl, state.phoneUrl]) if (url) URL.revokeObjectURL(url);
+  state.large = large.blob;
+  state.largeUrl = URL.createObjectURL(large.blob);
+  state.phone = phone?.blob || null;
+  state.phoneUrl = phone?.blob ? URL.createObjectURL(phone.blob) : "";
+
   // a new picture means you want it shown: switch the background on for this publish
   $("active").checked = true;
   syncActiveLabel();
 
+  const parts = [`Original ${bitmap.width} × ${bitmap.height}`];
+  parts.push(phone ? `phone ${phone.width} px · ${kb(phone.blob)}` : "phone: same picture");
+  parts.push(`laptop ${large.width} px · ${kb(large.blob)}`);
   $("img-info").hidden = false;
-  $("img-info").textContent = `${result.outWidth} × ${result.outHeight} · ${Math.round(result.blob.size / 1024)} KB`;
+  $("img-info").textContent = parts.join("  ·  ");
 
-  const warnings = [];
-  if (result.width < 800) warnings.push("Small picture: it can look soft on laptops.");
-  if (result.width / result.height < 1.3) {
-    warnings.push("Square or tall pictures are cropped to a strip on laptops. They suit phones best.");
+  const quality = judgeQuality(bitmap.width);
+  const lines = [];
+  if (!gotOriginal) lines.push("Pinterest only gave the small version of this pin.");
+  lines.push(quality.text);
+  if (bitmap.width / bitmap.height < 1.3) {
+    lines.push("Square or tall pictures are cropped to a strip on laptops. They suit phones best.");
   }
-  $("img-warn").hidden = warnings.length === 0;
-  $("img-warn").textContent = warnings.join(" ");
+  const warn = $("img-warn");
+  warn.hidden = false;
+  warn.className = quality.ok && gotOriginal ? "good" : "warn";
+  warn.textContent = lines.join(" ");
   renderPreview();
 }
 
@@ -272,10 +306,15 @@ async function fetchPin() {
       const res = await fetch(`/api/pinterest?url=${encodeURIComponent(link)}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Could not read that link.");
-      // the original is sharper; fall back to the smaller one if it is too big to fetch
-      const blob = (await downloadVia(data.original)) || (await downloadVia(data.image));
+      // the original is the sharpest; the small version is only a fallback, and we say so
+      let blob = await downloadVia(data.original);
+      let gotOriginal = Boolean(blob);
+      if (!blob) {
+        blob = await downloadVia(data.image);
+        gotOriginal = false;
+      }
       if (!blob) throw new Error("Could not download that picture.");
-      await setPicture(blob);
+      await setPicture(blob, { gotOriginal });
     } catch (error) {
       showError("pin-error", error.message || "Something went wrong.");
     }
@@ -301,10 +340,21 @@ function describeTheme(theme) {
     theme.active ? `ON for ${where}` : "OFF, so people will not see it",
     `strength ${Math.round(theme.strength * 100)}%`,
     theme.expires ? `ends ${theme.expires}` : "",
-    state.blob ? "with the new picture" : "keeping the current picture",
+    state.large
+      ? `with the new picture (phone ${state.phone ? kb(state.phone) : "same"}, laptop ${kb(state.large)})`
+      : "keeping the current picture",
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+function toBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function publishBackground() {
@@ -314,7 +364,7 @@ async function publishBackground() {
     showError("bg-error", "Pick at least one kind of device.");
     return;
   }
-  if (!state.blob && !state.liveImage) {
+  if (!state.large && !state.liveImage) {
     showError("bg-error", "Pick a picture first.");
     return;
   }
@@ -333,25 +383,26 @@ async function publishBackground() {
     try {
       const stamp = Date.now();
       let image = state.liveImage;
-      if (state.blob) {
-        image = `theme/event-${stamp}.jpg`;
-        const base64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result).split(",")[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(state.blob);
-        });
-        await saveImage(image, base64, "theme: add event image");
+      let imageMobile = state.liveImageMobile;
+      if (state.large) {
+        image = `theme/event-${stamp}-l.jpg`;
+        await saveImage(image, await toBase64(state.large), "theme: add event image (laptop size)");
+        imageMobile = "";
+        if (state.phone) {
+          imageMobile = `theme/event-${stamp}-m.jpg`;
+          await saveImage(imageMobile, await toBase64(state.phone), "theme: add event image (phone size)");
+        }
       }
       const result = await saveJson(
         "theme.json",
-        { ...theme, image, version: String(stamp) },
+        { ...theme, image, imageMobile, version: String(stamp) },
         theme.active ? "theme: publish event background" : "theme: switch event background off"
       );
       toast(theme.active ? "Published. Users get it within a few minutes." : "Switched off.", {
         link: result?.commit?.html_url || "",
       });
-      state.blob = null;
+      state.large = null;
+      state.phone = null;
       await loadLive();
     } catch (error) {
       showError("bg-error", error.message);
@@ -413,9 +464,13 @@ async function loadLive() {
 
     // background
     const hasImage = typeof theme.image === "string" && theme.image.trim() !== "";
+    const v = theme.version ? `?v=${encodeURIComponent(theme.version)}` : "";
+    const hasMobile = typeof theme.imageMobile === "string" && theme.imageMobile.trim() !== "";
     state.liveImage = hasImage ? theme.image : "";
+    state.liveImageMobile = hasMobile ? theme.imageMobile : "";
     state.liveVersion = theme.version || "";
-    state.liveUrl = hasImage ? `${RAW}${theme.image}${theme.version ? `?v=${encodeURIComponent(theme.version)}` : ""}` : "";
+    state.liveUrl = hasImage ? `${RAW}${theme.image}${v}` : "";
+    state.liveUrlMobile = hasMobile ? `${RAW}${theme.imageMobile}${v}` : "";
     $("active").checked = theme.active === true;
     syncActiveLabel();
     if (Number.isFinite(Number(theme.strength))) $("strength").value = String(Math.round(Number(theme.strength) * 100));
