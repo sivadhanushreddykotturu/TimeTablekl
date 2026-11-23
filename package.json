@@ -1,0 +1,6 @@
+{
+  "name": "timetablekl-admin",
+  "private": true,
+  "type": "module",
+  "description": "Admin PWA to publish the TimeTable event background and announcements"
+}

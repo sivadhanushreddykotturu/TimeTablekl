@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#0d0d0d" />
+    <title>TimeTable Admin</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon-192.png" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link rel="stylesheet" href="admin.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="top__brand">
+        <span class="tile">kl</span>
+        <span>TimeTable Admin</span>
+      </div>
+      <button id="signout" class="ghost" hidden>Sign out</button>
+    </header>
+
+    <main class="wrap">
+      <!-- first run: the GitHub token -->
+      <section id="login" class="card" hidden>
+        <h1>Connect GitHub</h1>
+        <p class="muted">
+          Paste a fine-grained token for the <b>TimeTablekl</b> repo with <b>Contents: read and write</b>.
+          It is saved only in this browser.
+        </p>
+        <label class="field">
+          <span>GitHub token</span>
+          <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" />
+        </label>
+        <p id="login-error" class="error" role="alert" hidden></p>
+        <button id="connect" class="primary">Connect</button>
+        <details class="howto">
+          <summary>How do I make the token?</summary>
+          <ol>
+            <li>GitHub → Settings → Developer settings → Fine-grained tokens → Generate new token.</li>
+            <li>Repository access: <b>Only select repositories</b> → TimeTablekl.</li>
+            <li>Permissions → Repository → <b>Contents: Read and write</b> (nothing else).</li>
+            <li>Set an expiry (for example 90 days), generate, copy it here.</li>
+          </ol>
+        </details>
+      </section>
+
+      <!-- the tools -->
+      <section id="app" hidden>
+        <nav class="tabs" role="tablist">
+          <button role="tab" id="tab-bg-btn" class="tab is-on" aria-selected="true">Background</button>
+          <button role="tab" id="tab-ann-btn" class="tab" aria-selected="false">Announcement</button>
+        </nav>
+
+        <!-- BACKGROUND -->
+        <div id="tab-bg" class="grid">
+          <div class="col">
+            <section class="card">
+              <h2>Picture</h2>
+              <label class="field">
+                <span>Pinterest link</span>
+                <div class="row">
+                  <input id="pin" type="url" inputmode="url" autocapitalize="none" placeholder="https://pin.it/… or a pin link" />
+                  <button id="fetch-pin" class="primary small">Fetch</button>
+                </div>
+              </label>
+              <div class="row row--center">
+                <span class="muted">or</span>
+                <label class="ghost file">
+                  Choose a file
+                  <input id="file" type="file" accept="image/*" hidden />
+                </label>
+              </div>
+              <p id="img-info" class="muted" hidden></p>
+              <p id="img-warn" class="warn" hidden></p>
+              <p id="pin-error" class="error" role="alert" hidden></p>
+            </section>
+
+            <section class="card">
+              <h2>Where it shows</h2>
+              <div class="switches" id="devices">
+                <label class="switch"><input type="checkbox" value="mobile" checked /><span>Phones</span></label>
+                <label class="switch"><input type="checkbox" value="tablet" checked /><span>Tablets</span></label>
+                <label class="switch"><input type="checkbox" value="desktop" checked /><span>Laptops</span></label>
+              </div>
+              <div class="chips">
+                <button class="chip" data-preset="mobile">Phones only</button>
+                <button class="chip" data-preset="all">All devices</button>
+              </div>
+            </section>
+
+            <section class="card">
+              <h2>Look</h2>
+              <label class="field">
+                <span>Strength <b id="strength-val">50%</b></span>
+                <input id="strength" type="range" min="10" max="90" value="50" />
+              </label>
+              <label class="field">
+                <span>Focus left ↔ right <b id="fx-val">50%</b></span>
+                <input id="fx" type="range" min="0" max="100" value="50" />
+              </label>
+              <label class="field">
+                <span>Focus top ↕ bottom <b id="fy-val">20%</b></span>
+                <input id="fy" type="range" min="0" max="100" value="20" />
+              </label>
+              <label class="switch switch--row"><input id="glow" type="checkbox" /><span>Coloured glow behind the picture</span></label>
+              <label class="field">
+                <span>Ends on (optional)</span>
+                <input id="expires" type="date" />
+              </label>
+            </section>
+          </div>
+
+          <div class="col">
+            <section class="card">
+              <h2>Preview</h2>
+              <p class="muted">What users will see at the top of Today.</p>
+              <div class="previews">
+                <figure>
+                  <div class="hero hero--phone" id="pv-phone"><div class="hero__img"></div><div class="hero__text"><i></i><b></b><u></u></div></div>
+                  <figcaption>Phone</figcaption>
+                </figure>
+                <figure>
+                  <div class="hero hero--laptop" id="pv-laptop"><div class="hero__img"></div><div class="hero__text"><i></i><b></b><u></u></div></div>
+                  <figcaption>Laptop</figcaption>
+                </figure>
+              </div>
+            </section>
+
+            <section class="card">
+              <h2>Publish</h2>
+              <label class="switch switch--row"><input id="active" type="checkbox" checked /><span>Background is on</span></label>
+              <p id="bg-status" class="muted">Loading what is live now…</p>
+              <div class="row">
+                <button id="publish" class="primary">OK, publish</button>
+                <button id="turnoff" class="ghost danger">Turn off for everyone</button>
+              </div>
+              <p id="bg-error" class="error" role="alert" hidden></p>
+            </section>
+          </div>
+        </div>
+
+        <!-- ANNOUNCEMENT -->
+        <div id="tab-ann" class="grid grid--one" hidden>
+          <section class="card">
+            <h2>Announcement</h2>
+            <label class="switch switch--row"><input id="a-active" type="checkbox" /><span>Show the announcement</span></label>
+            <label class="field">
+              <span>Type</span>
+              <select id="a-type">
+                <option value="info">Info</option>
+                <option value="warning">Warning (heads up)</option>
+                <option value="critical">Critical (important)</option>
+                <option value="success">Success (good news)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Title</span>
+              <input id="a-title" type="text" maxlength="90" placeholder="Short headline" />
+            </label>
+            <label class="field">
+              <span>Message</span>
+              <textarea id="a-message" rows="6" placeholder="Details. New lines are kept."></textarea>
+            </label>
+            <p id="a-status" class="muted">Loading what is live now…</p>
+            <button id="a-publish" class="primary">OK, publish</button>
+            <p id="a-error" class="error" role="alert" hidden></p>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <!-- confirm -->
+    <div id="sheet" class="sheet" hidden>
+      <div class="sheet__box" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+        <h3 id="sheet-title">Publish?</h3>
+        <p id="sheet-text" class="muted"></p>
+        <div class="row">
+          <button id="sheet-ok" class="primary">Publish</button>
+          <button id="sheet-cancel" class="ghost">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" hidden></div>
+
+    <script type="module" src="admin.js"></script>
+  </body>
+</html>
