@@ -191,6 +191,12 @@ const state = {
 const devicesChecked = () => [...document.querySelectorAll("#devices input:checked")].map((i) => i.value);
 const focusValue = () => `${$("fx").value}% ${$("fy").value}%`;
 
+/** The on/off box says plainly what publishing will do. */
+function syncActiveLabel() {
+  const on = $("active").checked;
+  $("active-label").textContent = on ? "Background is ON: people will see it" : "Background is OFF: publishing will hide it";
+}
+
 function renderPreview() {
   const url = state.blobUrl || state.liveUrl;
   for (const id of ["pv-phone", "pv-laptop"]) {
@@ -226,6 +232,9 @@ async function setPicture(source) {
   if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
   state.blob = result.blob;
   state.blobUrl = URL.createObjectURL(result.blob);
+  // a new picture means you want it shown: switch the background on for this publish
+  $("active").checked = true;
+  syncActiveLabel();
 
   $("img-info").hidden = false;
   $("img-info").textContent = `${result.outWidth} × ${result.outHeight} · ${Math.round(result.blob.size / 1024)} KB`;
@@ -289,7 +298,7 @@ function describeTheme(theme) {
   const names = { mobile: "phones", tablet: "tablets", desktop: "laptops" };
   const where = theme.devices.map((d) => names[d]).join(", ");
   return [
-    theme.active ? `On for ${where}` : "Switched off",
+    theme.active ? `ON for ${where}` : "OFF, so people will not see it",
     `strength ${Math.round(theme.strength * 100)}%`,
     theme.expires ? `ends ${theme.expires}` : "",
     state.blob ? "with the new picture" : "keeping the current picture",
@@ -310,7 +319,15 @@ async function publishBackground() {
     return;
   }
   const theme = themeFromControls();
-  if (!(await confirmSheet("Publish this background?", describeTheme(theme)))) return;
+  const staysOff = !theme.active;
+  if (
+    !(await confirmSheet(
+      staysOff ? "Publish with the background OFF?" : "Publish this background?",
+      describeTheme(theme),
+      staysOff ? "Publish (stays off)" : "Publish"
+    ))
+  )
+    return;
 
   await busy(["publish", "turnoff"], async () => {
     try {
@@ -400,6 +417,7 @@ async function loadLive() {
     state.liveVersion = theme.version || "";
     state.liveUrl = hasImage ? `${RAW}${theme.image}${theme.version ? `?v=${encodeURIComponent(theme.version)}` : ""}` : "";
     $("active").checked = theme.active === true;
+    syncActiveLabel();
     if (Number.isFinite(Number(theme.strength))) $("strength").value = String(Math.round(Number(theme.strength) * 100));
     const match = /^(\d{1,3})%\s+(\d{1,3})%$/.exec(theme.focus || "");
     if (match) {
@@ -498,6 +516,7 @@ document.querySelectorAll("[data-preset]").forEach((chip) => {
 $("publish").onclick = publishBackground;
 $("turnoff").onclick = turnOff;
 $("a-publish").onclick = publishAnnouncement;
+$("active").addEventListener("change", syncActiveLabel);
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
