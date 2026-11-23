@@ -70,7 +70,7 @@ input[type="text"], input[type="url"], input[type="password"], input[type="date"
   font: inherit;
 }
 textarea { resize: vertical; min-height: 120px; }
-input:focus, select:focus, textarea:focus, button:focus-visible, .file:focus-within {
+input:focus, select:focus, textarea:focus, button:focus-visible {
   outline: 2px solid var(--acid);
   outline-offset: 2px;
 }
@@ -91,8 +91,6 @@ button { font: inherit; cursor: pointer; }
 
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .row > input { flex: 1; min-width: 0; }
-.row--center { margin: 4px 0 0; }
-.file { cursor: pointer; }
 
 .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
 .tab {

@@ -488,16 +488,6 @@ $("tab-bg-btn").onclick = () => selectTab("bg");
 $("tab-ann-btn").onclick = () => selectTab("ann");
 $("fetch-pin").onclick = fetchPin;
 $("pin").addEventListener("keydown", (e) => e.key === "Enter" && fetchPin());
-$("file").addEventListener("change", async (e) => {
-  const file = e.target.files?.[0];
-  e.target.value = "";
-  if (!file) return;
-  try {
-    await setPicture(file);
-  } catch (error) {
-    showError("pin-error", error.message || "Could not read that file.");
-  }
-});
 for (const id of ["strength", "fx", "fy", "glow"]) $(id).addEventListener("input", renderPreview);
 document.querySelectorAll("[data-preset]").forEach((chip) => {
   chip.onclick = () => {

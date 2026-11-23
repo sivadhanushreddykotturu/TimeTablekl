@@ -6,7 +6,7 @@ without opening GitHub. It commits to the `announcements` branch of
 
 ## What is in here
 
-- `public/`: the app (static files, no build step)
+- `public/`: the app (paste a Pinterest link; there is no file picker) (static files, no build step)
 - `api/pinterest.js`, `api/pinimg.js`: turn a Pinterest link into the picture (same-origin, so the browser can use it)
 
 ## Deploy
