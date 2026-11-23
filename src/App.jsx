@@ -40,7 +40,6 @@ const ExamPage = lazy(pages.exam);
 const CalculatorPage = lazy(pages.calculator);
 
 const DesktopCompanion = lazy(() => import("./neo/bot/DesktopCompanion.jsx"));
-const Analytics = lazy(() => import("@vercel/analytics/react").then((module) => ({ default: module.Analytics })));
 
 const DESKTOP = "(min-width: 1024px)";
 
@@ -63,7 +62,6 @@ function App() {
   // New builds download in the background and swap in when the app isn't in use
   useAppUpdater();
   const isDesktop = useIsDesktop();
-  const [idle, setIdle] = useState(false);
 
   // full-bleed dark canvas, app-wide
   useEffect(() => {
@@ -74,7 +72,6 @@ function App() {
   // Once the first screen is up, warm the other tabs so switching is instant.
   useEffect(() => {
     whenIdle(() => {
-      setIdle(true);
       pages.timetable();
       pages.attendance();
       pages.profile();
@@ -118,11 +115,6 @@ function App() {
               </Suspense>
             </div>
           </Router>
-          {idle && (
-            <Suspense fallback={null}>
-              <Analytics />
-            </Suspense>
-          )}
         </SyncProvider>
     </HeadProvider>
   );

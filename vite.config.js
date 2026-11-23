@@ -160,8 +160,7 @@ export default defineConfig({
   },
 
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
-    exclude: ['@vercel/analytics']
+    include: ['react', 'react-dom', 'react-router-dom']
   },
 
   esbuild: {
