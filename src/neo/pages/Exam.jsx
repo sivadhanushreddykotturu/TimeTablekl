@@ -102,6 +102,18 @@ export default function NeoExam() {
       return value;
     });
 
+  const launchRow = (
+    <SettingsRow
+      icon={<MdRocketLaunch size={22} />}
+      title="Open on Exams"
+      description="Launch the app here during exam weeks"
+      role="switch"
+      aria-checked={launchHere}
+      trailing={<Switch on={launchHere} />}
+      onClick={toggleLaunchHere}
+    />
+  );
+
   return (
     <NeoShell onRefresh={handleSync} refreshLabel="Sync">
       <div className="np-pagehead">
@@ -136,7 +148,13 @@ export default function NeoExam() {
             </section>
           )}
 
-          <section className="np-shelf" style={{ marginTop: next ? 22 : 0 }}>
+          {signedIn && (
+            <div style={{ marginTop: next ? 14 : 0 }}>
+              <SettingsGroup>{launchRow}</SettingsGroup>
+            </div>
+          )}
+
+          <section className="np-shelf" style={{ marginTop: 22 }}>
             <div className="np-shelf__head">
               <h2 className="np-shelf__title">Schedule</h2>
               <span className="np-shelf__meta">
@@ -172,15 +190,7 @@ export default function NeoExam() {
               description="When each exam slot starts and ends"
               onClick={() => setShowEditSlots(true)}
             />
-            <SettingsRow
-              icon={<MdRocketLaunch size={22} />}
-              title="Open on Exams"
-              description="Launch the app here during exam weeks"
-              role="switch"
-              aria-checked={launchHere}
-              trailing={<Switch on={launchHere} />}
-              onClick={toggleLaunchHere}
-            />
+            {schedule.length === 0 && launchRow}
           </SettingsGroup>
         </div>
       )}
