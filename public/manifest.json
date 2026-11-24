@@ -4,8 +4,8 @@
   "description": "A Progressive Web App for KL University timetable management",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0c",
-  "theme_color": "#0a0a0c",
+  "background_color": "#0d0d0d",
+  "theme_color": "#0d0d0d",
   "orientation": "portrait-primary",
   "scope": "/",
   "prefer_related_applications": false,
@@ -24,7 +24,64 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education", "productivity"],
+  "categories": [
+    "education",
+    "productivity"
+  ],
   "lang": "en",
-  "dir": "ltr"
-} 
+  "dir": "ltr",
+  "shortcuts": [
+    {
+      "name": "Today",
+      "short_name": "Today",
+      "description": "What's on now and next",
+      "url": "/home",
+      "icons": [
+        {
+          "src": "/icon-v2-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Week timetable",
+      "short_name": "Week",
+      "description": "Your full week",
+      "url": "/timetable",
+      "icons": [
+        {
+          "src": "/icon-v2-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "short_name": "Attendance",
+      "description": "Percentages and bunk planner",
+      "url": "/attendance",
+      "icons": [
+        {
+          "src": "/icon-v2-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Exams",
+      "short_name": "Exams",
+      "description": "Exam dates and seating",
+      "url": "/exam",
+      "icons": [
+        {
+          "src": "/icon-v2-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

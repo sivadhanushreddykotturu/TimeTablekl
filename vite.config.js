@@ -65,8 +65,8 @@ export default defineConfig({
         name: 'KL Timetable',
         short_name: 'KL Timetable',
         description: 'A Progressive Web App for KL University timetable management',
-        theme_color: '#0a0a0c',
-        background_color: '#0a0a0c',
+        theme_color: '#0d0d0d',
+        background_color: '#0d0d0d',
         display: 'standalone',
         orientation: 'portrait-primary',
         scope: '/',
@@ -84,6 +84,12 @@ export default defineConfig({
             type: 'image/png',
             purpose: 'any maskable'
           }
+        ],
+        shortcuts: [
+          { name: 'Today', short_name: 'Today', description: "What's on now and next", url: '/home', icons: [{ src: 'icon-v2-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Week timetable', short_name: 'Week', description: 'Your full week', url: '/timetable', icons: [{ src: 'icon-v2-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Attendance', short_name: 'Attendance', description: 'Percentages and bunk planner', url: '/attendance', icons: [{ src: 'icon-v2-192.png', sizes: '192x192', type: 'image/png' }] },
+          { name: 'Exams', short_name: 'Exams', description: 'Exam dates and seating', url: '/exam', icons: [{ src: 'icon-v2-192.png', sizes: '192x192', type: 'image/png' }] }
         ],
         categories: ['education', 'productivity'],
         lang: 'en',
@@ -104,19 +110,12 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       output: {
+        // Only the framework is pinned to its own long-lived chunk; everything
+        // else is split per route by the lazy imports in App.jsx.
         manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('sonner') || id.includes('framer-motion')) return 'vendor-react'
-            if (id.includes('react-router')) return 'vendor-router'
-            if (id.includes('axios')) return 'vendor-axios'
-            if (id.includes('@vercel/analytics')) return 'vendor-analytics'
-            return 'vendor'
+          if (/node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id)) {
+            return 'vendor-react'
           }
-          if (id.includes('src/components/')) return 'components'
-          if (id.includes('src/pages/')) return 'pages'
-          if (id.includes('src/contexts/')) return 'contexts'
-          if (id.includes('src/utils/')) return 'utils'
-          if (id.includes('src/config/')) return 'config'
         },
         assetFileNames(assetInfo) {
           const ext = assetInfo.name.split('.').pop()
@@ -161,8 +160,7 @@ export default defineConfig({
   },
 
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
-    exclude: ['@vercel/analytics']
+    include: ['react', 'react-dom', 'react-router-dom']
   },
 
   esbuild: {

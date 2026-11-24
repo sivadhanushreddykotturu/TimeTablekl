@@ -1,118 +1,98 @@
 // src/hooks/useAppUpdater.js
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
-// Injected by Vite define at build time
-const CURRENT_BUILD_ID = typeof __APP_BUILD_ID__ !== "undefined" ? __APP_BUILD_ID__ : "dev";
+/**
+ * Background updates that never make the user wait.
+ *
+ * The service worker precaches every build. When a new one is deployed:
+ *   1. we ask the worker to check (cheap: one small request for sw.js),
+ *   2. it downloads the whole new build in the background while the current
+ *      one keeps running from cache,
+ *   3. once everything is stored it takes over, and we swap to it at a moment
+ *      the user can't notice: when the app goes to the background, or on the
+ *      next launch. That reload is served entirely from cache, so it's instant
+ *      even on a bad connection.
+ *
+ * Nothing here deletes caches — doing that forced a full re-download on the
+ * very connection that was already slow. Workbox removes outdated files itself
+ * once the new build is safely in place.
+ */
+
+const CHECK_EVERY_MS = 15 * 60 * 1000;
 
 export function useAppUpdater() {
-  const isCheckingRef = useRef(false);
-  const isUpdatingRef = useRef(false);
-
   useEffect(() => {
-    // 1. Silent Check & Update Logic
-    const checkForAppUpdate = async () => {
-      if (isCheckingRef.current || isUpdatingRef.current) return;
-      if (import.meta.env.DEV || CURRENT_BUILD_ID === "dev") return;
+    if (import.meta.env.DEV || !("serviceWorker" in navigator)) return;
 
+    const sw = navigator.serviceWorker;
+    // On a first visit the worker claims the page too; that's not an update.
+    let hadController = Boolean(sw.controller);
+    let updateReady = false;
+    let reloading = false;
+    let lastCheck = 0;
+
+    const reloadOnce = () => {
+      if (reloading) return;
+      reloading = true;
+      window.location.reload();
+    };
+
+    const applyWhenUnseen = () => {
+      if (updateReady && document.visibilityState === "hidden") reloadOnce();
+    };
+
+    const onControllerChange = () => {
+      if (!hadController) {
+        hadController = true;
+        return;
+      }
+      // The new build is fully cached and its worker is in control.
+      updateReady = true;
+      applyWhenUnseen();
+    };
+
+    const checkForUpdate = async () => {
+      const now = Date.now();
+      if (!navigator.onLine || now - lastCheck < CHECK_EVERY_MS) return;
+      lastCheck = now;
       try {
-        isCheckingRef.current = true;
-
-        // Force network-only fetch with timestamp to bypass iOS/Android disk cache
-        const res = await fetch(`/version.json?t=${Date.now()}`, {
-          cache: "no-store",
-          headers: {
-            "Pragma": "no-cache",
-            "Cache-Control": "no-cache, no-store, must-revalidate"
-          }
-        });
-
-        if (!res.ok) return;
-        const serverVersion = await res.json();
-
-        // If server buildId differs from running buildId
-        if (serverVersion && serverVersion.buildId && serverVersion.buildId !== CURRENT_BUILD_ID) {
-          console.log(`[PWA Update] New version detected (Server: ${serverVersion.buildId} vs App: ${CURRENT_BUILD_ID})`);
-          isUpdatingRef.current = true;
-
-          // Request Service Worker to update
-          if ("serviceWorker" in navigator) {
-            const registration = await navigator.serviceWorker.getRegistration();
-            if (registration) {
-              await registration.update();
-            }
-          }
-
-          // Clean up old CacheStorage code buckets (leaves localStorage intact)
-          if ("caches" in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map((k) => caches.delete(k)));
-          }
-
-          // Clean reload to new code
-          window.location.reload();
-        } else {
-          // If version matches, still trigger background SW update check
-          if ("serviceWorker" in navigator) {
-            const reg = await navigator.serviceWorker.getRegistration();
-            if (reg) reg.update();
-          }
-        }
-      } catch (err) {
-        // Network offline or failed - ignore silently
-      } finally {
-        isCheckingRef.current = false;
+        const registration = await sw.getRegistration();
+        await registration?.update();
+      } catch {
+        // offline or flaky: try again later
       }
     };
 
-    // 2. Cold Start Check
-    checkForAppUpdate();
-
-    // 3. Resume / App Switcher / Visibility Listeners (Crucial for iOS & Android)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        checkForAppUpdate();
-      }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") applyWhenUnseen();
+      else checkForUpdate();
     };
 
-    const handlePageShow = (e) => {
-      // iOS Safari fires pageshow when restored from frozen state (e.persisted)
-      if (e.persisted || document.visibilityState === "visible") {
-        checkForAppUpdate();
-      }
+    // A page still running the old build may ask for a file the new deploy no
+    // longer has. Reloading (from the fresh cache) fixes it; do it only once.
+    const onPreloadError = (event) => {
+      if (sessionStorage.getItem("chunk_reload")) return;
+      sessionStorage.setItem("chunk_reload", "1");
+      event.preventDefault();
+      reloadOnce();
     };
 
-    const handleFocus = () => {
-      checkForAppUpdate();
-    };
+    sw.addEventListener("controllerchange", onControllerChange);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", applyWhenUnseen);
+    window.addEventListener("vite:preloadError", onPreloadError);
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pageshow", handlePageShow);
-    window.addEventListener("focus", handleFocus);
-
-    // 4. Periodic background polling every 10 minutes for long-running sessions
-    const interval = setInterval(checkForAppUpdate, 10 * 60 * 1000);
-
-    // 5. Handle Service Worker controller change (skipWaiting activation)
-    let refreshing = false;
-    const handleControllerChange = () => {
-      if (!refreshing && isUpdatingRef.current) {
-        refreshing = true;
-        window.location.reload();
-      }
-    };
-
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
-    }
+    // Let the app start first; the check can wait for a quiet moment.
+    const startTimer = setTimeout(checkForUpdate, 4000);
+    const interval = setInterval(checkForUpdate, CHECK_EVERY_MS);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pageshow", handlePageShow);
-      window.removeEventListener("focus", handleFocus);
+      sw.removeEventListener("controllerchange", onControllerChange);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", applyWhenUnseen);
+      window.removeEventListener("vite:preloadError", onPreloadError);
+      clearTimeout(startTimer);
       clearInterval(interval);
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
-      }
     };
   }, []);
 }

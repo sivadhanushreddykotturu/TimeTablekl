@@ -1,39 +1,54 @@
-import React, { useEffect, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import {
-  FiHome,
-  FiCalendar,
-  FiPieChart,
-  FiAward,
-  FiUsers,
-  FiRefreshCw,
-  FiX,
-} from "react-icons/fi";
-import { getCurrentAcademicYearOptions } from "../config/api.js";
-import { NeoSelect, NeoButton } from "./NeoKit.jsx";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { MdArrowBack, MdCheck, MdClose, MdSync } from "react-icons/md";
+import { PRIMARY_TABS, useSwipeNavigation } from "../hooks/useSwipeNavigation.js";
 import { useSync } from "../contexts/SyncContext.jsx";
-import { useSwipeNavigation } from "../hooks/useSwipeNavigation.js";
 
 import "./neo.css";
+import "./core.css";
 
 /* ============================================================
-   NeoModal — shared neoPOP modal
+   NeoModal — dialog on desktop, bottom sheet on phones
    ============================================================ */
 
-export function NeoModal({ open, title, onClose, children, wide = false }) {
+// How many dialogs are open. The page behind them is locked while any is, and
+// unlocked only when the last one closes, whatever order they close in.
+let openDialogs = 0;
+let pageOverflow = "";
+
+export function NeoModal({ open, title, onClose, children, wide = false, steady = false }) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    if (openDialogs++ === 0) {
+      pageOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      if (--openDialogs === 0) document.body.style.overflow = pageOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
     <div className="np-modal-overlay" onClick={onClose}>
       <div
-        className="np-modal"
-        style={wide ? { maxWidth: 560 } : undefined}
+        className={`np-modal${steady ? " np-modal--steady" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        style={wide ? { maxWidth: 640 } : undefined}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="np-modal__head">
           <h2 className="np-modal__title">{title}</h2>
           {onClose && (
             <button className="np-modal__close" onClick={onClose} aria-label="Close">
-              <FiX size={15} />
+              <MdClose size={18} />
             </button>
           )}
         </div>
@@ -43,117 +58,185 @@ export function NeoModal({ open, title, onClose, children, wide = false }) {
   );
 }
 
+/** Marks which edges of a horizontal card row have more to scroll (drives the edge fades). */
+function updateRailFade(el) {
+  const left = el.scrollLeft > 4;
+  const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+  el.dataset.fadeLeft = left ? "1" : "0";
+  el.dataset.fadeRight = right ? "1" : "0";
+}
+
+function useRailFades() {
+  useEffect(() => {
+    const all = () => document.querySelectorAll(".np-rail").forEach(updateRailFade);
+    const onScroll = (event) => {
+      if (event.target instanceof Element && event.target.classList.contains("np-rail")) updateRailFade(event.target);
+    };
+    all();
+    const timer = setTimeout(all, 400); // cards render a moment after the page
+    document.addEventListener("scroll", onScroll, true); // scroll does not bubble
+    window.addEventListener("resize", all);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", all);
+    };
+  }, []);
+}
+
 /* ============================================================
-   Loading blocks
+   Loading
    ============================================================ */
 
-export function NeoLoading({ text = "loading…" }) {
+export function NeoLoading({ text = "Loading…" }) {
   return (
-    <div className="np-loading">
-      <div className="np-loading__blocks" aria-hidden="true">
-        <span /><span /><span /><span />
-      </div>
+    <div className="np-loading" role="status">
+      <span className="np-loading__spinner" aria-hidden="true" />
       <div className="np-loading__text">{text}</div>
     </div>
   );
 }
 
-/* ============================================================
-   Resync sheet — semester/year picker + sync
-   ============================================================ */
-
-function ResyncSheet({ open, onClose, onSync, syncing }) {
-  const [semester, setSemester] = useState("odd");
-  const [academicYear, setAcademicYear] = useState("");
-  const [yearOptions, setYearOptions] = useState([]);
-
-  useEffect(() => {
-    if (!open) return;
-    const storedSemester = localStorage.getItem("semester") || "odd";
-    const validSemesters = new Set(["odd", "even", "summer", "term3"]);
-    const currentYear = new Date().getFullYear();
-    const defaultYear = `${currentYear}-${(currentYear + 1).toString().slice(-2)}`;
-    const storedYear = localStorage.getItem("academicYear") || defaultYear;
-
-    setSemester(validSemesters.has(storedSemester) ? storedSemester : "odd");
-    setAcademicYear(storedYear);
-    setYearOptions(Array.from(new Set([storedYear, ...getCurrentAcademicYearOptions()])));
-  }, [open]);
-
-  const handleSync = async () => {
-    localStorage.setItem("semester", semester);
-    localStorage.setItem("academicYear", academicYear);
-    await onSync();
-  };
-
+/**
+ * Grey placeholder shapes where content will land (instead of a lone spinner),
+ * so the page keeps its layout while data loads.
+ *   variant "card": attendance-style cards   "list": two-line rows   "rows": single-line rows
+ */
+export function NeoSkeleton({ variant = "card", count = 3, text = "Loading…" }) {
   return (
-    <NeoModal open={open} title="resync timetable" onClose={onClose}>
-      <p className="np-note" style={{ marginBottom: 16 }}>
-        Pulls the latest timetable from ERP for the selected semester.
-      </p>
-
-      <div className="np-row">
-        <NeoSelect
-          id="np-resync-sem"
-          label="semester"
-          value={semester}
-          onChange={(e) => setSemester(e.target.value)}
-        >
-          <option value="odd">Odd</option>
-          <option value="even">Even</option>
-          <option value="summer">Summer</option>
-          <option value="term3">Term 3</option>
-        </NeoSelect>
-
-        <NeoSelect
-          id="np-resync-year"
-          label="academic year"
-          value={academicYear}
-          onChange={(e) => setAcademicYear(e.target.value)}
-        >
-          {yearOptions.map((year) => (
-            <option key={year} value={year}>{year}</option>
-          ))}
-        </NeoSelect>
-      </div>
-
-      <NeoButton type="button" onClick={handleSync} loading={syncing} loadingText="syncing…">
-        sync now
-      </NeoButton>
-    </NeoModal>
+    <div className={`np-skel np-skel--${variant}`} role="status" aria-label={text}>
+      {text && <div className="np-skel__caption">{text}</div>}
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="np-skel__item" style={{ animationDelay: `${i * 90}ms` }} aria-hidden="true">
+          <span className="np-skel__bar np-skel__bar--title" />
+          {variant !== "rows" && <span className="np-skel__bar np-skel__bar--sub" />}
+          {variant === "card" && (
+            <>
+              <span className="np-skel__bar np-skel__bar--row" />
+              <span className="np-skel__bar np-skel__bar--row" />
+            </>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
 /* ============================================================
-   NeoShell — topbar + content + bottom nav
-   props:
-     onRefresh     : async fn — enables the resync button
-     refreshMode   : "sheet" (semester picker) | "direct"
-     refreshLabel  : label for direct mode button
-     examExit      : show "exit exam" action
+   Pull to refresh — a short pull at the top of a screen runs that
+   screen's own sync (no page reload), like a native app
    ============================================================ */
 
-export default function NeoShell({
-  children,
-  onRefresh,
-  refreshMode = "direct",
-  refreshLabel = "resync",
-  examExit = false,
-  autoSyncing = false,
-  chromeDimmed = false,
-}) {
+const PULL_START = 8;      // px of travel before it counts as a pull
+const PULL_TRIGGER = 46;   // indicator travel that arms the refresh
+const PULL_MAX = 80;
+
+function usePullToRefresh(run, enabled) {
+  const ref = useRef(null);
+  const runRef = useRef(run);
+  runRef.current = run;
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let startX = 0;
+    let startY = 0;
+    let armed = false;
+    let pulling = false;
+    let distance = 0;
+
+    const show = (value, animate) => {
+      const node = ref.current;
+      if (!node) return;
+      node.style.transition = animate ? "" : "none";
+      node.style.setProperty("--pull", `${value.toFixed(1)}px`);
+      node.style.setProperty("--pull-p", Math.min(1, value / PULL_TRIGGER).toFixed(3));
+      node.classList.toggle("is-armed", value >= PULL_TRIGGER);
+    };
+
+    const onStart = (event) => {
+      const target = event.target;
+      armed =
+        event.touches.length === 1 &&
+        window.scrollY <= 0 &&
+        document.body.style.overflow !== "hidden" &&
+        !(target instanceof Element && target.closest(".np-nav, .np-modal-overlay"));
+      pulling = false;
+      distance = 0;
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
+    };
+
+    const onMove = (event) => {
+      if (!armed) return;
+      const dx = event.touches[0].clientX - startX;
+      const dy = event.touches[0].clientY - startY;
+      if (!pulling) {
+        // sideways or upward first: this is a swipe or a scroll, not a pull
+        if (dy < -4 || Math.abs(dx) > Math.max(12, dy)) armed = false;
+        if (!armed || dy < PULL_START) return;
+        pulling = true;
+      }
+      distance = Math.max(0, Math.min(PULL_MAX, (dy - PULL_START) * 0.6));
+      show(distance, false);
+    };
+
+    const onEnd = () => {
+      if (pulling && distance >= PULL_TRIGGER) {
+        setRefreshing(true);
+        Promise.resolve(runRef.current()).finally(() => setRefreshing(false));
+      }
+      if (pulling) show(0, true);
+      armed = false;
+      pulling = false;
+    };
+
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    window.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onEnd);
+      window.removeEventListener("touchcancel", onEnd);
+    };
+  }, [enabled]);
+
+  return [ref, refreshing];
+}
+
+function Wordmark() {
+  return (
+    <svg
+        className="np-topbar__logo-svg"
+        viewBox="0 0 233 55"
+        height="22"
+        aria-label="Timetable"
+      >
+        <path
+          d="M 33.00,10.00 Q 32.00,9.00 30.00,10.00 Q 28.00,11.00 28.00,12.50 Q 28.00,14.00 29.50,15.00 Q 31.00,16.00 32.50,15.00 Q 34.00,14.00 34.00,12.50 Q 34.00,11.00 33.00,10.00 Z M 5.50,15.00 Q 2.00,15.00 2.00,16.50 Q 2.00,18.00 2.50,18.50 Q 3.00,19.00 6.50,19.00 Q 10.00,19.00 10.50,19.50 Q 11.00,20.00 11.00,33.00 Q 11.00,46.00 12.50,48.00 Q 14.00,50.00 16.50,51.00 Q 19.00,52.00 21.50,51.50 Q 24.00,51.00 26.00,49.50 Q 28.00,48.00 29.00,49.00 Q 30.00,50.00 32.50,51.00 Q 35.00,52.00 35.50,51.50 Q 36.00,51.00 37.50,51.00 Q 39.00,51.00 40.00,50.00 Q 41.00,49.00 41.50,49.00 Q 42.00,49.00 42.50,50.00 Q 43.00,51.00 44.50,51.00 Q 46.00,51.00 46.50,50.50 Q 47.00,50.00 47.00,42.50 Q 47.00,35.00 47.50,34.50 Q 48.00,34.00 48.00,32.50 Q 48.00,31.00 50.50,28.00 Q 53.00,25.00 55.00,26.50 Q 57.00,28.00 57.00,39.00 Q 57.00,50.00 57.50,50.50 Q 58.00,51.00 59.50,51.00 Q 61.00,51.00 61.50,50.50 Q 62.00,50.00 62.00,42.50 Q 62.00,35.00 63.00,32.00 Q 64.00,29.00 66.00,27.00 Q 68.00,25.00 70.00,26.50 Q 72.00,28.00 72.00,37.00 Q 72.00,46.00 74.00,48.50 Q 76.00,51.00 79.00,51.00 Q 82.00,51.00 85.00,49.00 Q 88.00,47.00 91.00,49.00 Q 94.00,51.00 97.50,51.50 Q 101.00,52.00 105.00,50.50 Q 109.00,49.00 111.00,47.00 Q 113.00,45.00 115.50,48.00 Q 118.00,51.00 121.50,51.00 Q 125.00,51.00 127.00,49.50 Q 129.00,48.00 133.00,50.00 Q 137.00,52.00 139.50,51.50 Q 142.00,51.00 144.00,49.50 Q 146.00,48.00 149.50,50.00 Q 153.00,52.00 153.50,51.50 Q 154.00,51.00 155.50,51.00 Q 157.00,51.00 158.00,50.00 Q 159.00,49.00 159.50,49.00 Q 160.00,49.00 160.50,50.00 Q 161.00,51.00 163.00,51.00 Q 165.00,51.00 165.50,50.50 Q 166.00,50.00 167.00,50.50 Q 168.00,51.00 174.50,51.00 Q 181.00,51.00 183.50,50.00 Q 186.00,49.00 187.50,47.50 Q 189.00,46.00 190.00,47.50 Q 191.00,49.00 192.50,50.00 Q 194.00,51.00 197.00,51.00 Q 200.00,51.00 202.50,49.00 Q 205.00,47.00 208.00,49.00 Q 211.00,51.00 214.50,51.50 Q 218.00,52.00 221.50,50.50 Q 225.00,49.00 227.50,45.50 Q 230.00,42.00 229.50,40.50 Q 229.00,39.00 227.50,39.00 Q 226.00,39.00 225.50,41.00 Q 225.00,43.00 222.50,45.00 Q 220.00,47.00 216.50,47.00 Q 213.00,47.00 211.00,45.50 Q 209.00,44.00 208.50,43.00 Q 208.00,42.00 212.50,40.00 Q 217.00,38.00 219.50,34.50 Q 222.00,31.00 222.00,28.00 Q 222.00,25.00 220.50,23.00 Q 219.00,21.00 218.00,20.50 Q 217.00,20.00 213.50,20.00 Q 210.00,20.00 207.00,22.50 Q 204.00,25.00 203.00,27.00 Q 202.00,29.00 202.00,31.50 Q 202.00,34.00 201.50,34.50 Q 201.00,35.00 201.50,36.00 Q 202.00,37.00 202.00,40.00 Q 202.00,43.00 200.00,45.00 Q 198.00,47.00 196.50,46.00 Q 195.00,45.00 195.00,24.50 Q 195.00,4.00 194.00,3.00 Q 193.00,2.00 191.50,2.50 Q 190.00,3.00 190.00,20.00 Q 190.00,37.00 189.00,39.50 Q 188.00,42.00 185.50,44.00 Q 183.00,46.00 182.50,46.00 Q 182.00,46.00 181.50,45.00 Q 181.00,44.00 182.00,42.50 Q 183.00,41.00 183.50,37.00 Q 184.00,33.00 183.50,32.50 Q 183.00,32.00 183.00,30.00 Q 183.00,28.00 181.50,25.50 Q 180.00,23.00 178.50,22.00 Q 177.00,21.00 173.50,21.00 Q 170.00,21.00 168.00,23.00 Q 166.00,25.00 165.50,24.50 Q 165.00,24.00 165.00,13.50 Q 165.00,3.00 164.50,2.50 Q 164.00,2.00 163.00,2.00 Q 162.00,2.00 161.00,3.00 Q 160.00,4.00 160.00,22.50 Q 160.00,41.00 159.00,43.00 Q 158.00,45.00 156.50,46.00 Q 155.00,47.00 154.00,47.00 Q 153.00,47.00 151.50,44.50 Q 150.00,42.00 150.00,32.00 Q 150.00,22.00 149.50,21.50 Q 149.00,21.00 147.50,21.00 Q 146.00,21.00 145.50,21.50 Q 145.00,22.00 144.00,21.50 Q 143.00,21.00 140.00,21.00 Q 137.00,21.00 134.50,22.50 Q 132.00,24.00 130.00,27.50 Q 128.00,31.00 128.00,36.50 Q 128.00,42.00 126.00,44.50 Q 124.00,47.00 122.50,47.00 Q 121.00,47.00 120.00,46.00 Q 119.00,45.00 118.50,43.50 Q 118.00,42.00 118.00,31.00 Q 118.00,20.00 118.50,19.50 Q 119.00,19.00 123.00,19.00 Q 127.00,19.00 127.50,17.50 Q 128.00,16.00 127.50,15.50 Q 127.00,15.00 123.00,15.00 Q 119.00,15.00 118.50,14.50 Q 118.00,14.00 118.00,8.50 Q 118.00,3.00 117.50,2.50 Q 117.00,2.00 115.50,2.50 Q 114.00,3.00 114.00,8.00 Q 114.00,13.00 113.00,14.00 Q 112.00,15.00 108.50,15.00 Q 105.00,15.00 104.50,15.50 Q 104.00,16.00 104.50,17.50 Q 105.00,19.00 109.00,19.00 Q 113.00,19.00 113.50,19.50 Q 114.00,20.00 114.00,27.50 Q 114.00,35.00 112.00,38.50 Q 110.00,42.00 106.50,44.50 Q 103.00,47.00 99.50,47.00 Q 96.00,47.00 95.00,46.50 Q 94.00,46.00 92.50,44.00 Q 91.00,42.00 96.00,39.50 Q 101.00,37.00 103.00,34.00 Q 105.00,31.00 105.00,28.00 Q 105.00,25.00 104.50,24.00 Q 104.00,23.00 102.00,21.50 Q 100.00,20.00 96.50,20.00 Q 93.00,20.00 90.50,21.50 Q 88.00,23.00 86.50,25.50 Q 85.00,28.00 85.00,29.50 Q 85.00,31.00 84.50,31.50 Q 84.00,32.00 84.50,37.00 Q 85.00,42.00 83.00,44.50 Q 81.00,47.00 80.00,47.00 Q 79.00,47.00 78.00,46.00 Q 77.00,45.00 77.00,36.00 Q 77.00,27.00 76.50,25.50 Q 76.00,24.00 74.50,22.50 Q 73.00,21.00 70.00,21.00 Q 67.00,21.00 66.00,21.50 Q 65.00,22.00 63.50,24.00 Q 62.00,26.00 60.00,23.50 Q 58.00,21.00 55.00,21.00 Q 52.00,21.00 50.00,23.00 Q 48.00,25.00 47.00,23.00 Q 46.00,21.00 44.50,21.00 Q 43.00,21.00 42.50,22.00 Q 42.00,23.00 42.00,32.00 Q 42.00,41.00 39.50,44.00 Q 37.00,47.00 36.00,47.00 Q 35.00,47.00 34.00,46.00 Q 33.00,45.00 33.00,33.50 Q 33.00,22.00 32.50,21.50 Q 32.00,21.00 30.50,21.00 Q 29.00,21.00 28.50,21.50 Q 28.00,22.00 28.00,30.50 Q 28.00,39.00 27.00,41.00 Q 26.00,43.00 24.00,45.00 Q 22.00,47.00 20.50,47.00 Q 19.00,47.00 17.50,45.50 Q 16.00,44.00 16.00,32.00 Q 16.00,20.00 16.50,19.50 Q 17.00,19.00 20.50,19.00 Q 24.00,19.00 25.00,18.00 Q 26.00,17.00 25.50,16.00 Q 25.00,15.00 21.00,15.00 Q 17.00,15.00 16.50,14.50 Q 16.00,14.00 16.00,9.00 Q 16.00,4.00 15.00,3.00 Q 14.00,2.00 12.50,2.50 Q 11.00,3.00 11.00,8.00 Q 11.00,13.00 10.00,14.00 Q 9.00,15.00 5.50,15.00 Z M 172.00,25.50 Q 174.00,25.00 176.00,27.00 Q 178.00,29.00 178.00,31.50 Q 178.00,34.00 178.50,34.50 Q 179.00,35.00 178.50,38.00 Q 178.00,41.00 176.00,43.50 Q 174.00,46.00 171.50,46.50 Q 169.00,47.00 167.00,45.50 Q 165.00,44.00 165.00,39.50 Q 165.00,35.00 166.00,32.00 Q 167.00,29.00 168.50,27.50 Q 170.00,26.00 172.00,25.50 Z M 136.00,28.50 Q 139.00,25.00 141.00,25.00 Q 143.00,25.00 144.50,26.50 Q 146.00,28.00 146.00,33.50 Q 146.00,39.00 145.00,41.50 Q 144.00,44.00 142.50,45.50 Q 141.00,47.00 138.00,46.50 Q 135.00,46.00 133.50,42.50 Q 132.00,39.00 132.50,35.50 Q 133.00,32.00 136.00,28.50 Z M 212.50,24.50 Q 215.00,24.00 216.00,25.00 Q 217.00,26.00 217.00,28.50 Q 217.00,31.00 214.50,33.50 Q 212.00,36.00 209.50,36.50 Q 207.00,37.00 206.50,36.50 Q 206.00,36.00 206.50,32.50 Q 207.00,29.00 208.50,27.00 Q 210.00,25.00 212.50,24.50 Z M 96.00,24.00 Q 98.00,24.00 99.00,25.00 Q 100.00,26.00 100.00,28.50 Q 100.00,31.00 97.50,33.50 Q 95.00,36.00 92.50,36.50 Q 90.00,37.00 89.50,36.50 Q 89.00,36.00 89.00,34.50 Q 89.00,33.00 90.00,30.00 Q 91.00,27.00 92.50,25.50 Q 94.00,24.00 96.00,24.00 Z"
+          fill="currentColor"
+          fillRule="evenodd"
+        />
+      </svg>
+  );
+}
+
+/* ============================================================
+   NeoShell — top bar + page content (the tab bar lives in App)
+   props:
+     onRefresh     : async fn — shows the sync button
+     refreshLabel  : text next to the sync icon (icon-only when omitted)
+     onBack        : overrides what the back button does on sub-pages
+   ============================================================ */
+
+export default function NeoShell({ children, onRefresh, refreshLabel, onBack, autoSyncing = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { registerSyncHandler, setIsSyncing } = useSync();
   const [syncing, setSyncing] = useState(false);
   const [synced, setSynced] = useState(false);
-  const [avatarSeed] = useState(
-    () => localStorage.getItem("avatarSeed") || Math.random().toString(36).substring(7)
-  );
-
-  useEffect(() => {
-    localStorage.setItem("avatarSeed", avatarSeed);
-  }, [avatarSeed]);
 
   const runRefresh = async () => {
     if (!onRefresh || syncing) return;
@@ -173,124 +256,80 @@ export default function NeoShell({
     if (onRefresh) {
       return registerSyncHandler(runRefresh);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onRefresh, registerSyncHandler, syncing]);
 
   useEffect(() => {
     setIsSyncing(syncing || autoSyncing);
   }, [syncing, autoSyncing, setIsSyncing]);
 
-  const handleRefreshClick = () => {
-    runRefresh();
-  };
+  const [pullRef, pullRefreshing] = usePullToRefresh(runRefresh, Boolean(onRefresh));
 
-  const handleExitExam = () => {
-    localStorage.removeItem("examMode");
-    navigate("/home");
-  };
-
-  // Enable Instagram-style slide navigation across the 5 primary tabs on mobile
+  // Slide between the primary tabs with a horizontal swipe on mobile
   useSwipeNavigation();
+  useRailFades();
 
-  const isProfile = location.pathname === "/profile";
+  // The four tabs carry the logo; every other screen gets a back button.
+  const isTab = PRIMARY_TABS.includes(location.pathname);
+
+  const goBack = () => {
+    if (onBack) onBack();
+    else if (window.history.state?.idx > 0) navigate(-1);
+    else navigate("/home");
+  };
+
   const slideDirection = location.state?.slideDirection;
   const slideClass = slideDirection === "left"
     ? "np-slide-enter-left"
     : slideDirection === "right"
     ? "np-slide-enter-right"
-    : "";
+    // every other screen change: tabs settle in, detail screens slide in from the right
+    : isTab
+    ? "np-page-enter"
+    : "np-page-enter np-page-enter--detail";
+
+  const busy = syncing || autoSyncing;
+  const syncTitle = busy ? "Syncing" : synced ? "Synced" : refreshLabel || "Sync";
 
   return (
-    <div className="np-layout">
-
-      <div className="np-app">
-        <div className="np-app__inner">
-          <header className={`np-topbar${chromeDimmed ? " np-gaming-dim" : ""}`}>
-            <Link to="/home" className="np-topbar__brand" aria-label="Home">
+    <div className="np-app">
+      {onRefresh && (
+        <div ref={pullRef} className={`np-ptr${pullRefreshing ? " is-busy" : ""}`} aria-hidden="true">
+          <MdSync size={22} />
+        </div>
+      )}
+      <div className="np-app__inner">
+        <header className="np-topbar">
+          {isTab ? (
+            <Link to="/home" className="np-topbar__brand" aria-label="TimeTable home">
               <span className="np-topbar__tile">kl</span>
-              <svg
-                className="np-topbar__logo-svg"
-                viewBox="0 0 233 55"
-                height="22"
-                aria-label="timetable"
-              >
-                <path
-                  d="M 33.00,10.00 Q 32.00,9.00 30.00,10.00 Q 28.00,11.00 28.00,12.50 Q 28.00,14.00 29.50,15.00 Q 31.00,16.00 32.50,15.00 Q 34.00,14.00 34.00,12.50 Q 34.00,11.00 33.00,10.00 Z M 5.50,15.00 Q 2.00,15.00 2.00,16.50 Q 2.00,18.00 2.50,18.50 Q 3.00,19.00 6.50,19.00 Q 10.00,19.00 10.50,19.50 Q 11.00,20.00 11.00,33.00 Q 11.00,46.00 12.50,48.00 Q 14.00,50.00 16.50,51.00 Q 19.00,52.00 21.50,51.50 Q 24.00,51.00 26.00,49.50 Q 28.00,48.00 29.00,49.00 Q 30.00,50.00 32.50,51.00 Q 35.00,52.00 35.50,51.50 Q 36.00,51.00 37.50,51.00 Q 39.00,51.00 40.00,50.00 Q 41.00,49.00 41.50,49.00 Q 42.00,49.00 42.50,50.00 Q 43.00,51.00 44.50,51.00 Q 46.00,51.00 46.50,50.50 Q 47.00,50.00 47.00,42.50 Q 47.00,35.00 47.50,34.50 Q 48.00,34.00 48.00,32.50 Q 48.00,31.00 50.50,28.00 Q 53.00,25.00 55.00,26.50 Q 57.00,28.00 57.00,39.00 Q 57.00,50.00 57.50,50.50 Q 58.00,51.00 59.50,51.00 Q 61.00,51.00 61.50,50.50 Q 62.00,50.00 62.00,42.50 Q 62.00,35.00 63.00,32.00 Q 64.00,29.00 66.00,27.00 Q 68.00,25.00 70.00,26.50 Q 72.00,28.00 72.00,37.00 Q 72.00,46.00 74.00,48.50 Q 76.00,51.00 79.00,51.00 Q 82.00,51.00 85.00,49.00 Q 88.00,47.00 91.00,49.00 Q 94.00,51.00 97.50,51.50 Q 101.00,52.00 105.00,50.50 Q 109.00,49.00 111.00,47.00 Q 113.00,45.00 115.50,48.00 Q 118.00,51.00 121.50,51.00 Q 125.00,51.00 127.00,49.50 Q 129.00,48.00 133.00,50.00 Q 137.00,52.00 139.50,51.50 Q 142.00,51.00 144.00,49.50 Q 146.00,48.00 149.50,50.00 Q 153.00,52.00 153.50,51.50 Q 154.00,51.00 155.50,51.00 Q 157.00,51.00 158.00,50.00 Q 159.00,49.00 159.50,49.00 Q 160.00,49.00 160.50,50.00 Q 161.00,51.00 163.00,51.00 Q 165.00,51.00 165.50,50.50 Q 166.00,50.00 167.00,50.50 Q 168.00,51.00 174.50,51.00 Q 181.00,51.00 183.50,50.00 Q 186.00,49.00 187.50,47.50 Q 189.00,46.00 190.00,47.50 Q 191.00,49.00 192.50,50.00 Q 194.00,51.00 197.00,51.00 Q 200.00,51.00 202.50,49.00 Q 205.00,47.00 208.00,49.00 Q 211.00,51.00 214.50,51.50 Q 218.00,52.00 221.50,50.50 Q 225.00,49.00 227.50,45.50 Q 230.00,42.00 229.50,40.50 Q 229.00,39.00 227.50,39.00 Q 226.00,39.00 225.50,41.00 Q 225.00,43.00 222.50,45.00 Q 220.00,47.00 216.50,47.00 Q 213.00,47.00 211.00,45.50 Q 209.00,44.00 208.50,43.00 Q 208.00,42.00 212.50,40.00 Q 217.00,38.00 219.50,34.50 Q 222.00,31.00 222.00,28.00 Q 222.00,25.00 220.50,23.00 Q 219.00,21.00 218.00,20.50 Q 217.00,20.00 213.50,20.00 Q 210.00,20.00 207.00,22.50 Q 204.00,25.00 203.00,27.00 Q 202.00,29.00 202.00,31.50 Q 202.00,34.00 201.50,34.50 Q 201.00,35.00 201.50,36.00 Q 202.00,37.00 202.00,40.00 Q 202.00,43.00 200.00,45.00 Q 198.00,47.00 196.50,46.00 Q 195.00,45.00 195.00,24.50 Q 195.00,4.00 194.00,3.00 Q 193.00,2.00 191.50,2.50 Q 190.00,3.00 190.00,20.00 Q 190.00,37.00 189.00,39.50 Q 188.00,42.00 185.50,44.00 Q 183.00,46.00 182.50,46.00 Q 182.00,46.00 181.50,45.00 Q 181.00,44.00 182.00,42.50 Q 183.00,41.00 183.50,37.00 Q 184.00,33.00 183.50,32.50 Q 183.00,32.00 183.00,30.00 Q 183.00,28.00 181.50,25.50 Q 180.00,23.00 178.50,22.00 Q 177.00,21.00 173.50,21.00 Q 170.00,21.00 168.00,23.00 Q 166.00,25.00 165.50,24.50 Q 165.00,24.00 165.00,13.50 Q 165.00,3.00 164.50,2.50 Q 164.00,2.00 163.00,2.00 Q 162.00,2.00 161.00,3.00 Q 160.00,4.00 160.00,22.50 Q 160.00,41.00 159.00,43.00 Q 158.00,45.00 156.50,46.00 Q 155.00,47.00 154.00,47.00 Q 153.00,47.00 151.50,44.50 Q 150.00,42.00 150.00,32.00 Q 150.00,22.00 149.50,21.50 Q 149.00,21.00 147.50,21.00 Q 146.00,21.00 145.50,21.50 Q 145.00,22.00 144.00,21.50 Q 143.00,21.00 140.00,21.00 Q 137.00,21.00 134.50,22.50 Q 132.00,24.00 130.00,27.50 Q 128.00,31.00 128.00,36.50 Q 128.00,42.00 126.00,44.50 Q 124.00,47.00 122.50,47.00 Q 121.00,47.00 120.00,46.00 Q 119.00,45.00 118.50,43.50 Q 118.00,42.00 118.00,31.00 Q 118.00,20.00 118.50,19.50 Q 119.00,19.00 123.00,19.00 Q 127.00,19.00 127.50,17.50 Q 128.00,16.00 127.50,15.50 Q 127.00,15.00 123.00,15.00 Q 119.00,15.00 118.50,14.50 Q 118.00,14.00 118.00,8.50 Q 118.00,3.00 117.50,2.50 Q 117.00,2.00 115.50,2.50 Q 114.00,3.00 114.00,8.00 Q 114.00,13.00 113.00,14.00 Q 112.00,15.00 108.50,15.00 Q 105.00,15.00 104.50,15.50 Q 104.00,16.00 104.50,17.50 Q 105.00,19.00 109.00,19.00 Q 113.00,19.00 113.50,19.50 Q 114.00,20.00 114.00,27.50 Q 114.00,35.00 112.00,38.50 Q 110.00,42.00 106.50,44.50 Q 103.00,47.00 99.50,47.00 Q 96.00,47.00 95.00,46.50 Q 94.00,46.00 92.50,44.00 Q 91.00,42.00 96.00,39.50 Q 101.00,37.00 103.00,34.00 Q 105.00,31.00 105.00,28.00 Q 105.00,25.00 104.50,24.00 Q 104.00,23.00 102.00,21.50 Q 100.00,20.00 96.50,20.00 Q 93.00,20.00 90.50,21.50 Q 88.00,23.00 86.50,25.50 Q 85.00,28.00 85.00,29.50 Q 85.00,31.00 84.50,31.50 Q 84.00,32.00 84.50,37.00 Q 85.00,42.00 83.00,44.50 Q 81.00,47.00 80.00,47.00 Q 79.00,47.00 78.00,46.00 Q 77.00,45.00 77.00,36.00 Q 77.00,27.00 76.50,25.50 Q 76.00,24.00 74.50,22.50 Q 73.00,21.00 70.00,21.00 Q 67.00,21.00 66.00,21.50 Q 65.00,22.00 63.50,24.00 Q 62.00,26.00 60.00,23.50 Q 58.00,21.00 55.00,21.00 Q 52.00,21.00 50.00,23.00 Q 48.00,25.00 47.00,23.00 Q 46.00,21.00 44.50,21.00 Q 43.00,21.00 42.50,22.00 Q 42.00,23.00 42.00,32.00 Q 42.00,41.00 39.50,44.00 Q 37.00,47.00 36.00,47.00 Q 35.00,47.00 34.00,46.00 Q 33.00,45.00 33.00,33.50 Q 33.00,22.00 32.50,21.50 Q 32.00,21.00 30.50,21.00 Q 29.00,21.00 28.50,21.50 Q 28.00,22.00 28.00,30.50 Q 28.00,39.00 27.00,41.00 Q 26.00,43.00 24.00,45.00 Q 22.00,47.00 20.50,47.00 Q 19.00,47.00 17.50,45.50 Q 16.00,44.00 16.00,32.00 Q 16.00,20.00 16.50,19.50 Q 17.00,19.00 20.50,19.00 Q 24.00,19.00 25.00,18.00 Q 26.00,17.00 25.50,16.00 Q 25.00,15.00 21.00,15.00 Q 17.00,15.00 16.50,14.50 Q 16.00,14.00 16.00,9.00 Q 16.00,4.00 15.00,3.00 Q 14.00,2.00 12.50,2.50 Q 11.00,3.00 11.00,8.00 Q 11.00,13.00 10.00,14.00 Q 9.00,15.00 5.50,15.00 Z M 172.00,25.50 Q 174.00,25.00 176.00,27.00 Q 178.00,29.00 178.00,31.50 Q 178.00,34.00 178.50,34.50 Q 179.00,35.00 178.50,38.00 Q 178.00,41.00 176.00,43.50 Q 174.00,46.00 171.50,46.50 Q 169.00,47.00 167.00,45.50 Q 165.00,44.00 165.00,39.50 Q 165.00,35.00 166.00,32.00 Q 167.00,29.00 168.50,27.50 Q 170.00,26.00 172.00,25.50 Z M 136.00,28.50 Q 139.00,25.00 141.00,25.00 Q 143.00,25.00 144.50,26.50 Q 146.00,28.00 146.00,33.50 Q 146.00,39.00 145.00,41.50 Q 144.00,44.00 142.50,45.50 Q 141.00,47.00 138.00,46.50 Q 135.00,46.00 133.50,42.50 Q 132.00,39.00 132.50,35.50 Q 133.00,32.00 136.00,28.50 Z M 212.50,24.50 Q 215.00,24.00 216.00,25.00 Q 217.00,26.00 217.00,28.50 Q 217.00,31.00 214.50,33.50 Q 212.00,36.00 209.50,36.50 Q 207.00,37.00 206.50,36.50 Q 206.00,36.00 206.50,32.50 Q 207.00,29.00 208.50,27.00 Q 210.00,25.00 212.50,24.50 Z M 96.00,24.00 Q 98.00,24.00 99.00,25.00 Q 100.00,26.00 100.00,28.50 Q 100.00,31.00 97.50,33.50 Q 95.00,36.00 92.50,36.50 Q 90.00,37.00 89.50,36.50 Q 89.00,36.00 89.00,34.50 Q 89.00,33.00 90.00,30.00 Q 91.00,27.00 92.50,25.50 Q 94.00,24.00 96.00,24.00 Z"
-                  fill="currentColor"
-                  fillRule="evenodd"
-                />
-              </svg>
+              <Wordmark />
             </Link>
+          ) : (
+            <button className="np-iconbtn" onClick={goBack} aria-label="Back">
+              <MdArrowBack size={22} />
+            </button>
+          )}
 
-          <div className="np-topbar__actions">
-            {examExit && (
-              <button className="np-iconbtn np-iconbtn--exit" onClick={handleExitExam}>
-                <FiX size={13} /> exit
-              </button>
-            )}
-            {onRefresh && (
-              <button className="np-iconbtn" onClick={handleRefreshClick} disabled={syncing || autoSyncing}>
-                <FiRefreshCw size={13} className={syncing || autoSyncing ? "np-spin" : undefined} />
-                {syncing || autoSyncing ? "syncing" : synced ? "synced" : refreshLabel}
-              </button>
-            )}
-            <Link
-              to="/profile"
-              className={`np-avatar${isProfile ? " np-avatar--active" : ""}`}
-              aria-label="Profile"
+          {onRefresh && (
+            <button
+              className={`np-iconbtn${refreshLabel ? " np-iconbtn--label" : ""}`}
+              onClick={runRefresh}
+              disabled={busy}
+              aria-label={syncTitle}
+              title={syncTitle}
             >
-              <img
-                src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${avatarSeed}&backgroundColor=transparent`}
-                alt="Profile"
-              />
-            </Link>
-          </div>
+              {synced && !busy ? (
+                <MdCheck size={20} />
+              ) : (
+                <MdSync size={20} className={busy ? "np-spin" : undefined} />
+              )}
+              {refreshLabel && <span>{busy ? "Syncing" : synced ? "Done" : refreshLabel}</span>}
+            </button>
+          )}
         </header>
 
         <main className={`np-main-swipe-container ${slideClass}`}>{children}</main>
-        </div> {/* end np-app__inner */}
-
-        <nav className={`np-nav${chromeDimmed ? " np-gaming-dim" : ""}`} aria-label="Main">
-          <div className="np-nav__row">
-            <NavLink to="/home" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
-              <FiHome size={18} />
-              <span>home</span>
-              <span className="np-nav__dot" />
-            </NavLink>
-
-            <NavLink to="/timetable" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
-              <FiCalendar size={18} />
-              <span>week</span>
-              <span className="np-nav__dot" />
-            </NavLink>
-
-            <NavLink
-              to="/attendance"
-              className={({ isActive }) => `np-nav__core${isActive ? " is-active" : ""}`}
-              onClick={() => {
-                if (location.pathname === "/attendance") {
-                  window.dispatchEvent(new CustomEvent("refresh_attendance_tab"));
-                }
-              }}
-            >
-              <span className="np-nav__diamond">
-                <FiPieChart size={19} />
-              </span>
-              <span className="np-nav__label">attend</span>
-            </NavLink>
-
-            <NavLink to="/grades" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
-              <FiAward size={18} />
-              <span>grades</span>
-              <span className="np-nav__dot" />
-            </NavLink>
-
-            <NavLink to="/maddys" className={({ isActive }) => `np-nav__item${isActive ? " is-active" : ""}`}>
-              <FiUsers size={18} />
-              <span>docs</span>
-              <span className="np-nav__dot" />
-            </NavLink>
-          </div>
-        </nav>
       </div>
     </div>
   );

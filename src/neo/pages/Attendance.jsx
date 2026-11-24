@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import { FiShare2 } from "react-icons/fi";
-import { LuCalendarCheck2 } from "react-icons/lu";
+import { MdCalculate, MdChevronRight, MdIosShare } from "react-icons/md";
 import axios from "axios";
-import NeoShell, { NeoModal, NeoLoading } from "../Shell.jsx";
+import NeoShell, { NeoModal, NeoSkeleton } from "../Shell.jsx";
 import { NeoButton } from "../NeoKit.jsx";
 import BunkSimulatorModal from "../../components/BunkSimulatorModal";
 import CalculatorModal from "../../components/CalculatorModal";
@@ -14,8 +13,8 @@ import { trackEvent } from "../../utils/analytics";
 import { getCredentials, handleSessionRefresh } from "../../../utils/storage.js";
 import { getFormData, getRegisterDetailFormData, API_CONFIG } from "../../config/api.js";
 import { getSubjectName } from "../../utils/subjectMapper";
-import { getCSSColor } from "../utils/themeEngine";
-import GuestAuthModal, { ensureTimetableFetched } from "../../components/GuestAuthModal.jsx";
+import { renderAttendanceCanvas } from "../utils/exportAttendance";
+import GuestAuthModal from "../../components/GuestAuthModal.jsx";
 import { decodeHtml } from "../../utils/gradesUtils.js";
 
 
@@ -43,6 +42,20 @@ function formatTimeAgo(isoString) {
   return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`;
 }
 
+const COMPONENT_NAMES = { L: "Lecture", T: "Tutorial", P: "Practical", S: "Skill" };
+const SMALL_WORDS = new Set(["and", "of", "the", "in", "for", "to", "with", "a", "an", "on"]);
+
+/** "PROBABILITY AND STATISTICS" → "Probability and Statistics" */
+function titleCase(text) {
+  return (text || "")
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word, index) =>
+      index > 0 && SMALL_WORDS.has(word) ? word : word.charAt(0).toUpperCase() + word.slice(1)
+    )
+    .join(" ");
+}
+
 export default function NeoAttendance() {
   const location = useLocation();
   const friendCredentials = location.state?.friendCredentials || null;
@@ -54,11 +67,11 @@ export default function NeoAttendance() {
   const [calculatorInitialCourse, setCalculatorInitialCourse] = useState(null);
   // "new" = tap-to-skip simulator, "old" = the original attendance calculator. Remembered per device.
   const [bunkMode, setBunkModeState] = useState(() => {
-    try { return localStorage.getItem("bunkCalcMode") === "old" ? "old" : "new"; } catch (_) { return "new"; }
+    try { return localStorage.getItem("bunkCalcMode") === "old" ? "old" : "new"; } catch { return "new"; }
   });
   const setBunkMode = (m) => {
     setBunkModeState(m);
-    try { localStorage.setItem("bunkCalcMode", m); } catch (_) {}
+    try { localStorage.setItem("bunkCalcMode", m); } catch { /* storage unavailable */ }
   };
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [selectedRegisterData, setSelectedRegisterData] = useState(null);
@@ -93,7 +106,7 @@ export default function NeoAttendance() {
   useEffect(() => {
     try {
       localStorage.removeItem("include_tcbr");
-    } catch (_) {}
+    } catch { /* storage unavailable */ }
   }, []);
 
   const hasAnyTcbr = attendanceData && attendanceData.length > 0 && attendanceData.some(item => {
@@ -142,7 +155,7 @@ export default function NeoAttendance() {
 
   const getField = (item, snake, pascal) => item[snake] ?? item[pascal] ?? "";
 
-  const handleAttendanceSuccess = useCallback((attendance, isBackground = false) => {
+  const handleAttendanceSuccess = useCallback((attendance) => {
     const grouped = groupAttendanceByCourse(attendance);
     const courseCount = grouped.length;
     const overallPercentages = grouped.map(c => c.overallPercentage);
@@ -216,13 +229,7 @@ export default function NeoAttendance() {
       }
       setLastFetchedTime(nowIso);
     }
-    if (!isBackground) {
-      setToast({
-        show: true,
-        message: "Attendance fetched successfully!",
-        type: "success"
-      });
-    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [friendCredentials]);
 
   const fetchAttendanceData = useCallback(async (opts = {}) => {
@@ -270,7 +277,7 @@ export default function NeoAttendance() {
           if (!friendCredentials) {
             handleSessionRefresh(res.data);
           }
-          handleAttendanceSuccess(res.data.attendance, isBackground);
+          handleAttendanceSuccess(res.data.attendance);
           return true;
         } else {
           if (!isBackground) {
@@ -368,7 +375,7 @@ export default function NeoAttendance() {
     setTargetPercentage(value);
     try {
       localStorage.setItem("attendanceTargetPercentage", String(value));
-    } catch (_) { }
+    } catch { /* storage unavailable */ }
   };
 
   const classesToReachTarget = (present, total, target) => {
@@ -466,141 +473,19 @@ export default function NeoAttendance() {
   const generateHighQualityCanvas = useCallback(() => {
     if (!attendanceData || attendanceData.length === 0) return null;
 
-    const groupedCourses = groupAttendanceByCourse(attendanceData, includeTcbr);
-    if (groupedCourses.length === 0) return null;
+    const courses = groupAttendanceByCourse(attendanceData, includeTcbr).map((course) => ({
+      ...course,
+      displayName: titleCase(course.courseName),
+    }));
+    const today = new Date().toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
 
-    const scale = 2;
-    const padding = 40;
-    const cardPadding = 16;
-    const cardSpacing = 20;
-    const headerHeight = 50;
-    const componentRowHeight = 40;
-    const componentIndent = 20;
-    const maxWidth = 700;
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    let totalHeight = padding * 2 + 60;
-
-    groupedCourses.forEach(course => {
-      totalHeight += headerHeight;
-      const components = ['L', 'T', 'P', 'S'];
-      let componentCount = 0;
-      components.forEach(comp => {
-        const section = course.sections.find(s => s.ltps.charAt(0).toUpperCase() === comp);
-        if (section) componentCount++;
-      });
-      totalHeight += componentCount * componentRowHeight;
-      totalHeight += cardSpacing;
+    return renderAttendanceCanvas(courses, {
+      title: friendCredentials ? `${friendCredentials.name}'s attendance` : "My attendance",
+      subtitle: `${today} · Target ${targetPercentage}%`,
+      includeTcbr,
     });
-
-    totalHeight += 40;
-
-    canvas.width = maxWidth * scale;
-    canvas.height = totalHeight * scale;
-    ctx.scale(scale, scale);
-
-    ctx.fillStyle = getCSSColor("--np-void");
-    ctx.fillRect(0, 0, maxWidth, totalHeight);
-
-    ctx.fillStyle = getCSSColor("--np-acid");
-    ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    const titleText = friendCredentials ? `${friendCredentials.name}'s Attendance` : 'Attendance';
-    ctx.fillText(titleText, maxWidth / 2, 35);
-
-    let yPos = padding + 60;
-
-    groupedCourses.forEach((course) => {
-      const cardX = padding;
-      const cardWidth = maxWidth - (padding * 2);
-
-      const components = ['L', 'T', 'P', 'S'];
-      let componentCount = 0;
-      components.forEach(comp => {
-        const section = course.sections.find(s => s.ltps.charAt(0).toUpperCase() === comp);
-        if (section) componentCount++;
-      });
-      const cardHeight = headerHeight + (componentCount * componentRowHeight);
-
-      ctx.fillStyle = getCSSColor("--np-carbon");
-      ctx.fillRect(cardX, yPos, cardWidth, cardHeight);
-      ctx.strokeStyle = getCSSColor("--np-line");
-      ctx.lineWidth = 1;
-      ctx.strokeRect(cardX, yPos, cardWidth, cardHeight);
-
-      ctx.fillStyle = getCSSColor("--np-purple");
-      ctx.fillRect(cardX, yPos, cardWidth, headerHeight);
-      ctx.strokeStyle = '#000000';
-      ctx.strokeRect(cardX, yPos, cardWidth, headerHeight);
-
-      ctx.fillStyle = getCSSColor("--np-cream");
-      ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
-      ctx.textAlign = 'left';
-      const courseName = course.courseName.length > 45
-        ? course.courseName.substring(0, 42) + '...'
-        : course.courseName;
-      ctx.fillText(courseName, cardX + cardPadding, yPos + headerHeight / 2 + 6);
-
-      ctx.fillStyle = getCSSColor("--np-acid");
-      ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(`${course.overallPercentage}%`, cardX + cardWidth - cardPadding, yPos + headerHeight / 2 + 6);
-
-      let componentY = yPos + headerHeight;
-
-      components.forEach((comp, compIndex) => {
-        const section = course.sections.find(s => s.ltps.charAt(0).toUpperCase() === comp);
-        if (section) {
-          const attended = parseInt(section.totalAttended);
-          const conducted = parseInt(section.totalConducted);
-          const tcbr = parseInt(section.tcbr || "0");
-          const effectiveTcbr = includeTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
-          const effectiveConducted = includeTcbr ? Math.max(0, conducted - effectiveTcbr) : conducted;
-          const safeAttended = Number.isFinite(attended) ? attended : 0;
-
-          let individualPercentage = 0;
-          if (effectiveConducted > 0) {
-            individualPercentage = Math.ceil((safeAttended / effectiveConducted) * 100);
-          }
-
-          ctx.fillStyle = compIndex % 2 === 0 ? getCSSColor("--np-carbon") : getCSSColor("--np-panel");
-          ctx.fillRect(cardX, componentY, cardWidth, componentRowHeight);
-
-          ctx.fillStyle = getCSSColor("--np-purple");
-          ctx.fillRect(cardX + cardPadding, componentY + 8, 32, 24);
-          ctx.fillStyle = getCSSColor("--np-cream");
-          ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(comp, cardX + cardPadding + 16, componentY + 24);
-
-          ctx.fillStyle = getCSSColor("--np-cream");
-          ctx.font = '600 14px system-ui, -apple-system, sans-serif';
-          ctx.textAlign = 'left';
-          ctx.fillText(`${individualPercentage}%`, cardX + cardPadding + componentIndent + 32, componentY + componentRowHeight / 2 + 5);
-
-          componentY += componentRowHeight;
-        }
-      });
-
-      ctx.strokeStyle = getCSSColor("--np-line");
-      ctx.strokeRect(cardX, yPos, cardWidth, cardHeight);
-
-      yPos += cardHeight + cardSpacing;
-    });
-
-    ctx.save();
-    ctx.globalAlpha = 0.4;
-    ctx.fillStyle = getCSSColor("--np-muted");
-    ctx.font = 'italic 14px system-ui, -apple-system, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText('timetable.', maxWidth - 20, totalHeight - 15);
-    ctx.restore();
-
-    return canvas;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attendanceData, friendCredentials, includeTcbr]);
+  }, [attendanceData, friendCredentials, includeTcbr, targetPercentage]);
 
   const exportAsImage = useCallback(async () => {
     if (!attendanceData || attendanceData.length === 0) return;
@@ -809,184 +694,188 @@ export default function NeoAttendance() {
     setRegisterLoadingText("fetching register…");
   };
 
+  const courses = isLoading || error ? [] : groupAttendanceByCourse(attendanceData, includeTcbr);
+
+  const openSimulator = (course = null) => {
+    setSimulatorCourseCode(course ? course.courseCode : "");
+    setCalculatorInitialCourse(
+      course
+        ? course.sections
+            .map((section) => ({
+              type: section.ltps.charAt(0).toUpperCase(),
+              attended: section.totalAttended,
+              conducted: section.totalConducted,
+              tcbr: includeTcbr ? section.tcbr || "0" : "0",
+            }))
+            .filter((item) => ["L", "T", "P", "S"].includes(item.type))
+        : null
+    );
+    setShowSimulatorModal(true);
+  };
+
   return (
-    <NeoShell onRefresh={fetchAttendanceData} refreshMode="direct" refreshLabel="refetch" autoSyncing={autoSyncing}>
+    <NeoShell onRefresh={fetchAttendanceData} autoSyncing={autoSyncing}>
       <div className="np-pagehead">
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
-          <span className="np-eyebrow" style={{ margin: 0 }}>
-            {friendCredentials ? `${friendCredentials.name}'s numbers` : "your numbers"}
-          </span>
-          {(lastFetchedTime || autoSyncing) && !friendCredentials && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                padding: "3px 8px",
-                background: "var(--np-panel, #17171b)",
-                border: "1px solid var(--np-line, #2a2a31)",
-                color: "var(--np-cream, #f4f2ea)",
-                fontSize: "10px",
-                fontWeight: 600,
-                textTransform: "lowercase",
-                letterSpacing: "0.02em",
-                borderRadius: 0,
-              }}
-            >
-              <span
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  background: autoSyncing ? "var(--np-cyan, #00e5ff)" : "var(--np-acid, #cfff04)",
-                  boxShadow: autoSyncing ? "0 0 6px var(--np-cyan, #00e5ff)" : "0 0 6px var(--np-acid, #cfff04)",
-                  flexShrink: 0,
-                }}
-              />
-              {autoSyncing ? "syncing…" : `fetched ${formatTimeAgo(lastFetchedTime)}`}
-            </span>
+        <div className="np-pagehead__row">
+          <h1 className="np-pagehead__title">
+            {friendCredentials ? `${friendCredentials.name}'s attendance` : "Attendance"}
+          </h1>
+          {attendanceData.length > 0 && (
+            <div className="np-pagehead__actions">
+              <button
+                className="np-iconbtn"
+                onClick={() => openSimulator()}
+                aria-label="Bunk calculator"
+                title="Bunk calculator"
+              >
+                <MdCalculate size={20} />
+              </button>
+              <button
+                className="np-iconbtn"
+                onClick={exportAsImage}
+                disabled={exporting}
+                aria-label="Share attendance"
+                title="Share attendance"
+              >
+                <MdIosShare size={19} />
+              </button>
+            </div>
           )}
         </div>
-        <div className="np-pagehead__row">
-          <h1 className="np-pagehead__title">attendance<i>.</i></h1>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {hasAnyTcbr && (
-              <button
-                type="button"
-                className="np-iconbtn"
-                onClick={toggleTcbr}
-                title={includeTcbr ? "TCBR included in attendance. Click to turn off." : "TCBR excluded. Click to turn on."}
-              >
-                tcbr · {includeTcbr ? "on" : "off"}
-              </button>
-            )}
-            <button className="np-iconbtn" onClick={() => setShowTargetModal(true)}>
-              safe % · {targetPercentage}
-            </button>
-          </div>
-        </div>
+        {(lastFetchedTime || autoSyncing) && !friendCredentials && (
+          <p className="np-pagehead__sub">
+            {autoSyncing ? "Updating…" : `Updated ${formatTimeAgo(lastFetchedTime)}`}
+          </p>
+        )}
       </div>
 
       {isLoading ? (
-        <NeoLoading text={`fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} attendance…`} />
+        <NeoSkeleton variant="card" count={4} text={`Fetching ${friendCredentials ? `${friendCredentials.name}'s` : "your"} attendance…`} />
       ) : error ? (
         error.includes("Session expired") || error.includes("log in") ? (
-          <div className="np-guest-cta-plaque">
-            <h2>You're very near! 🎯</h2>
-            <p>Log in with your KL ERP credentials to view your live attendance and safe margin calculator.</p>
-            <NeoButton onClick={() => setShowGuestModal(true)}>Log In Now</NeoButton>
+          <div className="np-empty">
+            <h2 className="np-empty__title">See your attendance</h2>
+            <p className="np-empty__text">Log in with your KL ERP account to load it and plan your bunks.</p>
+            <button type="button" className="np-btn" onClick={() => setShowGuestModal(true)}>Log in</button>
           </div>
         ) : (
-          <div className="np-error">
-            <p>{error}</p>
-            <button onClick={fetchAttendanceData} className="np-iconbtn">retry</button>
+          <div className="np-empty">
+            <h2 className="np-empty__title">Couldn't load attendance</h2>
+            <p className="np-empty__text">{error}</p>
+            <button type="button" className="np-btn" onClick={fetchAttendanceData}>Try again</button>
           </div>
         )
-      ) : attendanceData.length === 0 ? (
+      ) : courses.length === 0 ? (
         <div className="np-empty">
-          <h2 className="np-empty__title">no attendance data</h2>
+          <h2 className="np-empty__title">No attendance yet</h2>
           <p className="np-empty__text">Nothing came back from ERP for this semester.</p>
         </div>
       ) : (
-        groupAttendanceByCourse(attendanceData, includeTcbr).map((course, index) => (
-          <div key={index} className="np-att">
-            <div className="np-att__head">
-              <div className="np-att__code">{getSubjectName(course.courseCode)}</div>
-              <h3 className="np-att__name">{course.courseName}</h3>
-            </div>
+        <>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+            <button type="button" className="np-chipbtn" onClick={() => setShowTargetModal(true)}>
+              Target {targetPercentage}%
+            </button>
+            {hasAnyTcbr && (
+              <button
+                type="button"
+                className={`np-chipbtn${includeTcbr ? " is-on" : ""}`}
+                role="switch"
+                aria-checked={includeTcbr}
+                onClick={toggleTcbr}
+                title="Count TCBR (condoned classes) in your percentage"
+              >
+                TCBR {includeTcbr ? "on" : "off"}
+              </button>
+            )}
+          </div>
 
-            <div className="np-att__total">
-              <div>
-                <div className="np-panel__label" style={{ marginBottom: 4 }}>overall</div>
-                <div className="np-att__total-meta">
-                  {course.averageType || "Weighted"} · {course.sections.length} component{course.sections.length !== 1 ? "s" : ""}
-                </div>
-                <div className="np-att__tools">
-                  <button
-                    className="np-minibtn"
-                    onClick={() => {
-                      setSimulatorCourseCode(course.courseCode);
-                      setCalculatorInitialCourse(
-                        course.sections.map(section => ({
-                          type: section.ltps.charAt(0).toUpperCase(),
-                          attended: section.totalAttended,
-                          conducted: section.totalConducted,
-                          tcbr: includeTcbr ? (section.tcbr || "0") : "0"
-                        })).filter(item => ["L", "T", "P", "S"].includes(item.type))
-                      );
-                      setShowSimulatorModal(true);
-                    }}
-                  >
-                    bunk / attend
+          {courses.map((course) => {
+            const nickname = getSubjectName(course.courseCode);
+            return (
+              <article key={course.courseCode} className="np-att">
+                <header className="np-att__head">
+                  <div className="np-att__title">
+                    <h2 className="np-att__name">{titleCase(course.courseName)}</h2>
+                    <div className="np-att__code">
+                      {course.courseCode}
+                      {nickname !== course.courseCode &&
+                        nickname.toLowerCase() !== course.courseName.toLowerCase() &&
+                        ` · ${nickname}`}
+                    </div>
+                  </div>
+                  <div className={`np-att__total-pct ${getPctClass(course.overallPercentage)}`}>
+                    {course.overallPercentage}%
+                  </div>
+                </header>
+
+                {course.sections.map((section) => {
+                  const attended = parseInt(section.totalAttended);
+                  const conducted = parseInt(section.totalConducted);
+                  const tcbr = parseInt(section.tcbr || "0");
+                  const effectiveTcbr = includeTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
+                  const effectiveConducted = includeTcbr ? Math.max(0, conducted - effectiveTcbr) : conducted;
+                  const safeAttended = Number.isFinite(attended) ? attended : 0;
+                  const hasNums = Number.isFinite(attended) && Number.isFinite(conducted) && effectiveConducted > 0;
+                  const currentPct = hasNums ? (safeAttended / effectiveConducted) * 100 : 0;
+                  const type = section.ltps.charAt(0).toUpperCase();
+                  const hasRegister = ["L", "P", "S", "T"].includes(type);
+
+                  return (
+                    <button
+                      key={`${section.ltps}-${section.section}`}
+                      type="button"
+                      className="np-att__section"
+                      disabled={!hasRegister}
+                      onClick={() => handleRegisterFetch(course, section)}
+                      aria-label={`${COMPONENT_NAMES[type] || section.ltps} register`}
+                    >
+                      <span className="np-att__ltps">{section.ltps}</span>
+                      <span className="np-att__section-info">
+                        <span className="np-att__section-name">
+                          {COMPONENT_NAMES[type] || section.ltps} · {section.section}
+                        </span>
+                        <span className="np-att__detail">
+                          {section.totalAttended} of {section.totalConducted} · {section.totalAbsent} absent
+                          {tcbr > 0 && ` · TCBR ${tcbr}${includeTcbr ? "" : " (off)"}`}
+                        </span>
+                      </span>
+                      <span className="np-att__nums">
+                        <span className={`np-att__pct ${getPctClass(section.rawPercentage)}`}>
+                          {Math.ceil(parseFloat(section.rawPercentage))}%
+                        </span>
+                        {hasNums && (
+                          <span className="np-att__hint">
+                            {currentPct >= targetPercentage
+                              ? `Can miss ${safeBunksAtTarget(safeAttended, effectiveConducted, targetPercentage)}`
+                              : `Attend ${classesToReachTarget(safeAttended, effectiveConducted, targetPercentage)} more`}
+                          </span>
+                        )}
+                      </span>
+                      {hasRegister && <MdChevronRight className="np-att__chev" size={20} aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+
+                <footer className="np-att__tools">
+                  <button type="button" className="np-minibtn" onClick={() => openSimulator(course)}>
+                    Plan bunks
                   </button>
                   <button
+                    type="button"
                     className="np-minibtn"
                     onClick={() => {
                       setSelectedCourseData(course);
                       setShowCalculationModal(true);
                     }}
                   >
-                    breakdown
+                    How it's calculated
                   </button>
-                </div>
-              </div>
-              <div className={`np-att__total-pct ${getPctClass(course.overallPercentage)}`}>
-                {course.overallPercentage}%
-              </div>
-            </div>
-
-            {course.sections.map((section, sectionIndex) => {
-              const attended = parseInt(section.totalAttended);
-              const conducted = parseInt(section.totalConducted);
-              const tcbr = parseInt(section.tcbr || "0");
-              const effectiveTcbr = includeTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
-              const effectiveConducted = includeTcbr ? Math.max(0, conducted - effectiveTcbr) : conducted;
-              const safeAttended = Number.isFinite(attended) ? attended : 0;
-              const hasNums = Number.isFinite(attended) && Number.isFinite(conducted) && effectiveConducted > 0;
-              const currentPct = hasNums ? (safeAttended / effectiveConducted) * 100 : 0;
-
-              return (
-                <div key={sectionIndex} className="np-att__section">
-                  <span className="np-att__ltps">{section.ltps}</span>
-                  <div className="np-att__section-info">
-                    <div className="np-att__section-name">{section.section}</div>
-                    {["L", "P", "S", "T"].includes(section.ltps.charAt(0).toUpperCase()) && (
-                      <button
-                        className="np-minibtn"
-                        onClick={() => handleRegisterFetch(course, section)}
-                      >
-                        register
-                      </button>
-                    )}
-                  </div>
-                  <div className="np-att__nums">
-                    <div className={`np-att__pct ${getPctClass(section.rawPercentage)}`}>
-                      {Math.ceil(parseFloat(section.rawPercentage))}%{" "}
-                      {section.totalConducted > 0 && section.rawPercentage && (
-                        <small>({section.rawPercentage}%)</small>
-                      )}
-                    </div>
-                    <div className="np-att__detail">
-                      {section.totalAttended}/{section.totalConducted} · {section.totalAbsent} absent
-                      {tcbr > 0 ? (includeTcbr ? ` · tcbr ${tcbr} (condoned: ${section.totalAttended}/${effectiveConducted})` : ` · tcbr ${tcbr} (off)`) : ""}
-                    </div>
-                    {hasNums && (
-                      currentPct >= targetPercentage ? (
-                        <div className="np-att__hint">
-                          safe bunks at {targetPercentage}%: <b>{safeBunksAtTarget(safeAttended, effectiveConducted, targetPercentage)} hrs</b>
-                        </div>
-                      ) : (
-                        <div className="np-att__hint">
-                          attend <b>{classesToReachTarget(safeAttended, effectiveConducted, targetPercentage)} hrs</b> for {targetPercentage}%
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))
+                </footer>
+              </article>
+            );
+          })}
+        </>
       )}
 
       <CalculatorModal
@@ -1026,69 +915,61 @@ export default function NeoAttendance() {
         onToggleTcbr={toggleTcbr}
       />
 
-      {attendanceData.length > 0 && (
-        <button
-          className="np-fab np-fab--2"
-          onClick={exportAsImage}
-          disabled={exporting}
-          title="Share attendance"
-        >
-          {exporting ? "…" : <FiShare2 size={20} />}
-        </button>
-      )}
-
-      <button
-        className="np-fab np-fab--1"
-        onClick={() => {
-          setSimulatorCourseCode("");
-          setCalculatorInitialCourse(null);
-          setShowSimulatorModal(true);
-        }}
-        title="Bunk / Attend Simulator"
-      >
-        <LuCalendarCheck2 size={20} />
-      </button>
-
       {/* register details */}
-      <NeoModal open={showRegisterModal} title="register details" onClose={closeRegisterModal} wide>
-        {registerLoading ? (
-          <NeoLoading text={registerLoadingText} />
-        ) : selectedRegisterData ? (
-          <div className="np-table">
-            <div className="np-table__row is-head">
-              <span className="np-table__cell" style={{ flex: "0 0 60%" }}>date & time</span>
-              <span className="np-table__cell" style={{ textAlign: "center" }}>status</span>
+      <NeoModal open={showRegisterModal} title="Register" onClose={closeRegisterModal}>
+        {/* one fixed height while loading and after, so the sheet never jumps */}
+        <div className="np-regbox">
+          {registerLoading ? (
+            <NeoSkeleton variant="rows" count={9} text={registerLoadingText} />
+          ) : selectedRegisterData?.daily_attendance?.length > 0 ? (
+            <div className="np-reglist">
+              {[...selectedRegisterData.daily_attendance]
+                // keep real class rows only; drop trailing summary rows (e.g. weighted % / absent totals)
+                .filter((entry) => /\sH\s*\d/.test(entry?.date_slot || "") && ["P", "A"].includes(entry?.status))
+                .reverse()
+                .map((entry, index) => {
+                const [date, hour] = entry.date_slot.split(" H ");
+                const present = entry.status === "P";
+                return (
+                  <div key={index} className="np-reglist__row">
+                    <span>
+                      {date}
+                      {hour && <small> · Hour {hour}</small>}
+                    </span>
+                    <b className={present ? "np-good" : "np-bad"}>{present ? "Present" : "Absent"}</b>
+                  </div>
+                );
+              })}
             </div>
-            {selectedRegisterData.daily_attendance && selectedRegisterData.daily_attendance.length > 0 ? (
-              [...selectedRegisterData.daily_attendance].reverse().map((entry, index) => (
-                <div key={index} className="np-table__row">
-                  <span className="np-table__cell" style={{ flex: "0 0 60%" }}>
-                    {entry.date_slot.split(' H ')[0]} H{entry.date_slot.split(' H ')[1]}
-                  </span>
-                  <span
-                    className={`np-table__cell ${entry.status === 'P' ? "np-good" : "np-bad"}`}
-                    style={{ textAlign: "center", fontWeight: 700 }}
-                  >
-                    {entry.status === 'P' ? 'Present' : 'Absent'}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div className="np-table__row">
-                <span className="np-table__cell np-dim">No daily attendance data available</span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="np-note">No register data found.</p>
-        )}
+          ) : (
+            <p className="np-note">No class-by-class record is available for this component yet.</p>
+          )}
+        </div>
       </NeoModal>
 
       {/* safe % target */}
-      <NeoModal open={showTargetModal} title="edit safe percentage" onClose={() => setShowTargetModal(false)}>
+      <NeoModal open={showTargetModal} title="Target attendance" onClose={() => setShowTargetModal(false)}>
+        <p className="np-note" style={{ marginBottom: 16 }}>
+          The percentage you want to stay above. "Can miss" and "Attend more" are worked out against it.
+        </p>
+        <div className="np-chips" style={{ marginBottom: 16 }}>
+          {[75, 80, 85, 90].map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              className={`np-chipbtn${Number(targetInput) === preset ? " is-on" : ""}`}
+              onClick={() => {
+                setTargetInput(String(preset));
+                setTargetError("");
+              }}
+            >
+              {preset}%
+            </button>
+          ))}
+        </div>
         <div className="np-field">
           <div className="np-field__head">
-            <label className="np-field__label" htmlFor="np-target">target % (0–100)</label>
+            <label className="np-field__label" htmlFor="np-target">Target %</label>
           </div>
           <input
             id="np-target"
@@ -1102,7 +983,7 @@ export default function NeoAttendance() {
             onChange={(e) => setTargetInput(e.target.value)}
           />
         </div>
-        {targetError && <p className="np-note np-bad" style={{ marginBottom: 12 }}>{targetError}</p>}
+        {targetError && <p className="np-formerror" role="alert">{targetError}</p>}
         <NeoButton
           type="button"
           onClick={() => {
@@ -1115,7 +996,7 @@ export default function NeoAttendance() {
             setShowTargetModal(false);
           }}
         >
-          save target
+          Save
         </NeoButton>
       </NeoModal>
 
@@ -1126,7 +1007,6 @@ export default function NeoAttendance() {
         onSuccess={async () => {
           setShowGuestModal(false);
           await fetchAttendanceData();
-          ensureTimetableFetched();
         }}
       />
 

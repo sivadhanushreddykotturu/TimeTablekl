@@ -93,7 +93,7 @@ export function mergeDaySlotsWithHours(slots = {}, maxSlots = 14) {
  * Slots look like "24AD3107-L - S-55 - RoomNo-M202": the leading token is the course code (or the
  * user's custom name for it). It must match exactly: loose substring matching made "DS" match "24EDS3308HF".
  */
-export function matchesCourse(slotContent, courseCode, courseName) {
+export function matchesCourse(slotContent, courseCode) {
   if (!slotContent || slotContent === "-" || !courseCode) return false;
 
   const lead = slotContent.toUpperCase().trim().match(/^[A-Z0-9]+/);
@@ -108,7 +108,7 @@ export function matchesCourse(slotContent, courseCode, courseName) {
     const subjectMappings = JSON.parse(localStorage.getItem("subjectMappings") || "{}");
     const mapped = subjectMappings[extractMainCode(courseCode)] || subjectMappings[courseCode];
     if (mapped && token === String(mapped).toUpperCase().replace(/[^A-Z0-9]/g, "")) return true;
-  } catch (_) {}
+  } catch { /* ignore */ }
 
   return false;
 }

@@ -1,307 +1,88 @@
 import React from "react";
+import { NeoModal } from "../neo/Shell.jsx";
+
+// How much each component counts towards the subject's overall percentage.
+const WEIGHTS = { L: 100, T: 100, P: 50, S: 25 };
+const NAMES = { L: "Lecture", T: "Tutorial", P: "Practical", S: "Skill" };
+
+/** Works through a subject's overall percentage the way ERP does, one component at a time. */
+function buildBreakdown(courseData, includeTcbr) {
+  const steps = [];
+  let attendedSum = 0;
+  let conductedSum = 0;
+
+  courseData.sections.forEach((section) => {
+    const type = section.ltps.charAt(0).toUpperCase();
+    const weight = WEIGHTS[type] || 1;
+    const attended = parseInt(section.totalAttended || "0", 10) || 0;
+    const conducted = parseInt(section.totalConducted || "0", 10) || 0;
+    const tcbr = Math.max(0, parseInt(section.tcbr || "0", 10) || 0);
+    const counted = Math.max(0, conducted - (includeTcbr ? tcbr : 0));
+    if (counted <= 0) return;
+
+    attendedSum += attended * weight;
+    conductedSum += counted * weight;
+    steps.push({ type, weight, attended, conducted, tcbr, counted });
+  });
+
+  const exact = conductedSum > 0 ? (attendedSum / conductedSum) * 100 : 0;
+  return { steps, attendedSum, conductedSum, exact, final: Math.ceil(Math.max(0, Math.min(100, exact))) };
+}
 
 export default function ShowCalculation({ isOpen, onClose, courseData, includeTcbr = true, onToggleTcbr }) {
   if (!isOpen || !courseData) return null;
 
-  const courseHasTcbr = Boolean(
-    courseData.sections &&
-    courseData.sections.some((s) => parseInt(s.tcbr || "0", 10) > 0)
-  );
-
-  const LTPS_WEIGHTS = {
-    L: 100,
-    T: 100,
-    P: 50,
-    S: 25,
-    O: 1,
-  };
-
-  // Calculate step-by-step breakdown
-  const calculateBreakdown = () => {
-    const steps = [];
-    let weightedAttendedSum = 0;
-    let weightedConductedSum = 0;
-
-    courseData.sections.forEach((section) => {
-      const componentType = section.ltps.charAt(0).toUpperCase();
-      const weight = LTPS_WEIGHTS[componentType] || LTPS_WEIGHTS.O;
-
-      const attended = parseInt(section.totalAttended || "0", 10);
-      const conducted = parseInt(section.totalConducted || "0", 10);
-      const tcbr = parseInt(section.tcbr || "0", 10);
-      const effectiveTcbr = includeTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
-      const effectiveConducted = Math.max(0, conducted - effectiveTcbr);
-      const safeAttended = Number.isFinite(attended) ? attended : 0;
-
-      if (effectiveConducted > 0) {
-        const weightedAttended = safeAttended * weight;
-        const weightedConducted = effectiveConducted * weight;
-
-        weightedAttendedSum += weightedAttended;
-        weightedConductedSum += weightedConducted;
-
-        // Calculate individual percentage with ceiling
-        const individualPercentage = Math.ceil((safeAttended / effectiveConducted) * 100);
-
-        steps.push({
-          componentType,
-          section: section.section,
-          attended,
-          conducted,
-          tcbr,
-          effectiveTcbr,
-          effectiveConducted,
-          weight,
-          weightedAttended,
-          weightedConducted,
-          individualPercentage,
-        });
-      }
-    });
-
-    const calculated = weightedConductedSum > 0 
-      ? (weightedAttendedSum / weightedConductedSum) * 100 
-      : 0;
-    const finalPercentage = Math.ceil(Math.max(0, Math.min(100, calculated)));
-
-    return {
-      steps,
-      weightedAttendedSum,
-      weightedConductedSum,
-      calculated,
-      finalPercentage,
-    };
-  };
-
-  const breakdown = calculateBreakdown();
-
-  // Get style variables for dark/light mode
-  const getStyleVars = () => {
-    let isDarkMode = false;
-    try {
-      const themeAttr = document.documentElement.getAttribute("data-theme");
-      if (themeAttr) {
-        isDarkMode = themeAttr.toLowerCase() === "dark";
-      } else if (window.matchMedia) {
-        isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      }
-    } catch (_) {}
-    return {
-      "--text-primary": isDarkMode ? "#f8f9fa" : "#212529",
-      "--text-secondary": isDarkMode ? "#adb5bd" : "#6c757d",
-      "--card-bg": isDarkMode ? "#1f1f1f" : "#ffffff",
-      "--bg-secondary": isDarkMode ? "#2a2a2a" : "#f8f9fa",
-      "--border-color": isDarkMode ? "#3a3a3a" : "#dee2e6",
-      "--border-light": isDarkMode ? "#444" : "#e9ecef",
-      "--overlay-bg": isDarkMode ? "rgba(0,0,0,0.7)" : "rgba(0,0,0,0.5)",
-      "--primary-color": "#007bff",
-    };
-  };
-
-  const styleVars = getStyleVars();
+  const { steps, attendedSum, conductedSum, exact, final } = buildBreakdown(courseData, includeTcbr);
+  const hasTcbr = steps.some((step) => step.tcbr > 0);
 
   return (
-    <div
-      style={{
-        ...styleVars,
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100vw",
-        height: "100vh",
-        background: "var(--overlay-bg)",
-        backdropFilter: "blur(5px)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 1000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: "var(--card-bg)",
-          border: "1px solid var(--border-color)",
-          borderRadius: "12px",
-          padding: "20px",
-          minWidth: "320px",
-          maxWidth: "500px",
-          maxHeight: "80vh",
-          margin: "20px",
-          overflowY: "auto",
-          fontFamily: "Inter, ui-sans-serif, system-ui",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "16px",
-          }}
-        >
-          <div>
-            <h3 style={{ margin: "0 0 4px 0", color: "var(--text-primary)", fontSize: "1.1rem" }}>
-              {courseData.courseName}
-            </h3>
-            <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: "0.85rem" }}>
-              {courseData.courseCode}
-            </p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {courseHasTcbr && onToggleTcbr && (
-              <button
-                type="button"
-                onClick={onToggleTcbr}
-                style={{
-                  background: includeTcbr ? "rgba(16, 185, 129, 0.15)" : "var(--bg-secondary)",
-                  border: includeTcbr ? "1px solid #10b981" : "1px solid var(--border-color)",
-                  color: includeTcbr ? "#10b981" : "var(--text-secondary)",
-                  borderRadius: "20px",
-                  padding: "4px 10px",
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  transition: "all 0.2s ease",
-                }}
-                title={includeTcbr ? "TCBR condoned from conducted classes. Click to turn off." : "TCBR excluded. Click to turn on."}
-              >
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: includeTcbr ? "#10b981" : "var(--text-secondary)",
-                  }}
-                />
-                tcbr {includeTcbr ? "on" : "off"}
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              style={{
-                background: "transparent",
-                border: "none",
-                fontSize: "24px",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-                padding: "0",
-                width: "28px",
-                height: "28px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: "4px",
-                transition: "background 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = "var(--bg-secondary)";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = "transparent";
-              }}
-            >
-              ×
-            </button>
-          </div>
-        </div>
+    <NeoModal open title="How it's calculated" onClose={onClose}>
+      <p className="np-note" style={{ marginBottom: 16 }}>
+        Each component's classes are multiplied by its weight, then attended is divided by conducted.
+      </p>
 
-        {breakdown.steps.map((step, index) => (
-          <div
-            key={index}
-            style={{
-              background: "var(--bg-secondary)",
-              padding: "10px",
-              borderRadius: "6px",
-              marginBottom: "8px",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-              <span
-                style={{
-                  background: "var(--primary-color)",
-                  color: "white",
-                  padding: "2px 6px",
-                  borderRadius: "4px",
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                }}
-              >
-                {step.componentType}
-              </span>
-              <span style={{ color: "var(--text-primary)", fontSize: "0.85rem" }}>
-                {step.section}
-              </span>
-            </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
-              {step.attended}/{step.effectiveConducted} × {step.weight} = {step.weightedAttended} / {step.weightedConducted} = {step.individualPercentage}%
+      <div className="np-reglist">
+        {steps.map((step, index) => (
+          <div key={index} className="np-reglist__row">
+            <span>
+              {NAMES[step.type] || step.type} <small>× {step.weight}</small>
               {step.tcbr > 0 && (
-                <span
-                  style={{
-                    marginLeft: 6,
-                    fontSize: "0.75rem",
-                    color: includeTcbr ? "#10b981" : "var(--text-secondary)",
-                    fontWeight: 500,
-                  }}
-                >
-                  {includeTcbr
-                    ? `(condoned: -${step.tcbr} from ${step.conducted})`
-                    : `(tcbr ${step.tcbr} off)`}
-                </span>
+                <small>
+                  {" "}· TCBR {step.tcbr} {includeTcbr ? "removed" : "ignored"}
+                </small>
               )}
-            </div>
+            </span>
+            <b>
+              {step.attended} / {step.counted}
+            </b>
           </div>
         ))}
-
-        <div
-          style={{
-            background: "var(--primary-color)",
-            color: "white",
-            padding: "12px",
-            borderRadius: "8px",
-            marginTop: "12px",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "6px" }}>
-            {breakdown.weightedAttendedSum} ÷ {breakdown.weightedConductedSum} × 100 = {breakdown.calculated.toFixed(2)}%
-          </div>
-          <div style={{ fontSize: "1.2rem", fontWeight: 700 }}>
-            Final: {breakdown.finalPercentage}%
-          </div>
+        <div className="np-reglist__row">
+          <span>Weighted total</span>
+          <b>
+            {attendedSum} / {conductedSum}
+          </b>
         </div>
-
-        {courseHasTcbr && (
-          <div
-            style={{
-              marginTop: "10px",
-              padding: "8px 12px",
-              borderRadius: "6px",
-              background: "var(--bg-secondary)",
-              fontSize: "0.75rem",
-              color: "var(--text-secondary)",
-              lineHeight: 1.4,
-              border: "1px dashed var(--border-color)",
-            }}
-          >
-            {includeTcbr ? (
-              <span>
-                💡 <b>KL ERP Condonation mode:</b> TCBR ({breakdown.steps.reduce((acc, s) => acc + (s.tcbr || 0), 0)} hrs) is deducted from total conducted hours, giving your exact official portal percentage.
-              </span>
-            ) : (
-              <span>
-                💡 <b>Raw mode:</b> Calculated with total raw conducted hours without deducting TCBR.
-              </span>
-            )}
-          </div>
-        )}
+        <div className="np-reglist__row">
+          <span>
+            Overall <small>· {exact.toFixed(2)}% rounded up</small>
+          </span>
+          <b>{final}%</b>
+        </div>
       </div>
-    </div>
+
+      {hasTcbr && onToggleTcbr && (
+        <button
+          type="button"
+          className={`np-chipbtn${includeTcbr ? " is-on" : ""}`}
+          role="switch"
+          aria-checked={includeTcbr}
+          style={{ marginTop: 16 }}
+          onClick={onToggleTcbr}
+        >
+          TCBR {includeTcbr ? "on" : "off"}
+        </button>
+      )}
+    </NeoModal>
   );
 }
-

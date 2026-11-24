@@ -6,8 +6,7 @@ export const PRIMARY_TABS = [
   "/home",
   "/timetable",
   "/attendance",
-  "/grades",
-  "/maddys"
+  "/profile"
 ];
 
 const SWIPE_DISTANCE_THRESHOLD = 50; // Minimum horizontal px
@@ -24,7 +23,7 @@ export function useSwipeNavigation() {
 
   useEffect(() => {
     const currentIndex = PRIMARY_TABS.indexOf(location.pathname);
-    if (currentIndex === -1) return; // Only active on the 5 primary tabs
+    if (currentIndex === -1) return; // Only active on the primary tabs
 
     const handleTouchStart = (e) => {
       // If multi-touch (pinch/zoom), ignore
@@ -122,18 +121,12 @@ export function useSwipeNavigation() {
           // Swiped LEFT -> go forward to next tab
           if (currentIndex < PRIMARY_TABS.length - 1) {
             const nextTab = PRIMARY_TABS[currentIndex + 1];
-            try {
-              if (navigator.vibrate) navigator.vibrate(10);
-            } catch {}
             navigate(nextTab, { state: { slideDirection: "left" } });
           }
         } else {
           // Swiped RIGHT -> go back to previous tab
           if (currentIndex > 0) {
             const prevTab = PRIMARY_TABS[currentIndex - 1];
-            try {
-              if (navigator.vibrate) navigator.vibrate(10);
-            } catch {}
             navigate(prevTab, { state: { slideDirection: "right" } });
           }
         }

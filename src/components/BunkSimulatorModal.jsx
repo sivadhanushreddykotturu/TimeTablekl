@@ -147,7 +147,7 @@ export default function BunkSimulatorModal({
     try {
       const stored = parseFloat(localStorage.getItem("attendanceTargetPercentage"));
       return Number.isFinite(stored) ? stored : 85;
-    } catch (_) {
+    } catch {
       return 85;
     }
   }, [targetPercentage]);
@@ -157,7 +157,7 @@ export default function BunkSimulatorModal({
     if (propTimetable && Object.keys(propTimetable).length > 0) return propTimetable;
     try {
       return JSON.parse(localStorage.getItem("timetable") || "{}");
-    } catch (_) {
+    } catch {
       return {};
     }
   }, [propTimetable]);
@@ -270,7 +270,7 @@ export default function BunkSimulatorModal({
 
 
   const buzz = () => {
-    try { if (navigator.vibrate) navigator.vibrate(8); } catch (_) {}
+    /* no vibration, matching the original app */
   };
 
   // Tap a class to flip it between present (default) and absent
@@ -371,12 +371,10 @@ export default function BunkSimulatorModal({
       await navigator.clipboard.writeText(text);
       setShareMsg("Copied");
       setTimeout(() => setShareMsg(""), 1800);
-    } catch (_) {}
+    } catch { /* ignore */ }
   };
 
   if (!isOpen) return null;
-
-  const totalHours = classesList.reduce((acc, c) => acc + c.hours, 0);
   const quickKeys = ["today", "tomorrow", "thisWeek"];
   const state = impact.isSafe ? "is-safe" : "is-risk";
   // Opened from a subject's own button: that subject is already chosen, so skip the picker
@@ -396,7 +394,7 @@ export default function BunkSimulatorModal({
   }
 
   return (
-    <NeoModal open={isOpen} title="bunk calculator" onClose={onClose} wide>
+    <NeoModal open={isOpen} title="Plan bunks" onClose={onClose} steady>
       <div className="bc">
         {modeSwitch}
 
@@ -437,7 +435,6 @@ export default function BunkSimulatorModal({
               </button>
             ))}
           </div>
-          {currentCourse && <div className="bc-sub">{currentCourse.courseName}</div>}
         </div>}
 
         {/* When */}
@@ -499,7 +496,7 @@ export default function BunkSimulatorModal({
           {!hasTimetable ? (
             <div className="bc-empty">
               <FiAlertTriangle size={18} />
-              <p>No timetable found. Sync it on the Home page first.</p>
+              <p>No timetable found. Sync it from Today first.</p>
             </div>
           ) : classesList.length === 0 ? (
             <div className="bc-empty">

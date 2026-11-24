@@ -1,153 +1,115 @@
-import React, { useState, useEffect } from "react";
-import NeoShell from "../Shell.jsx";
-import Toast from "../../components/Toast.jsx";
+import React, { useMemo, useState } from "react";
+import NeoShell, { NeoModal } from "../Shell.jsx";
+import { NeoField } from "../NeoKit.jsx";
+import { SettingsGroup, SettingsRow } from "../components/Settings.jsx";
+import { extractMainCode } from "../../utils/subjectMapper";
 
-// Helper to extract main course code
-function extractMainCode(code) {
-  if (!code) return "";
-  const match = code.match(/^[A-Za-z0-9]+/);
-  return match ? match[0] : code;
+const MAX_LENGTH = 24;
+
+function readJson(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+/** Every course code that appears in the stored timetable. */
+function coursesInTimetable() {
+  const codes = new Set();
+  Object.values(readJson("timetable")).forEach((day) => {
+    Object.values(day || {}).forEach((slot) => {
+      if (slot && slot !== "-") codes.add(extractMainCode(slot));
+    });
+  });
+  return Array.from(codes).sort();
 }
 
 export default function NeoSubjects() {
-  const [subjects, setSubjects] = useState({});
-  const [editingCode, setEditingCode] = useState("");
-  const [editingName, setEditingName] = useState("");
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [names, setNames] = useState(() => readJson("subjectMappings"));
+  const [editing, setEditing] = useState(null); // course code being edited
+  const [draft, setDraft] = useState("");
+  const codes = useMemo(coursesInTimetable, []);
 
-  const getUniqueMainCodes = () => {
-    const timetable = JSON.parse(localStorage.getItem("timetable") || "{}");
-    const codes = new Set();
-    Object.values(timetable).forEach(daySlots => {
-      Object.values(daySlots).forEach(code => {
-        if (code && code !== "-") {
-          codes.add(extractMainCode(code));
-        }
-      });
-    });
-    return Array.from(codes).sort();
+  const save = (next) => {
+    setNames(next);
+    localStorage.setItem("subjectMappings", JSON.stringify(next));
+    setEditing(null);
   };
 
-  useEffect(() => {
-    const savedSubjects = JSON.parse(localStorage.getItem("subjectMappings") || "{}");
-    setSubjects(savedSubjects);
-  }, []);
-
-  const handleEdit = (code) => {
-    setEditingCode(code);
-    setEditingName(subjects[code] || "");
+  const open = (code) => {
+    setEditing(code);
+    setDraft(names[code] || "");
   };
 
-  const handleSave = () => {
-    if (!editingName.trim()) {
-      setToast({ show: true, message: "Subject name cannot be empty", type: "error" });
-      return;
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const name = draft.trim();
+    if (name) {
+      save({ ...names, [editing]: name });
+    } else {
+      // an empty name means "show the course code again"
+      const { [editing]: _removed, ...rest } = names;
+      save(rest);
     }
-    if (editingName.length > 5) {
-      setToast({ show: true, message: "Subject name must be 5 letters or less", type: "error" });
-      return;
-    }
-
-    const updatedSubjects = {
-      ...subjects,
-      [editingCode]: editingName.trim()
-    };
-    setSubjects(updatedSubjects);
-    localStorage.setItem("subjectMappings", JSON.stringify(updatedSubjects));
-    setEditingCode("");
-    setEditingName("");
-    setToast({ show: true, message: "Subject name saved!", type: "success" });
   };
-
-  const handleDelete = (code) => {
-    const updatedSubjects = { ...subjects };
-    delete updatedSubjects[code];
-    setSubjects(updatedSubjects);
-    localStorage.setItem("subjectMappings", JSON.stringify(updatedSubjects));
-    setToast({ show: true, message: "Subject mapping removed", type: "success" });
-  };
-
-  const handleCancel = () => {
-    setEditingCode("");
-    setEditingName("");
-  };
-
-  const uniqueCodes = getUniqueMainCodes();
 
   return (
     <NeoShell>
       <div className="np-pagehead">
-        <span className="np-eyebrow">nicknames · max 5 letters</span>
-        <h1 className="np-pagehead__title">subjects<i>.</i></h1>
+        <h1 className="np-pagehead__title">Subject names</h1>
         <p className="np-pagehead__sub">
-          Short names show up on your timetable instead of course codes.
+          Give a course a name you recognise. It replaces the code everywhere in the app.
         </p>
       </div>
 
-      {uniqueCodes.length === 0 ? (
+      {codes.length === 0 ? (
         <div className="np-empty">
-          <h2 className="np-empty__title">no course codes found</h2>
-          <p className="np-empty__text">Sign in and load your timetable first.</p>
+          <h2 className="np-empty__title">No courses yet</h2>
+          <p className="np-empty__text">Sync your timetable from Today and your courses will show up here.</p>
         </div>
       ) : (
-        <div className="np-subjects">
-          {uniqueCodes.map(code => (
-            <div key={code} className="np-subject">
-              <div className="np-subject__code">{code}</div>
-              {editingCode === code ? (
-                <>
-                  <input
-                    type="text"
-                    className="np-field__input"
-                    style={{ marginBottom: 10, padding: "10px 12px" }}
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    placeholder="max 5"
-                    maxLength={5}
-                    onKeyDown={(e) => e.key === "Enter" && handleSave()}
-                    autoFocus
-                  />
-                  <div className="np-subject__row">
-                    <button onClick={handleSave} className="np-minibtn" style={{ borderColor: "var(--np-acid)", color: "var(--np-acid)" }}>
-                      save
-                    </button>
-                    <button onClick={handleCancel} className="np-minibtn">
-                      cancel
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className={`np-subject__name${subjects[code] ? "" : " is-unset"}`}>
-                    {subjects[code] || "not set"}
-                  </div>
-                  <div className="np-subject__row">
-                    <button onClick={() => handleEdit(code)} className="np-minibtn">
-                      {subjects[code] ? "edit" : "set name"}
-                    </button>
-                    {subjects[code] && (
-                      <button
-                        onClick={() => handleDelete(code)}
-                        className="np-minibtn"
-                        style={{ borderColor: "var(--np-pink)", color: "var(--np-pink)" }}
-                      >
-                        remove
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
+        <SettingsGroup>
+          {codes.map((code) => (
+            <SettingsRow
+              key={code}
+              icon={<span className="np-setrow__initial">{(names[code] || code).charAt(0).toUpperCase()}</span>}
+              title={names[code] || code}
+              description={names[code] ? code : "No name yet"}
+              onClick={() => open(code)}
+            />
           ))}
-        </div>
+        </SettingsGroup>
       )}
 
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        isVisible={toast.show}
-        onClose={() => setToast(prev => ({ ...prev, show: false }))}
-      />
+      <NeoModal open={editing !== null} title={editing || ""} onClose={() => setEditing(null)}>
+        <form onSubmit={handleSubmit}>
+          <NeoField
+            id="np-subject-name"
+            label="Name"
+            placeholder="e.g. Deep Learning"
+            maxLength={MAX_LENGTH}
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <div className="np-modal__actions">
+            {names[editing] && (
+              <button
+                type="button"
+                className="np-btn np-btn--quiet"
+                onClick={() => {
+                  const { [editing]: _removed, ...rest } = names;
+                  save(rest);
+                }}
+              >
+                Use code
+              </button>
+            )}
+            <button type="submit" className="np-btn">Save</button>
+          </div>
+        </form>
+      </NeoModal>
     </NeoShell>
   );
 }

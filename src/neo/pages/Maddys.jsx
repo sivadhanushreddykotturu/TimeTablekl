@@ -1,15 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MdCompare } from "react-icons/md";
-import {
-  FiRefreshCw,
-  FiCalendar,
-  FiBookOpen,
-  FiPieChart,
-  FiAward,
-  FiTrash2,
-  FiEdit2,
-} from "react-icons/fi";
+import { MdCompareArrows, MdDeleteOutline, MdEdit, MdPersonAdd, MdSync } from "react-icons/md";
 import NeoShell, { NeoModal, NeoLoading } from "../Shell.jsx";
 import { NeoField, NeoSelect, NeoButton } from "../NeoKit.jsx";
 import Toast from "../../components/Toast.jsx";
@@ -469,90 +460,89 @@ export default function NeoMaddys() {
   return (
     <NeoShell>
       <div className="np-pagehead">
-        <span className="np-eyebrow">friends' timetables</span>
-        <h1 className="np-pagehead__title">where's doc<i>?</i></h1>
+        <div className="np-pagehead__row">
+          <h1 className="np-pagehead__title">Docs</h1>
+          {maddys.length > 0 && (
+            <div className="np-pagehead__actions">
+              <button
+                className="np-iconbtn"
+                onClick={handleOpenCompare}
+                aria-label="Compare timetables"
+                title="Compare timetables"
+              >
+                <MdCompareArrows size={21} />
+              </button>
+              <button
+                className="np-iconbtn"
+                onClick={() => setShowAddModal(true)}
+                aria-label="Add a friend"
+                title="Add a friend"
+              >
+                <MdPersonAdd size={20} />
+              </button>
+            </div>
+          )}
+        </div>
+        <p className="np-pagehead__sub">Your friends' timetables, attendance and grades.</p>
       </div>
 
       {maddys.length === 0 ? (
         <div className="np-empty">
-          <h2 className="np-empty__title">no docs added yet</h2>
-          <p className="np-empty__text">Add a friend to track their timetable, attendance and grades.</p>
+          <h2 className="np-empty__title">No friends added yet</h2>
+          <p className="np-empty__text">
+            Add a friend with their ERP login to see where they are and how their attendance looks.
+          </p>
           <NeoButton type="button" onClick={() => setShowAddModal(true)}>
-            add doc
+            Add a friend
           </NeoButton>
         </div>
       ) : (
-        <>
-          {maddys.map((maddy) => (
-            <div key={maddy.id} className="np-maddy">
-              <div className="np-maddy__top">
-                <h3 className="np-maddy__name">{maddy.name}</h3>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    className="np-action"
-                    onClick={() => openEditModal(maddy)}
-                    title="Edit"
-                  >
-                    <FiEdit2 size={15} />
-                  </button>
-                  <button
-                    className="np-action np-action--danger"
-                    onClick={() => openDeleteConfirm(maddy)}
-                    title="Remove"
-                  >
-                    <FiTrash2 size={15} />
-                  </button>
+        maddys.map((maddy) => (
+          <article key={maddy.id} className="np-att np-friend">
+            <header className="np-att__head">
+              <span className="np-friend__avatar" aria-hidden="true">
+                {maddy.name.charAt(0).toUpperCase()}
+              </span>
+              <div className="np-att__title">
+                <h2 className="np-att__name">{maddy.name}</h2>
+                <div className="np-att__code">
+                  {SEMESTER_NAMES[maddy.semester] || maddy.semester} · {maddy.academicYear}
                 </div>
               </div>
-              <p className="np-maddy__meta">
-                {SEMESTER_NAMES[maddy.semester] || maddy.semester} · {maddy.academicYear}
-              </p>
-              <div className="np-maddy__actions">
-                <button className="np-action" onClick={() => handleRefreshMaddy(maddy)} title="Resync">
-                  <FiRefreshCw size={15} />
+              <div className="np-friend__tools">
+                <button className="np-iconbtn" onClick={() => handleRefreshMaddy(maddy)} aria-label={`Sync ${maddy.name}`} title="Sync">
+                  <MdSync size={19} />
                 </button>
-                <button
-                  className="np-action"
-                  onClick={() => goToMaddy(maddy, 'timetable', `/maddys/${maddy.id}/timetable`)}
-                  title="Timetable"
-                >
-                  <FiCalendar size={15} />
+                <button className="np-iconbtn" onClick={() => openEditModal(maddy)} aria-label={`Edit ${maddy.name}`} title="Edit">
+                  <MdEdit size={18} />
                 </button>
-                <button
-                  className="np-action"
-                  onClick={() => goToMaddy(maddy, 'class_info', `/maddys/${maddy.id}/class`)}
-                  title="Class info"
-                >
-                  <FiBookOpen size={15} />
-                </button>
-                <button
-                  className="np-action"
-                  onClick={() => goToMaddy(maddy, 'attendance', "/attendance", friendState(maddy))}
-                  title="Attendance"
-                >
-                  <FiPieChart size={15} />
-                </button>
-                <button
-                  className="np-action"
-                  onClick={() => goToMaddy(maddy, 'grades', "/grades", friendState(maddy))}
-                  title="Grades"
-                >
-                  <FiAward size={15} />
+                <button className="np-iconbtn" onClick={() => openDeleteConfirm(maddy)} aria-label={`Remove ${maddy.name}`} title="Remove">
+                  <MdDeleteOutline size={19} />
                 </button>
               </div>
-            </div>
-          ))}
-
-          <NeoButton type="button" onClick={() => setShowAddModal(true)}>
-            add another doc
-          </NeoButton>
-        </>
+            </header>
+            <footer className="np-att__tools np-friend__links">
+              <button className="np-minibtn" onClick={() => goToMaddy(maddy, "class_info", `/maddys/${maddy.id}/class`)}>
+                Right now
+              </button>
+              <button className="np-minibtn" onClick={() => goToMaddy(maddy, "timetable", `/maddys/${maddy.id}/timetable`)}>
+                Timetable
+              </button>
+              <button className="np-minibtn" onClick={() => goToMaddy(maddy, "attendance", "/attendance", friendState(maddy))}>
+                Attendance
+              </button>
+              <button className="np-minibtn" onClick={() => goToMaddy(maddy, "grades", "/grades", friendState(maddy))}>
+                Grades
+              </button>
+            </footer>
+          </article>
+        ))
       )}
 
       {/* Add friend */}
       <NeoModal
         open={showAddModal}
-        title="add doc"
+        title="Add a friend"
         onClose={() => {
           setShowAddModal(false);
           resetAddForm();
@@ -560,14 +550,14 @@ export default function NeoMaddys() {
       >
         <NeoField
           id="np-friend-user"
-          label="friend's university id"
+          label="Friend's university ID"
           placeholder="2400090000"
           value={friendUsername}
           onChange={(e) => setFriendUsername(e.target.value)}
         />
         <NeoField
           id="np-friend-pass"
-          label="friend's password"
+          label="Friend's password"
           type="password"
           placeholder="••••••••"
           value={friendPassword}
@@ -576,7 +566,7 @@ export default function NeoMaddys() {
         <div className="np-row">
           <NeoSelect
             id="np-friend-sem"
-            label="semester"
+            label="Semester"
             value={friendSemester}
             onChange={(e) => setFriendSemester(e.target.value)}
           >
@@ -587,7 +577,7 @@ export default function NeoMaddys() {
           </NeoSelect>
           <NeoSelect
             id="np-friend-year"
-            label="academic year"
+            label="Academic year"
             value={friendAcademicYear}
             onChange={(e) => setFriendAcademicYear(e.target.value)}
           >
@@ -596,61 +586,61 @@ export default function NeoMaddys() {
             ))}
           </NeoSelect>
         </div>
-        <NeoButton type="button" onClick={handleAddFriend} loading={isAddingFriend} loadingText="adding…">
-          add friend
+        <NeoButton type="button" onClick={handleAddFriend} loading={isAddingFriend} loadingText="Adding…">
+          Add
         </NeoButton>
       </NeoModal>
 
       {/* Delete confirmation */}
-      <NeoModal open={showDeleteConfirm && !!deleteTarget} title={`remove ${deleteTarget?.name}?`} onClose={cancelDelete}>
+      <NeoModal open={showDeleteConfirm && !!deleteTarget} title={`Remove ${deleteTarget?.name}?`} onClose={cancelDelete}>
         <p className="np-note" style={{ marginBottom: 16 }}>
           This removes the friend and their saved timetable from this device.
         </p>
         <div className="np-modal__actions">
-          <button onClick={cancelDelete} className="secondary">Cancel</button>
-          <button onClick={confirmDelete} className="danger">Delete</button>
+          <button type="button" onClick={cancelDelete} className="np-btn np-btn--quiet">Cancel</button>
+          <button type="button" onClick={confirmDelete} className="np-btn np-btn--pink">Remove</button>
         </div>
       </NeoModal>
 
       {/* Name friend */}
-      <NeoModal open={showNameModal} title="name your doc">
+      <NeoModal open={showNameModal} title="Name this friend">
         <NeoField
           id="np-friend-name"
-          label="what do you call them?"
-          placeholder="max 10 characters"
+          label="What do you call them?"
+          placeholder="Max 10 characters"
           maxLength={10}
           value={friendName}
           onChange={(e) => setFriendName(e.target.value)}
         />
         <NeoButton type="button" onClick={handleSaveFriend}>
-          save
+          Save
         </NeoButton>
       </NeoModal>
 
       {/* Edit friend */}
       <NeoModal
         open={showEditModal && !!editTarget}
-        title={`edit ${editTarget?.name || "doc"}`}
+        title={`Edit ${editTarget?.name || "friend"}`}
         onClose={closeEditModal}
       >
         <NeoField
           id="np-edit-name"
-          label="name"
-          placeholder="max 10 characters"
+          label="Name"
+          placeholder="Max 10 characters"
           maxLength={10}
           value={editName}
           onChange={(e) => setEditName(e.target.value)}
         />
         <NeoField
           id="np-edit-user"
-          label="university id"
+          label="University ID"
           placeholder="2400090000"
           value={editUsername}
           onChange={(e) => setEditUsername(e.target.value)}
         />
         <NeoField
           id="np-edit-pass"
-          label="password"
+          label="Password"
           type="password"
           placeholder="••••••••"
           value={editPassword}
@@ -659,7 +649,7 @@ export default function NeoMaddys() {
         <div className="np-row">
           <NeoSelect
             id="np-edit-sem"
-            label="semester"
+            label="Semester"
             value={editSemester}
             onChange={(e) => setEditSemester(e.target.value)}
           >
@@ -670,7 +660,7 @@ export default function NeoMaddys() {
           </NeoSelect>
           <NeoSelect
             id="np-edit-year"
-            label="academic year"
+            label="Academic year"
             value={editAcademicYear}
             onChange={(e) => setEditAcademicYear(e.target.value)}
           >
@@ -680,10 +670,10 @@ export default function NeoMaddys() {
           </NeoSelect>
         </div>
         <p className="np-note" style={{ marginBottom: 16 }}>
-          Saved timetable stays as-is — resync to refetch it.
+          Their saved timetable stays as it is until you sync it again.
         </p>
         <NeoButton type="button" onClick={handleSaveEdit}>
-          save changes
+          Save changes
         </NeoButton>
       </NeoModal>
 
@@ -705,17 +695,17 @@ export default function NeoMaddys() {
         }}
       >
         <p className="np-note" style={{ marginBottom: 14 }}>
-          These slots changed after the resync:
+          These slots changed after the sync:
         </p>
         <div style={{ maxHeight: 280, overflowY: "auto" }}>
           {resyncChanges.map((change, index) => (
             <div key={`${change.day}-${change.slot}-${index}`} className="np-panel" style={{ marginBottom: 10 }}>
               <div className="np-panel__label" style={{ marginBottom: 8 }}>
-                {change.day} · slot {change.slot}
+                {change.day} · Slot {change.slot}
               </div>
               <div className="np-note">
-                <div><b style={{ color: "var(--np-pink)" }}>old</b> — {change.oldClass}</div>
-                <div style={{ marginTop: 4 }}><b style={{ color: "var(--np-acid)" }}>new</b> — {change.newClass}</div>
+                <div><b style={{ color: "var(--np-pink)" }}>Old</b> — {change.oldClass}</div>
+                <div style={{ marginTop: 4 }}><b style={{ color: "var(--np-good)" }}>New</b> — {change.newClass}</div>
               </div>
             </div>
           ))}
@@ -723,7 +713,7 @@ export default function NeoMaddys() {
       </NeoModal>
 
       {/* Compare */}
-      <NeoModal open={showCompareModal} title="compare timetables" onClose={() => setShowCompareModal(false)} wide>
+      <NeoModal open={showCompareModal} title="Compare timetables" onClose={() => setShowCompareModal(false)} wide>
         <div className="np-field" style={{ marginBottom: 14 }}>
           <select
             className="np-field__input"
@@ -753,7 +743,7 @@ export default function NeoMaddys() {
                   ))}
                 </select>
               ) : (
-                "you"
+                "You"
               )}
             </div>
             {selectedLeftSide === "you" ? (
@@ -795,7 +785,7 @@ export default function NeoMaddys() {
                   ))}
                 </select>
               ) : (
-                selectedMaddyForCompare?.name || "friend"
+                selectedMaddyForCompare?.name || "Friend"
               )}
             </div>
             {selectedMaddyForCompare && selectedMaddyForCompare.timetable ? (
@@ -807,20 +797,10 @@ export default function NeoMaddys() {
         </div>
       </NeoModal>
 
-      {maddys.length > 0 && (
-        <button
-          className="np-fab np-fab--1"
-          onClick={handleOpenCompare}
-          title="Compare timetables"
-        >
-          <MdCompare size={20} />
-        </button>
-      )}
-
       {/* Resync options */}
       <NeoModal
         open={showResyncOptions && !!selectedMaddy}
-        title={`resync ${selectedMaddy?.name}`}
+        title={`Sync ${selectedMaddy?.name}`}
         onClose={closeResyncOptions}
       >
         <p className="np-note" style={{ marginBottom: 16 }}>
@@ -829,7 +809,7 @@ export default function NeoMaddys() {
         <div className="np-row">
           <NeoSelect
             id="np-maddy-resync-sem"
-            label="semester"
+            label="Semester"
             value={resyncSemester}
             onChange={(e) => setResyncSemester(e.target.value)}
           >
@@ -840,7 +820,7 @@ export default function NeoMaddys() {
           </NeoSelect>
           <NeoSelect
             id="np-maddy-resync-year"
-            label="academic year"
+            label="Academic year"
             value={resyncAcademicYear}
             onChange={(e) => setResyncAcademicYear(e.target.value)}
           >
@@ -850,7 +830,7 @@ export default function NeoMaddys() {
           </NeoSelect>
         </div>
         <NeoButton type="button" onClick={confirmResyncOptions}>
-          sync now
+          Sync now
         </NeoButton>
       </NeoModal>
 

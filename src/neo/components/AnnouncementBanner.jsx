@@ -1,64 +1,72 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useEffect, useState } from "react";
+import { MdChevronRight, MdClose } from "react-icons/md";
+import AnnouncementSheet from "./AnnouncementSheet.jsx";
+import { describeAnnouncement, fetchAnnouncement } from "../../utils/announcement.js";
 
+const DISMISSED_KEY = "announcement_dismissed";
+
+/**
+ * A single quiet line under the Today header. Tapping it opens the full text
+ * in a sheet, so even a very long announcement never pushes the page around.
+ * The X (or "Got it") hides that particular notice; a new one shows again.
+ * (On desktop the mascot delivers it instead, so this hides itself there.)
+ */
 export default function AnnouncementBanner() {
   const [announcement, setAnnouncement] = useState(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    const fetchAnnouncement = async () => {
-      try {
-        const res = await axios.get(`/announcements.json?t=${Date.now()}`);
-        if (res.data && res.data.active) {
-          setAnnouncement(res.data);
-        } else {
-          setAnnouncement(null);
-        }
-      } catch {
-        setAnnouncement(null);
-      }
+    let cancelled = false;
+    fetchAnnouncement().then((data) => {
+      if (cancelled || !data) return;
+      if (localStorage.getItem(DISMISSED_KEY) !== data.id) setAnnouncement(data);
+    });
+    return () => {
+      cancelled = true;
     };
-    fetchAnnouncement();
   }, []);
 
-  if (!announcement || !announcement.active) return null;
+  if (!announcement) return null;
+
+  const { type, Icon, title } = describeAnnouncement(announcement);
+
+  const dismiss = () => {
+    localStorage.setItem(DISMISSED_KEY, announcement.id);
+    setSheetOpen(false);
+    setLeaving(true);
+    setTimeout(() => setAnnouncement(null), 220);
+  };
 
   return (
-    <div
-      className="np-board np-announce-banner"
-      style={{
-        borderColor: "var(--np-acid)",
-        background: "rgba(207, 255, 4, 0.05)",
-        padding: "16px 14px 12px",
-        textAlign: "center",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "6px",
-        marginTop: "16px",
-      }}
-    >
-      <div
-        style={{
-          font: "700 11px/1.4 var(--np-font-ui)",
-          letterSpacing: "0.22em",
-          textTransform: "uppercase",
-          color: "var(--np-acid)",
-          paddingTop: "2px",
-        }}
+    <>
+      <aside
+        className={`np-notice np-notice--${type} np-announce-banner${leaving ? " is-leaving" : ""}`}
+        role="status"
       >
-        {announcement.title || "ANNOUNCEMENT"}
-      </div>
-      <div
-        style={{
-          fontSize: "11px",
-          color: "var(--np-cream)",
-          fontFamily: "var(--np-font-ui)",
-          lineHeight: "1.4",
-          whiteSpace: "pre-line",
-        }}
-      >
-        {announcement.message}
-      </div>
-    </div>
+        <button
+          type="button"
+          className="np-notice__main"
+          onClick={() => setSheetOpen(true)}
+          aria-haspopup="dialog"
+        >
+          <span className="np-notice__icon" aria-hidden="true">
+            <Icon size={18} />
+          </span>
+          <span className="np-notice__title">{title}</span>
+          <MdChevronRight className="np-notice__chev" size={20} aria-hidden="true" />
+        </button>
+        <button className="np-notice__close" onClick={dismiss} aria-label="Dismiss announcement">
+          <MdClose size={18} />
+        </button>
+      </aside>
+
+      <AnnouncementSheet
+        announcement={announcement}
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onConfirm={dismiss}
+      />
+    </>
   );
 }

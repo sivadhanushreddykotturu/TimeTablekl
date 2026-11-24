@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiShare2, FiArrowLeft, FiEdit2 } from "react-icons/fi";
-import NeoShell, { NeoModal } from "../Shell.jsx";
+import NeoShell, { NeoModal, NeoLoading } from "../Shell.jsx";
 import { NeoField, NeoButton } from "../NeoKit.jsx";
 import Toast from "../../components/Toast.jsx";
 import { getSlotTimes, getMaxSlots } from "../../utils/slotTimes";
 import { extractMainCode, replaceCourseCodeWithCustomName } from "../../utils/subjectMapper";
-import { getCSSColor } from "../utils/themeEngine";
+import { getCSSColor } from "../utils/cssColor";
 
 const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -276,10 +276,7 @@ export default function NeoMaddyTimetable() {
   if (!maddy) {
     return (
       <NeoShell>
-        <div className="np-loading">
-          <div className="np-loading__blocks" aria-hidden="true"><span /><span /><span /><span /></div>
-          <div className="np-loading__text">loading…</div>
-        </div>
+        <NeoLoading />
         <Toast
           message={toast.message}
           type={toast.type}
@@ -332,9 +329,6 @@ export default function NeoMaddyTimetable() {
   return (
     <NeoShell>
       <div className="np-pagehead">
-        <button className="np-iconbtn" style={{ marginBottom: 14 }} onClick={() => navigate("/maddys")}>
-          <FiArrowLeft size={13} /> back to docs
-        </button>
         <span className="np-eyebrow">
           {SEMESTER_NAMES[maddy.semester] || maddy.semester} · {maddy.academicYear}
         </span>
@@ -371,7 +365,7 @@ export default function NeoMaddyTimetable() {
               className="np-block__name"
               onClick={() => openNicknameEdit(block.content)}
               style={{ cursor: "pointer" }}
-              title="tap to edit subject nickname"
+              title="Tap to edit subject nickname"
             >
               {replaceCourseCodeWithCustomName(block.content)}
               <FiEdit2 size={11} style={{ marginLeft: 8, verticalAlign: "middle", opacity: 0.55 }} />
@@ -399,8 +393,8 @@ export default function NeoMaddyTimetable() {
       >
         <NeoField
           id="np-nick-name"
-          label="short name"
-          placeholder="max 5 letters"
+          label="Short name"
+          placeholder="Max 5 letters"
           maxLength={5}
           value={nicknameInput}
           onChange={(e) => setNicknameInput(e.target.value)}
@@ -420,7 +414,7 @@ export default function NeoMaddyTimetable() {
               className="np-minibtn"
               style={{ borderColor: "var(--np-pink)", color: "var(--np-pink)" }}
             >
-              remove nickname
+              Remove nickname
             </button>
           </div>
         )}
