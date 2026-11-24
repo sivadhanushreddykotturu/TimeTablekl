@@ -144,12 +144,12 @@ export default function NeoHome() {
         <div className="np-hero__art" aria-hidden="true">
           {eventBg && (
             <div
-              className="np-hero__event"
+              className={`np-hero__event${eventBg.fade === 0 ? " np-hero__event--instant" : ""}`}
               style={{
                 "--event-img": `url("${eventBg.url}")`,
                 "--event-strength": eventBg.strength,
                 "--event-focus": eventBg.focus,
-                "--event-fade": `${eventBg.fade || 1600}ms`,
+                "--event-fade": `${eventBg.fade ?? 1600}ms`,
                 ...(eventBg.accent ? { "--event-accent": eventBg.accent } : null),
               }}
             />

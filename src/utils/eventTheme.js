@@ -147,6 +147,26 @@ export function preloadImage(url, signal, ms = 10000) {
 
 const CACHE_NAME = "event-bg-v1";
 const META_KEY = "event_bg_cache";
+const IMG_KEY = "event_bg_img"; // the picture itself as a small data link, readable before the screen draws
+const MAX_INLINE = 400 * 1024; // bigger pictures stay in the Cache API only (still fast, but one step later)
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function dataUrlToBlob(dataUrl) {
+  const comma = dataUrl.indexOf(",");
+  const mime = (/^data:([^;]+);base64/.exec(dataUrl.slice(0, comma)) || [])[1] || "image/jpeg";
+  const bytes = atob(dataUrl.slice(comma + 1));
+  const array = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i += 1) array[i] = bytes.charCodeAt(i);
+  return new Blob([array], { type: mime });
+}
 
 const isExpired = (expires) => {
   if (!expires) return false;
@@ -184,6 +204,13 @@ export async function loadImage(url, signal, ms = 12000) {
     } catch {
       /* no Cache API (private window?): it still shows, it just is not kept */
     }
+    // a small copy that can be read instantly at the next launch
+    try {
+      if (blob.size <= MAX_INLINE) localStorage.setItem(IMG_KEY, await blobToDataUrl(blob));
+      else localStorage.removeItem(IMG_KEY);
+    } catch {
+      /* storage full: the Cache API copy still works */
+    }
     const objectUrl = URL.createObjectURL(blob);
     await decodeImage(objectUrl);
     return objectUrl;
@@ -206,8 +233,8 @@ export function rememberTheme(theme) {
   }
 }
 
-/** The remembered theme with a ready-to-show picture link, or null. Never touches the network. */
-export async function readRememberedTheme() {
+/** The remembered theme if it can still be shown on this device (same device class, not ended). */
+function rememberedMeta() {
   let meta = null;
   try {
     meta = JSON.parse(localStorage.getItem(META_KEY) || "null");
@@ -215,6 +242,29 @@ export async function readRememberedTheme() {
     /* ignore */
   }
   if (!meta?.url || meta.device !== deviceClass() || isExpired(meta.expires)) return null;
+  return meta;
+}
+
+/**
+ * The remembered theme and picture, read synchronously (before the screen draws), or null
+ * when the picture was too big to keep inline. Never touches the network.
+ */
+export function readRememberedThemeNow() {
+  const meta = rememberedMeta();
+  if (!meta) return null;
+  try {
+    const data = localStorage.getItem(IMG_KEY);
+    if (!data || !data.startsWith("data:image/")) return null;
+    return { theme: meta, objectUrl: URL.createObjectURL(dataUrlToBlob(data)) };
+  } catch {
+    return null;
+  }
+}
+
+/** The remembered theme with a ready-to-show picture link, or null. Never touches the network. */
+export async function readRememberedTheme() {
+  const meta = rememberedMeta();
+  if (!meta) return null;
   try {
     const cache = await caches.open(CACHE_NAME);
     const hit = await cache.match(meta.url);
@@ -230,6 +280,7 @@ export async function readRememberedTheme() {
 export async function forgetTheme() {
   try {
     localStorage.removeItem(META_KEY);
+    localStorage.removeItem(IMG_KEY);
   } catch {
     /* ignore */
   }

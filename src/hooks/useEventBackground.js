@@ -5,6 +5,7 @@ import {
   forgetTheme,
   loadImage,
   readRememberedTheme,
+  readRememberedThemeNow,
   rememberTheme,
 } from "../utils/eventTheme.js";
 
@@ -16,6 +17,15 @@ const listeners = new Set();
 const MAX_TRIES = 3;
 const FAST_FADE = 450; // a picture that was already on this device just appears
 const SLOW_FADE = 1600; // a picture seen for the first time eases in
+const NO_FADE = 0; // a picture remembered inline is simply there from the first frame
+
+// Before anything draws: if this device remembers the picture, it is already in the first frame.
+if (typeof window !== "undefined" && eventBackgroundEnabled()) {
+  const remembered = readRememberedThemeNow();
+  if (remembered) {
+    session.theme = { ...remembered.theme, remote: remembered.theme.url, url: remembered.objectUrl, fade: NO_FADE };
+  }
+}
 
 function publish(theme) {
   session.theme = theme;

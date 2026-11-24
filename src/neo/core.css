@@ -2784,6 +2784,12 @@ body.np-body button.np-notice__close:hover { background: color-mix(in srgb, var(
   animation: np-event-in var(--event-fade, 1600ms) var(--np-ease) 40ms forwards;
 }
 
+/* remembered on this device: there from the very first frame, no fade */
+.np-hero__event--instant {
+  animation: none;
+  opacity: calc(var(--event-strength, 0.5) * 0.9);
+}
+
 @keyframes np-event-in {
   to { opacity: calc(var(--event-strength, 0.5) * 0.9); }
 }
