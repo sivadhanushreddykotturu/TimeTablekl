@@ -13,7 +13,7 @@ import { trackEvent } from "../../utils/analytics";
 import { getCredentials, handleSessionRefresh } from "../../../utils/storage.js";
 import { getFormData, getRegisterDetailFormData, API_CONFIG } from "../../config/api.js";
 import { getSubjectName } from "../../utils/subjectMapper";
-import { getCSSColor } from "../utils/cssColor";
+import { renderAttendanceCanvas } from "../utils/exportAttendance";
 import GuestAuthModal from "../../components/GuestAuthModal.jsx";
 import { decodeHtml } from "../../utils/gradesUtils.js";
 
@@ -472,141 +472,19 @@ export default function NeoAttendance() {
   const generateHighQualityCanvas = useCallback(() => {
     if (!attendanceData || attendanceData.length === 0) return null;
 
-    const groupedCourses = groupAttendanceByCourse(attendanceData, includeTcbr);
-    if (groupedCourses.length === 0) return null;
+    const courses = groupAttendanceByCourse(attendanceData, includeTcbr).map((course) => ({
+      ...course,
+      displayName: titleCase(course.courseName),
+    }));
+    const today = new Date().toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
 
-    const scale = 2;
-    const padding = 40;
-    const cardPadding = 16;
-    const cardSpacing = 20;
-    const headerHeight = 50;
-    const componentRowHeight = 40;
-    const componentIndent = 20;
-    const maxWidth = 700;
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    let totalHeight = padding * 2 + 60;
-
-    groupedCourses.forEach(course => {
-      totalHeight += headerHeight;
-      const components = ['L', 'T', 'P', 'S'];
-      let componentCount = 0;
-      components.forEach(comp => {
-        const section = course.sections.find(s => s.ltps.charAt(0).toUpperCase() === comp);
-        if (section) componentCount++;
-      });
-      totalHeight += componentCount * componentRowHeight;
-      totalHeight += cardSpacing;
+    return renderAttendanceCanvas(courses, {
+      title: friendCredentials ? `${friendCredentials.name}'s attendance` : "My attendance",
+      subtitle: `${today} · Target ${targetPercentage}%`,
+      includeTcbr,
     });
-
-    totalHeight += 40;
-
-    canvas.width = maxWidth * scale;
-    canvas.height = totalHeight * scale;
-    ctx.scale(scale, scale);
-
-    ctx.fillStyle = getCSSColor("--np-void");
-    ctx.fillRect(0, 0, maxWidth, totalHeight);
-
-    ctx.fillStyle = getCSSColor("--np-acid");
-    ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    const titleText = friendCredentials ? `${friendCredentials.name}'s Attendance` : 'Attendance';
-    ctx.fillText(titleText, maxWidth / 2, 35);
-
-    let yPos = padding + 60;
-
-    groupedCourses.forEach((course) => {
-      const cardX = padding;
-      const cardWidth = maxWidth - (padding * 2);
-
-      const components = ['L', 'T', 'P', 'S'];
-      let componentCount = 0;
-      components.forEach(comp => {
-        const section = course.sections.find(s => s.ltps.charAt(0).toUpperCase() === comp);
-        if (section) componentCount++;
-      });
-      const cardHeight = headerHeight + (componentCount * componentRowHeight);
-
-      ctx.fillStyle = getCSSColor("--np-carbon");
-      ctx.fillRect(cardX, yPos, cardWidth, cardHeight);
-      ctx.strokeStyle = getCSSColor("--np-line");
-      ctx.lineWidth = 1;
-      ctx.strokeRect(cardX, yPos, cardWidth, cardHeight);
-
-      ctx.fillStyle = getCSSColor("--np-purple");
-      ctx.fillRect(cardX, yPos, cardWidth, headerHeight);
-      ctx.strokeStyle = '#000000';
-      ctx.strokeRect(cardX, yPos, cardWidth, headerHeight);
-
-      ctx.fillStyle = getCSSColor("--np-cream");
-      ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
-      ctx.textAlign = 'left';
-      const courseName = course.courseName.length > 45
-        ? course.courseName.substring(0, 42) + '...'
-        : course.courseName;
-      ctx.fillText(courseName, cardX + cardPadding, yPos + headerHeight / 2 + 6);
-
-      ctx.fillStyle = getCSSColor("--np-acid");
-      ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(`${course.overallPercentage}%`, cardX + cardWidth - cardPadding, yPos + headerHeight / 2 + 6);
-
-      let componentY = yPos + headerHeight;
-
-      components.forEach((comp, compIndex) => {
-        const section = course.sections.find(s => s.ltps.charAt(0).toUpperCase() === comp);
-        if (section) {
-          const attended = parseInt(section.totalAttended);
-          const conducted = parseInt(section.totalConducted);
-          const tcbr = parseInt(section.tcbr || "0");
-          const effectiveTcbr = includeTcbr ? (tcbr > 0 ? tcbr : 0) : 0;
-          const effectiveConducted = includeTcbr ? Math.max(0, conducted - effectiveTcbr) : conducted;
-          const safeAttended = Number.isFinite(attended) ? attended : 0;
-
-          let individualPercentage = 0;
-          if (effectiveConducted > 0) {
-            individualPercentage = Math.ceil((safeAttended / effectiveConducted) * 100);
-          }
-
-          ctx.fillStyle = compIndex % 2 === 0 ? getCSSColor("--np-carbon") : getCSSColor("--np-panel");
-          ctx.fillRect(cardX, componentY, cardWidth, componentRowHeight);
-
-          ctx.fillStyle = getCSSColor("--np-purple");
-          ctx.fillRect(cardX + cardPadding, componentY + 8, 32, 24);
-          ctx.fillStyle = getCSSColor("--np-cream");
-          ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(comp, cardX + cardPadding + 16, componentY + 24);
-
-          ctx.fillStyle = getCSSColor("--np-cream");
-          ctx.font = '600 14px system-ui, -apple-system, sans-serif';
-          ctx.textAlign = 'left';
-          ctx.fillText(`${individualPercentage}%`, cardX + cardPadding + componentIndent + 32, componentY + componentRowHeight / 2 + 5);
-
-          componentY += componentRowHeight;
-        }
-      });
-
-      ctx.strokeStyle = getCSSColor("--np-line");
-      ctx.strokeRect(cardX, yPos, cardWidth, cardHeight);
-
-      yPos += cardHeight + cardSpacing;
-    });
-
-    ctx.save();
-    ctx.globalAlpha = 0.4;
-    ctx.fillStyle = getCSSColor("--np-muted");
-    ctx.font = 'italic 14px system-ui, -apple-system, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText('timetable.', maxWidth - 20, totalHeight - 15);
-    ctx.restore();
-
-    return canvas;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attendanceData, friendCredentials, includeTcbr]);
+  }, [attendanceData, friendCredentials, includeTcbr, targetPercentage]);
 
   const exportAsImage = useCallback(async () => {
     if (!attendanceData || attendanceData.length === 0) return;
@@ -816,10 +694,6 @@ export default function NeoAttendance() {
   };
 
   const courses = isLoading || error ? [] : groupAttendanceByCourse(attendanceData, includeTcbr);
-  const belowTarget = courses.filter((c) => c.overallPercentage < targetPercentage).length;
-  const average = courses.length
-    ? Math.round(courses.reduce((sum, c) => sum + c.overallPercentage, 0) / courses.length)
-    : 0;
 
   const openSimulator = (course = null) => {
     setSimulatorCourseCode(course ? course.courseCode : "");
@@ -897,33 +771,23 @@ export default function NeoAttendance() {
         </div>
       ) : (
         <>
-          <section className="np-attsum">
-            <div>
-              <div className={`np-attsum__pct ${getPctClass(average)}`}>{average}%</div>
-              <div className="np-attsum__label">
-                {belowTarget === 0
-                  ? `All ${courses.length} subjects at or above ${targetPercentage}%`
-                  : `${belowTarget} of ${courses.length} subjects below ${targetPercentage}%`}
-              </div>
-            </div>
-            <div className="np-attsum__controls">
-              <button type="button" className="np-chipbtn" onClick={() => setShowTargetModal(true)}>
-                Target {targetPercentage}%
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+            <button type="button" className="np-chipbtn" onClick={() => setShowTargetModal(true)}>
+              Target {targetPercentage}%
+            </button>
+            {hasAnyTcbr && (
+              <button
+                type="button"
+                className={`np-chipbtn${includeTcbr ? " is-on" : ""}`}
+                role="switch"
+                aria-checked={includeTcbr}
+                onClick={toggleTcbr}
+                title="Count TCBR (condoned classes) in your percentage"
+              >
+                TCBR {includeTcbr ? "on" : "off"}
               </button>
-              {hasAnyTcbr && (
-                <button
-                  type="button"
-                  className={`np-chipbtn${includeTcbr ? " is-on" : ""}`}
-                  role="switch"
-                  aria-checked={includeTcbr}
-                  onClick={toggleTcbr}
-                  title="Count TCBR (condoned classes) in your percentage"
-                >
-                  TCBR {includeTcbr ? "on" : "off"}
-                </button>
-              )}
-            </div>
-          </section>
+            )}
+          </div>
 
           {courses.map((course) => {
             const nickname = getSubjectName(course.courseCode);

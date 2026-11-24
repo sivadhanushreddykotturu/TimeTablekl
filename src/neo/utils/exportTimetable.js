@@ -26,9 +26,9 @@ export function renderTimetableCanvas(timetable) {
 
   const scale = 2;
   const padding = 40;
-  const titleHeight = 56;
+  const titleHeight = 72;
   const headerHeight = 48;
-  const rowHeight = 54;
+  const rowHeight = 64;
   const timeColWidth = 104;
   const dayColWidth = 200;
   const gap = 4;
@@ -43,34 +43,45 @@ export function renderTimetableCanvas(timetable) {
   const ctx = canvas.getContext("2d");
   ctx.scale(scale, scale);
 
+  const todayKey = DAY_ORDER[(new Date().getDay() + 6) % 7];
   const color = {
     bg: getCSSColor("--np-void"),
     card: getCSSColor("--np-carbon"),
     raised: getCSSColor("--np-panel"),
     text: getCSSColor("--np-cream"),
     muted: getCSSColor("--np-muted"),
-    accent: getCSSColor("--np-acid"),
+    accent: getCSSColor("--np-acid") || "#f5f5f5",
+    onAccent: getCSSColor("--np-acid-text") || "#111111",
   };
 
   ctx.fillStyle = color.bg;
   ctx.fillRect(0, 0, width, height);
 
+  const classCount = days.reduce(
+    (sum, day) =>
+      sum + Object.values(timetable[day] || {}).filter((info) => info && info !== "-").length,
+    0
+  );
   ctx.fillStyle = color.text;
-  ctx.font = `700 28px ${FONT}`;
+  ctx.font = `800 30px ${FONT}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("Timetable", padding, padding + 14);
+  ctx.fillText("My week", padding, padding + 14);
+  ctx.fillStyle = color.muted;
+  ctx.font = `500 14px ${FONT}`;
+  ctx.fillText(`${classCount} classes · ${days.length} days`, padding, padding + 44);
 
   const top = padding + titleHeight;
 
   // day headers
   days.forEach((day, i) => {
     const x = padding + timeColWidth + dayColWidth * i;
-    ctx.fillStyle = color.raised;
-    roundRect(ctx, x + gap / 2, top, dayColWidth - gap, headerHeight - gap, 10);
+    const isToday = day === todayKey;
+    ctx.fillStyle = isToday ? color.accent : color.raised;
+    roundRect(ctx, x + gap / 2, top, dayColWidth - gap, headerHeight - gap, 12);
     ctx.fill();
-    ctx.fillStyle = color.text;
-    ctx.font = `600 15px ${FONT}`;
+    ctx.fillStyle = isToday ? color.onAccent : color.text;
+    ctx.font = `700 15px ${FONT}`;
     ctx.textAlign = "center";
     ctx.fillText(day, x + dayColWidth / 2, top + (headerHeight - gap) / 2);
   });
@@ -93,18 +104,23 @@ export function renderTimetableCanvas(timetable) {
       if (!classInfo || classInfo === "-") return;
 
       ctx.fillStyle = color.card;
-      roundRect(ctx, x + gap / 2, y, dayColWidth - gap, rowHeight - gap, 10);
+      roundRect(ctx, x + gap / 2, y, dayColWidth - gap, rowHeight - gap, 12);
       ctx.fill();
 
-      // word-wrap the class name, two lines max
+      const label = replaceCourseCodeWithCustomName(classInfo);
+      const sectionMatch = label.match(/\s+(S-[\w-]+)\s*$/i);
+      const section = sectionMatch ? sectionMatch[1].toUpperCase() : "";
+      const name = sectionMatch ? label.slice(0, sectionMatch.index) : label;
+
+      // word-wrap the subject name, two lines max
       const maxWidth = dayColWidth - gap - cellPadding * 2;
       ctx.fillStyle = color.text;
-      ctx.font = `600 11px ${FONT}`;
+      ctx.font = `600 12px ${FONT}`;
       ctx.textAlign = "left";
 
       const lines = [];
       let line = "";
-      replaceCourseCodeWithCustomName(classInfo).split(" ").forEach((word) => {
+      name.split(" ").forEach((word) => {
         const test = line ? `${line} ${word}` : word;
         if (ctx.measureText(test).width > maxWidth && line) {
           lines.push(line);
@@ -115,17 +131,29 @@ export function renderTimetableCanvas(timetable) {
       });
       if (line) lines.push(line);
 
-      const shown = lines.slice(0, 2);
-      const firstY = y + (rowHeight - gap) / 2 - ((shown.length - 1) * 14) / 2;
-      shown.forEach((text, n) => ctx.fillText(text, x + gap / 2 + cellPadding, firstY + n * 14));
+      let shown = lines.slice(0, 2);
+      if (lines.length > 2) {
+        let last = shown[1];
+        while (last.length > 1 && ctx.measureText(`${last}…`).width > maxWidth) last = last.slice(0, -1);
+        shown[1] = `${last.trimEnd()}…`;
+      }
+      const lineHeight = 15;
+      const blockHeight = shown.length * lineHeight + (section ? 14 : 0);
+      const startY = y + (rowHeight - gap) / 2 - blockHeight / 2 + lineHeight / 2;
+      shown.forEach((text, n) => ctx.fillText(text, x + gap / 2 + cellPadding, startY + n * lineHeight));
+      if (section) {
+        ctx.fillStyle = color.muted;
+        ctx.font = `500 11px ${FONT}`;
+        ctx.fillText(section, x + gap / 2 + cellPadding, startY + shown.length * lineHeight + 1);
+      }
     });
   }
 
   ctx.globalAlpha = 0.5;
   ctx.fillStyle = color.muted;
   ctx.font = `500 13px ${FONT}`;
-  ctx.textAlign = "right";
-  ctx.fillText("timetablekl.vercel.app", width - padding, height - 22);
+  ctx.textAlign = "center";
+  ctx.fillText("timetablekl.vercel.app", width / 2, height - 24);
   ctx.globalAlpha = 1;
 
   return canvas;
