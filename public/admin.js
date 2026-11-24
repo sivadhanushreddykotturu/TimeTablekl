@@ -567,6 +567,60 @@ $("tab-bg-btn").onclick = () => selectTab("bg");
 $("tab-ann-btn").onclick = () => selectTab("ann");
 $("fetch-pin").onclick = fetchPin;
 $("pin").addEventListener("keydown", (e) => e.key === "Enter" && fetchPin());
+
+/* upload from this device: a file button, drag and drop, or paste */
+const MAX_FILE_MB = 60;
+
+async function useFile(file) {
+  showError("pin-error", "");
+  if (!file || !file.type.startsWith("image/")) {
+    showError("pin-error", "That is not a picture. Use a JPG, PNG or WebP file.");
+    return;
+  }
+  if (file.size > MAX_FILE_MB * 1024 * 1024) {
+    showError("pin-error", `That file is over ${MAX_FILE_MB} MB. Pick a smaller one.`);
+    return;
+  }
+  try {
+    await setPicture(file, { gotOriginal: true });
+  } catch {
+    showError("pin-error", "Could not open that picture. Try a JPG, PNG or WebP file.");
+  }
+}
+
+$("file").addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (file) useFile(file);
+});
+
+const dropZone = $("picture-card");
+for (const name of ["dragenter", "dragover"]) {
+  dropZone.addEventListener(name, (e) => {
+    e.preventDefault();
+    dropZone.classList.add("is-drop");
+  });
+}
+for (const name of ["dragleave", "drop"]) {
+  dropZone.addEventListener(name, (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("is-drop");
+  });
+}
+dropZone.addEventListener("drop", (e) => {
+  const file = [...(e.dataTransfer?.files || [])].find((f) => f.type.startsWith("image/")) || e.dataTransfer?.files?.[0];
+  if (file) useFile(file);
+});
+
+document.addEventListener("paste", (e) => {
+  if ($("app").hidden) return;
+  const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
+  const file = item?.getAsFile();
+  if (!file) return; // text pastes go into the box as usual
+  e.preventDefault();
+  useFile(file);
+});
+
 for (const id of ["strength", "fx", "fy", "glow"]) $(id).addEventListener("input", renderPreview);
 document.querySelectorAll("[data-preset]").forEach((chip) => {
   chip.onclick = () => {

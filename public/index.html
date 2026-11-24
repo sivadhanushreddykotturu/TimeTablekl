@@ -55,7 +55,7 @@
         <!-- BACKGROUND -->
         <div id="tab-bg" class="grid">
           <div class="col">
-            <section class="card">
+            <section class="card" id="picture-card">
               <h2>Picture</h2>
               <label class="field">
                 <span>Pinterest link</span>
@@ -64,6 +64,14 @@
                   <button id="fetch-pin" class="primary small">Fetch</button>
                 </div>
               </label>
+              <div class="row row--center">
+                <span class="muted">or</span>
+                <label class="ghost file">
+                  Upload from this device
+                  <input id="file" type="file" accept="image/*" hidden />
+                </label>
+              </div>
+              <p class="muted hint">HD pictures are welcome: we make a sharp laptop size and a light phone size. You can also drop a picture here or paste one with Ctrl+V.</p>
               <p id="img-info" class="muted" hidden></p>
               <p id="img-warn" class="warn" hidden></p>
               <p id="pin-error" class="error" role="alert" hidden></p>
