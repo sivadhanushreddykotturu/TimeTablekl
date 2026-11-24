@@ -155,7 +155,7 @@ export default function NeoAttendance() {
 
   const getField = (item, snake, pascal) => item[snake] ?? item[pascal] ?? "";
 
-  const handleAttendanceSuccess = useCallback((attendance, isBackground = false) => {
+  const handleAttendanceSuccess = useCallback((attendance) => {
     const grouped = groupAttendanceByCourse(attendance);
     const courseCount = grouped.length;
     const overallPercentages = grouped.map(c => c.overallPercentage);
@@ -229,6 +229,7 @@ export default function NeoAttendance() {
       }
       setLastFetchedTime(nowIso);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [friendCredentials]);
 
   const fetchAttendanceData = useCallback(async (opts = {}) => {
@@ -276,7 +277,7 @@ export default function NeoAttendance() {
           if (!friendCredentials) {
             handleSessionRefresh(res.data);
           }
-          handleAttendanceSuccess(res.data.attendance, isBackground);
+          handleAttendanceSuccess(res.data.attendance);
           return true;
         } else {
           if (!isBackground) {
