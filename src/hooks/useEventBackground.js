@@ -11,7 +11,7 @@ import {
 // One shared state for the whole app session, so every visit to Today sees the same thing.
 //  - theme: what is on screen (a remembered copy at launch, then the live one)
 //  - finished: the live theme.json has been checked this session
-const session = { theme: null, tries: 0, finished: false, controller: null, restored: false };
+const session = { theme: null, tries: 0, finished: false, controller: null, restoring: null };
 const listeners = new Set();
 const MAX_TRIES = 3;
 const FAST_FADE = 450; // a picture that was already on this device just appears
@@ -33,14 +33,50 @@ function notReady() {
   return null;
 }
 
+/**
+ * Resolves true once no request has finished for `quietMs` (the app has stopped asking for things),
+ * or after `maxMs` at the latest. Resolves false if cancelled meanwhile.
+ */
+function waitForQuiet(isCancelled, quietMs = 2500, maxMs = 20000) {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    let lastActivity = start;
+    let observer = null;
+    try {
+      observer = new PerformanceObserver(() => {
+        lastActivity = performance.now();
+      });
+      observer.observe({ type: "resource" });
+    } catch {
+      /* no PerformanceObserver: the time limit below still applies */
+    }
+    const tick = () => {
+      const now = performance.now();
+      if (isCancelled()) {
+        observer?.disconnect();
+        resolve(false);
+      } else if (now - lastActivity >= quietMs || now - start >= maxMs) {
+        observer?.disconnect();
+        resolve(true);
+      } else {
+        setTimeout(tick, 400);
+      }
+    };
+    setTimeout(tick, 400);
+  });
+}
+
 /** Shows the picture remembered on this device straight away; costs no network at all. */
-async function restoreRemembered() {
-  if (session.restored) return;
-  session.restored = true;
-  const remembered = await readRememberedTheme();
-  if (remembered && !session.theme) {
-    publish({ ...remembered.theme, remote: remembered.theme.url, url: remembered.objectUrl, fade: FAST_FADE });
+function restoreRemembered() {
+  if (!session.restoring) {
+    session.restoring = (async () => {
+      const remembered = await readRememberedTheme();
+      if (remembered && !session.theme) {
+        publish({ ...remembered.theme, remote: remembered.theme.url, url: remembered.objectUrl, fade: FAST_FADE });
+      }
+    })();
   }
+  return session.restoring;
 }
 
 /** Asks for the live theme and updates what is on screen (and what is remembered). */
@@ -127,13 +163,30 @@ export function useEventBackground(busy) {
     if (session.finished || session.controller || busy) return undefined;
     if (!eventBackgroundEnabled() || notReady()) return undefined;
 
-    // wait for an idle moment (or a short delay where the browser has no idle callback)
+    let cancelled = false;
     let idleHandle;
     let timeoutHandle;
-    if ("requestIdleCallback" in window) idleHandle = window.requestIdleCallback(refreshLive, { timeout: 3000 });
-    else timeoutHandle = setTimeout(refreshLive, 1500);
+    const schedule = () => {
+      if (cancelled) return;
+      // an idle moment (or a short delay where the browser has no idle callback)
+      if ("requestIdleCallback" in window) idleHandle = window.requestIdleCallback(refreshLive, { timeout: 3000 });
+      else timeoutHandle = setTimeout(refreshLive, 1500);
+    };
+
+    // first let the remembered picture (if any) come up, so we know whether something is on screen
+    (session.restoring || Promise.resolve()).then(() => {
+      if (cancelled) return;
+      if (session.theme) {
+        // a picture is already on screen from this device: look for updates only once the app has gone quiet
+        waitForQuiet(() => cancelled).then((quiet) => quiet && schedule());
+      } else {
+        // nothing to show yet: go as soon as the app is calm
+        schedule();
+      }
+    });
 
     return () => {
+      cancelled = true;
       if (idleHandle) window.cancelIdleCallback(idleHandle);
       if (timeoutHandle) clearTimeout(timeoutHandle);
     };
