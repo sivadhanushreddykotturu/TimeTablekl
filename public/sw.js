@@ -1,6 +1,6 @@
 // TimeTable Admin service worker: lets the app install and open offline.
 // It never touches /api/ or GitHub, only this site's own files.
-const CACHE = "tt-admin-v1";
+const CACHE = "tt-admin-v2";
 const SHELL = ["/", "/admin.css", "/admin.js", "/manifest.webmanifest", "/icon-192.png"];
 
 self.addEventListener("install", (event) => {

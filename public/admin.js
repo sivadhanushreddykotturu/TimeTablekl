@@ -9,7 +9,7 @@ const BRANCH = "announcements";
 const API = "https://api.github.com";
 const RAW = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/`;
 const TOKEN_KEY = "tt_admin_token";
-const PHONE_WIDTH = 840; // the picture phones download
+const PHONE_WIDTH = 1280; // the picture phones download (about 3x a phone screen, so it stays sharp)
 const LAPTOP_WIDTH = 1600; // the picture tablets and laptops download (sharp on retina screens too)
 
 const $ = (id) => document.getElementById(id);
@@ -257,7 +257,7 @@ async function setPicture(source, { gotOriginal = true } = {}) {
   if (!large.blob) throw new Error("Could not read that picture.");
   // phones get their own, smaller file; if the picture is already that small one file does both jobs
   const needsPhone = bitmap.width > PHONE_WIDTH + 40;
-  const phone = needsPhone ? await resizeJpeg(bitmap, PHONE_WIDTH, 0.82) : null;
+  const phone = needsPhone ? await resizeJpeg(bitmap, PHONE_WIDTH, 0.86) : null;
 
   for (const url of [state.largeUrl, state.phoneUrl]) if (url) URL.revokeObjectURL(url);
   state.large = large.blob;
