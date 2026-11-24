@@ -149,6 +149,7 @@ export default function NeoHome() {
                 "--event-img": `url("${eventBg.url}")`,
                 "--event-strength": eventBg.strength,
                 "--event-focus": eventBg.focus,
+                "--event-fade": `${eventBg.fade || 1600}ms`,
                 ...(eventBg.accent ? { "--event-accent": eventBg.accent } : null),
               }}
             />

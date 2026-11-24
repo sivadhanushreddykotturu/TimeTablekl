@@ -2781,7 +2781,7 @@ body.np-body button.np-notice__close:hover { background: color-mix(in srgb, var(
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 36%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 0%, #000 36%, transparent 100%);
   pointer-events: none;
-  animation: np-event-in 1600ms var(--np-ease) 80ms forwards;
+  animation: np-event-in var(--event-fade, 1600ms) var(--np-ease) 40ms forwards;
 }
 
 @keyframes np-event-in {

@@ -94,6 +94,7 @@ function clean(raw, base) {
   const strength = Number(raw.strength);
   return {
     url: url.href,
+    expires: typeof raw.expires === "string" ? raw.expires : "",
     strength: Math.min(0.9, Math.max(0.1, Number.isFinite(strength) ? strength : 0.5)),
     accent: typeof raw.accent === "string" && HEX.test(raw.accent) ? raw.accent : "",
     glow: raw.glow === true,
@@ -136,4 +137,105 @@ export function preloadImage(url, signal, ms = 10000) {
     img.onerror = () => finish(new Error("failed"));
     img.src = url;
   });
+}
+
+/* ------------------------------------------------------------------
+   Remembering the picture on this device, so a repeat visit shows it at
+   once instead of waiting for the network. The picture itself lives in the
+   Cache API (no size worry), its settings in localStorage.
+   ------------------------------------------------------------------ */
+
+const CACHE_NAME = "event-bg-v1";
+const META_KEY = "event_bg_cache";
+
+const isExpired = (expires) => {
+  if (!expires) return false;
+  const end = new Date(`${expires}T23:59:59`);
+  return !Number.isNaN(end.getTime()) && Date.now() > end.getTime();
+};
+
+/** Waits for a picture link to be drawn, so it can fade in without a jump. */
+function decodeImage(src) {
+  const img = new Image();
+  img.decoding = "async";
+  img.src = src;
+  return img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+}
+
+/**
+ * Downloads the picture, keeps a copy on this device and returns a link that
+ * shows instantly next time. If the host does not allow that kind of download,
+ * it falls back to the plain link (shown, but not kept).
+ */
+export async function loadImage(url, signal, ms = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  const onAbort = () => controller.abort();
+  signal?.addEventListener("abort", onAbort);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`image ${res.status}`);
+    const blob = await res.blob();
+    if (!blob.type.startsWith("image/")) throw new Error("not an image");
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(url, new Response(blob, { headers: { "Content-Type": blob.type } }));
+      for (const request of await cache.keys()) if (request.url !== url) await cache.delete(request); // keep only this one
+    } catch {
+      /* no Cache API (private window?): it still shows, it just is not kept */
+    }
+    const objectUrl = URL.createObjectURL(blob);
+    await decodeImage(objectUrl);
+    return objectUrl;
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    await preloadImage(url, signal, ms); // plain link as a fallback
+    return url;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
+  }
+}
+
+/** Remembers the theme (its settings) so the next launch can show it before any network call. */
+export function rememberTheme(theme) {
+  try {
+    localStorage.setItem(META_KEY, JSON.stringify({ ...theme, device: deviceClass() }));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** The remembered theme with a ready-to-show picture link, or null. Never touches the network. */
+export async function readRememberedTheme() {
+  let meta = null;
+  try {
+    meta = JSON.parse(localStorage.getItem(META_KEY) || "null");
+  } catch {
+    /* ignore */
+  }
+  if (!meta?.url || meta.device !== deviceClass() || isExpired(meta.expires)) return null;
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const hit = await cache.match(meta.url);
+    if (!hit) return null;
+    const objectUrl = URL.createObjectURL(await hit.blob());
+    return { theme: meta, objectUrl };
+  } catch {
+    return null;
+  }
+}
+
+/** Forgets the remembered theme and picture (it was switched off, or has ended). */
+export async function forgetTheme() {
+  try {
+    localStorage.removeItem(META_KEY);
+  } catch {
+    /* ignore */
+  }
+  try {
+    await caches.delete(CACHE_NAME);
+  } catch {
+    /* ignore */
+  }
 }
