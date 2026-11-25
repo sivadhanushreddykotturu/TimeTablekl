@@ -7,6 +7,7 @@ const REASONS = {
   attendance: "to see your live attendance and how many classes you can miss.",
   timetable: "to load your weekly timetable.",
   grades: "to see your CGPA, SGPA and marks.",
+  internals: "to see the marks inside each of your courses.",
   exam: "to load your exam dates and seating.",
   calculator: "to pull your real numbers into the calculator.",
   default: "to load your timetable, attendance and grades.",

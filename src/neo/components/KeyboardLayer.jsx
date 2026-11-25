@@ -4,6 +4,7 @@ import { useSync } from "../../contexts/SyncContext.jsx";
 import { NeoModal } from "../Shell.jsx";
 import Kbd from "./Kbd.jsx";
 import { MOD_KEY } from "../utils/keys.js";
+import { internalsEnabled } from "../../utils/internals.js";
 
 /**
  * Keyboard support for laptops: jump keys, a Ctrl/Cmd+K palette and a "?" cheat
@@ -18,19 +19,23 @@ const DESTINATIONS = [
   { id: "profile", label: "Profile", to: "/profile", keys: "4", words: "account settings picture avatar semester" },
   { id: "exams", label: "Exams", to: "/exam", keys: "G E", words: "seating room schedule" },
   { id: "grades", label: "Grades", to: "/grades", keys: "G R", words: "marks cgpa sgpa results" },
+  ...(internalsEnabled()
+    ? [{ id: "internals", label: "Internals", to: "/internals", keys: "G I", words: "marks quiz exam weightage components" }]
+    : []),
   { id: "subjects", label: "Subject names", to: "/subjects", keys: "G S", words: "rename courses" },
   { id: "friends", label: "Friends' timetables", to: "/maddys", keys: "G F", words: "maddys docs compare" },
   { id: "calculator", label: "Attendance calculator", to: "/kl-attendance-calculator", keys: "G C", words: "kl erp weighted sick" },
 ];
 
 const KEY_TO_ID = { 1: "home", 2: "week", 3: "attendance", 4: "profile" };
-const G_TO_ID = { e: "exams", r: "grades", s: "subjects", f: "friends", c: "calculator" };
+const G_TO_ID = { e: "exams", r: "grades", i: "internals", s: "subjects", f: "friends", c: "calculator" };
 
 const SHORTCUT_ROWS = [
   ["Open the command palette", [`${MOD_KEY} K`]],
   ["Show this list", ["?"]],
   ["Today · Week · Attendance · Profile", ["1", "2", "3", "4"]],
   ["Exams · Grades · Subjects · Friends · Calculator", ["G E", "G R", "G S", "G F", "G C"]],
+  ...(internalsEnabled() ? [["Internals", ["G I"]]] : []),
   ["Sync now", ["R"]],
   ["Week: previous / next day", ["←", "→"]],
   ["Week: jump to today", ["T"]],

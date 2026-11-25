@@ -4,6 +4,7 @@ import {
   MdPerson,
   MdCalendarMonth,
   MdSchool,
+  MdFactCheck,
   MdPeople,
   MdEdit,
   MdEventNote,
@@ -40,6 +41,7 @@ import {
   saveCredentials,
 } from "../../../utils/storage.js";
 import { getCurrentAcademicYearOptions } from "../../config/api.js";
+import { clearInternals, internalsEnabled } from "../../utils/internals.js";
 
 const SEMESTER_NAMES = {
   odd: "Odd sem",
@@ -170,6 +172,7 @@ export default function NeoProfile() {
 
     if (credsChanged) {
       clearCookies();
+      clearInternals();
     }
 
     saveCredentials({ username: username.trim(), password });
@@ -191,6 +194,7 @@ export default function NeoProfile() {
   const confirmLogout = () => {
     clearCredentials();
     clearCookies();
+    clearInternals();
     ["timetable", "timetable_last_sync", "examMode", "seatingPlan", "cached_attendance", "cached_attendance_time"]
       .forEach((key) => localStorage.removeItem(key));
     navigate("/");
@@ -283,6 +287,14 @@ export default function NeoProfile() {
           description="CGPA, SGPA and marks"
           onClick={() => navigate("/grades")}
         />
+        {internalsEnabled() && (
+          <SettingsRow
+            icon={<MdFactCheck size={24} />}
+            title="Internals"
+            description="Marks inside each course"
+            onClick={() => navigate("/internals")}
+          />
+        )}
         <SettingsRow
           icon={<MdPeople size={24} />}
           title="Docs"

@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { MdSchedule, MdRocketLaunch } from "react-icons/md";
-import NeoShell from "../Shell.jsx";
+import NeoShell, { NeoSkeleton } from "../Shell.jsx";
 import { SettingsGroup, SettingsRow, Switch } from "../components/Settings.jsx";
 import EditSlotModal from "../../components/EditSlotModal";
 import Toast from "../../components/Toast.jsx";
@@ -61,11 +62,16 @@ function buildSchedule(seatingPlan, slotDetails) {
 const describe = (exam) => [exam.room && `Room ${exam.room}`, exam.time || exam.slot].filter(Boolean).join(" · ");
 
 export default function NeoExam() {
-  const [seatingPlan, setSeatingPlan] = useState(readSeatingPlan);
+  const location = useLocation();
+  // a friend's exams are view-only: their plan is fetched fresh, never saved, and there are no launch settings
+  const friend = location.state?.friendCredentials || null;
+  const [friendLoading, setFriendLoading] = useState(Boolean(friend));
+  const [friendError, setFriendError] = useState("");
+  const [seatingPlan, setSeatingPlan] = useState(() => (friend ? [] : readSeatingPlan()));
   const [slotDetails, setSlotDetails] = useState(getSlotDetails);
   const [launchHere, setLaunchHere] = useState(() => localStorage.getItem("examMode") === "true");
   const [showEditSlots, setShowEditSlots] = useState(false);
-  const [showGuestModal, setShowGuestModal] = useState(() => !getCredentials());
+  const [showGuestModal, setShowGuestModal] = useState(() => !friend && !getCredentials());
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const nowTick = useNowTick();
 
@@ -73,9 +79,31 @@ export default function NeoExam() {
   const schedule = useMemo(() => buildSchedule(seatingPlan, slotDetails), [seatingPlan, slotDetails, nowTick]);
   const upcoming = useMemo(() => schedule.filter((exam) => !exam.isOver), [schedule]);
   const next = upcoming[0] || null;
-  const signedIn = Boolean(getCredentials());
+  const signedIn = Boolean(friend) || Boolean(getCredentials());
+
+  const loadFriendPlan = async () => {
+    setFriendLoading(true);
+    setFriendError("");
+    try {
+      setSeatingPlan(await syncSeatingPlan(friend));
+    } catch (error) {
+      setFriendError(error.message);
+      throw error;
+    } finally {
+      setFriendLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (friend) loadFriendPlan().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [friend?.username]);
 
   const handleSync = async () => {
+    if (friend) {
+      await loadFriendPlan();
+      return;
+    }
     if (!getCredentials()) {
       setShowGuestModal(true);
       return;
@@ -117,10 +145,18 @@ export default function NeoExam() {
   return (
     <NeoShell onRefresh={handleSync} refreshLabel="Sync">
       <div className="np-pagehead">
-        <h1 className="np-pagehead__title">Exams</h1>
+        <h1 className="np-pagehead__title">{friend ? `${friend.name}'s exams` : "Exams"}</h1>
       </div>
 
-      {!signedIn ? (
+      {friend && friendLoading ? (
+        <NeoSkeleton variant="list" count={4} text={`Fetching ${friend.name}'s exams…`} />
+      ) : friend && friendError ? (
+        <div className="np-empty">
+          <h2 className="np-empty__title">Couldn't load exams</h2>
+          <p className="np-empty__text">{friendError}</p>
+          <button type="button" className="np-btn" onClick={() => loadFriendPlan().catch(() => {})}>Try again</button>
+        </div>
+      ) : !signedIn ? (
         <div className="np-empty">
           <h2 className="np-empty__title">See your exam seating</h2>
           <p className="np-empty__text">Log in with your KL ERP account to load your exam dates and rooms.</p>
@@ -148,7 +184,7 @@ export default function NeoExam() {
             </section>
           )}
 
-          {signedIn && (
+          {signedIn && !friend && (
             <div style={{ marginTop: next ? 14 : 0 }}>
               <SettingsGroup>{launchRow}</SettingsGroup>
             </div>
@@ -181,7 +217,7 @@ export default function NeoExam() {
         </>
       )}
 
-      {signedIn && (
+      {signedIn && !friend && (
         <div style={{ marginTop: 26 }}>
           <SettingsGroup>
             <SettingsRow
