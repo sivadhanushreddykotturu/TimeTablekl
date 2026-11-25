@@ -256,7 +256,7 @@ export default function NeoInternals() {
               <>
                 {detailReading.state !== "ok" && (
                   <p className="np-note" style={{ marginBottom: 14 }}>
-                    ERP hasn't fully calculated this one yet, so these numbers aren't final. Open it in ERP once it's complete.
+                    ERP hasn't fully calculated this one yet, so these numbers aren't final.
                   </p>
                 )}
 
