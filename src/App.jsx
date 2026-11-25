@@ -19,6 +19,7 @@ const pages = {
   attendance: () => import("./neo/pages/Attendance.jsx"),
   profile: () => import("./neo/pages/Profile.jsx"),
   grades: () => import("./neo/pages/Grades.jsx"),
+  internals: () => import("./neo/pages/Internals.jsx"),
   subjects: () => import("./neo/pages/Subjects.jsx"),
   maddys: () => import("./neo/pages/Maddys.jsx"),
   maddyClass: () => import("./neo/pages/MaddyClassInfo.jsx"),
@@ -32,6 +33,7 @@ const TimetablePage = lazy(pages.timetable);
 const AttendancePage = lazy(pages.attendance);
 const ProfilePage = lazy(pages.profile);
 const GradesPage = lazy(pages.grades);
+const InternalsPage = lazy(pages.internals);
 const SubjectsPage = lazy(pages.subjects);
 const MaddysPage = lazy(pages.maddys);
 const MaddyClassInfo = lazy(pages.maddyClass);
@@ -107,6 +109,7 @@ function App() {
                   <Route path="/maddys/:id/timetable" element={<MaddyTimetable />} />
                   <Route path="/attendance" element={<AttendancePage />} />
                   <Route path="/grades" element={<GradesPage />} />
+                  <Route path="/internals" element={<InternalsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/exam" element={<ExamPage />} />
                   <Route path="/kl-calculator" element={<CalculatorPage />} />

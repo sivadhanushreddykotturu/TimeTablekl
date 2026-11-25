@@ -8,6 +8,7 @@ import { syncTimetable } from "../../../utils/syncTimetable.js";
 import { getCurrentAcademicYearOptions, API_CONFIG, getFormData } from "../../config/api.js";
 import { trackEvent } from "../../utils/analytics";
 import { getSlotTimes, getMaxSlots } from "../../utils/slotTimes";
+import { internalsEnabled } from "../../utils/internals.js";
 
 const SEMESTER_NAMES = {
   odd: "odd sem",
@@ -533,6 +534,14 @@ export default function NeoMaddys() {
               </button>
               <button className="np-minibtn" onClick={() => goToMaddy(maddy, "grades", "/grades", friendState(maddy))}>
                 Grades
+              </button>
+              {internalsEnabled() && (
+                <button className="np-minibtn" onClick={() => goToMaddy(maddy, "internals", "/internals", friendState(maddy))}>
+                  Internals
+                </button>
+              )}
+              <button className="np-minibtn" onClick={() => goToMaddy(maddy, "exams", "/exam", friendState(maddy))}>
+                Exams
               </button>
             </footer>
           </article>

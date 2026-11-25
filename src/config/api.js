@@ -20,6 +20,12 @@ export const API_CONFIG = {
 
   // Per-course marks scorecard (lazy-load via target_href)
   MARKS_DETAIL_URL: import.meta.env.VITE_MARKS_DETAIL_URL,
+
+  // Course internals: list of courses and their evaluation components
+  INTERNALS_URL: import.meta.env.VITE_INTERNALS_URL,
+
+  // Course internals: raw marks table for one component (lazy-load via target_href)
+  INTERNAL_COMPONENT_URL: import.meta.env.VITE_INTERNAL_COMPONENT_URL,
 };
 
 // Semester mapping
