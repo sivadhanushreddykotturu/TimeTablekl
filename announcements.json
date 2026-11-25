@@ -1,6 +1,6 @@
 {
   "active": true,
-  "type": "success",
-  "title": "Welcome to the new look ✨",
-  "message": "A fresh design, a smoother app, and a few new things:\n• Add your own profile picture\n• Special event backgrounds on Today\n• Cleaner attendance and a neater share picture\n• Works great on laptops and tablets too\nTap the refresh button any time to sync. Enjoy!"
+  "type": "info",
+  "title": "Internals are here 📊",
+  "message": "See the marks inside each of your courses: exams, quizzes and continuous evaluation, with the weightage and your running total.\nOpen Profile → Internals.\nYou can check a friend's internals and exams too, from their card in Docs."
 }
