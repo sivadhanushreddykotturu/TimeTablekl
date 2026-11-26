@@ -3,6 +3,7 @@ import axios from "axios";
 import { NeoButton, NeoField, NeoSelect } from "../NeoKit.jsx";
 import { saveCredentials, saveCookies } from "../../../utils/storage.js";
 import { getFormData, API_CONFIG, getCurrentAcademicYearOptions } from "../../config/api.js";
+import { refreshHostelStatus } from "../../utils/hostel.js";
 
 const SEMESTERS = ["odd", "even", "summer", "term3"];
 const WRONG_LOGIN = "Wrong ID or password. Check them and try again.";
@@ -65,6 +66,7 @@ export default function LoginForm({ idPrefix = "np-login", submitLabel = "Log in
 
       saveCredentials({ username: id, password });
       if (res.data.cookies) saveCookies(res.data.cookies);
+      setTimeout(() => refreshHostelStatus({ force: true }), 2500); // after the first screen has loaded
       if (res.data.timetable) localStorage.setItem("timetable", JSON.stringify(res.data.timetable));
       localStorage.setItem("semester", semester);
       localStorage.setItem("academicYear", academicYear);

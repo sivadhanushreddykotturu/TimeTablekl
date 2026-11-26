@@ -26,6 +26,19 @@ export const API_CONFIG = {
 
   // Course internals: raw marks table for one component (lazy-load via target_href)
   INTERNAL_COMPONENT_URL: import.meta.env.VITE_INTERNAL_COMPONENT_URL,
+
+  // ERP profile + hostel status (decides whether hostel-only features like outpass are shown)
+  PROFILE_URL: import.meta.env.VITE_PROFILE_URL,
+
+  // Hostel outpass: list, allowed in-times, apply (local hours / home days)
+  OUTPASS_URL: import.meta.env.VITE_OUTPASS_URL,
+  OUTPASS_INTIMES_URL: import.meta.env.VITE_OUTPASS_INTIMES_URL,
+  OUTPASS_LOCAL_URL: import.meta.env.VITE_OUTPASS_LOCAL_URL,
+  OUTPASS_HOME_URL: import.meta.env.VITE_OUTPASS_HOME_URL,
+
+  // Course handouts: the semester's list, and one parsed handout (lazy-load via target_href)
+  HANDOUTS_URL: import.meta.env.VITE_HANDOUTS_URL,
+  HANDOUT_DETAIL_URL: import.meta.env.VITE_HANDOUT_DETAIL_URL,
 };
 
 // Semester mapping

@@ -4,21 +4,8 @@ import { MdChevronRight, MdExpandMore } from "react-icons/md";
 import NeoShell, { NeoModal, NeoLoading, NeoSkeleton } from "../Shell.jsx";
 import GuestAuthModal from "../../components/GuestAuthModal.jsx";
 import { getCredentials } from "../../../utils/storage.js";
+import { titleCase } from "../../utils/text.js";
 import { clearInternals, formatMark, loadComponent, loadInternals, readComponent, totalsFor } from "../../utils/internals.js";
-
-const SMALL_WORDS = new Set(["and", "of", "the", "in", "for", "to", "with", "a", "an", "on"]);
-
-/** "DATA STRUCTURES AND ALGORITHMS" → "Data Structures and Algorithms" */
-function titleCase(text) {
-  return (text || "")
-    .split(/\s+/)
-    .map((raw, index) => {
-      if (raw.startsWith("(")) return raw; // short codes in brackets, like (CNAD), stay as ERP wrote them
-      const word = raw.toLowerCase();
-      return index > 0 && SMALL_WORDS.has(word) ? word : word.charAt(0).toUpperCase() + word.slice(1);
-    })
-    .join(" ");
-}
 
 const KIND_LETTER = { summative: "S", formative: "F" };
 const keyOf = (course, component) => `${course.course_code}|${component.name}`;
