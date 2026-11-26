@@ -7,7 +7,7 @@ import Toast from "../../components/Toast.jsx";
 import { syncTimetable } from "../../../utils/syncTimetable.js";
 import { getCurrentAcademicYearOptions, API_CONFIG, getFormData } from "../../config/api.js";
 import { trackEvent } from "../../utils/analytics";
-import { getSlotTimes, getMaxSlots } from "../../utils/slotTimes";
+import { getSlotTimes, getMaxSlots, hasExamSeating } from "../../utils/slotTimes";
 import { internalsEnabled } from "../../utils/internals.js";
 
 const SEMESTER_NAMES = {
@@ -540,9 +540,11 @@ export default function NeoMaddys() {
                   Internals
                 </button>
               )}
-              <button className="np-minibtn" onClick={() => goToMaddy(maddy, "exams", "/exam", friendState(maddy))}>
-                Exams
-              </button>
+              {hasExamSeating(maddy.username) && (
+                <button className="np-minibtn" onClick={() => goToMaddy(maddy, "exams", "/exam", friendState(maddy))}>
+                  Exams
+                </button>
+              )}
             </footer>
           </article>
         ))

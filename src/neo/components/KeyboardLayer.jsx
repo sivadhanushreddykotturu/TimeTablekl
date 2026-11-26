@@ -5,6 +5,7 @@ import { NeoModal } from "../Shell.jsx";
 import Kbd from "./Kbd.jsx";
 import { MOD_KEY } from "../utils/keys.js";
 import { internalsEnabled } from "../../utils/internals.js";
+import { hasExamSeating } from "../../utils/slotTimes";
 
 /**
  * Keyboard support for laptops: jump keys, a Ctrl/Cmd+K palette and a "?" cheat
@@ -27,14 +28,19 @@ const DESTINATIONS = [
   { id: "calculator", label: "Attendance calculator", to: "/kl-attendance-calculator", keys: "G C", words: "kl erp weighted sick" },
 ];
 
+/** Exams only exists for Vijayawada IDs; checked when used, since someone can log in without reloading. */
+const visibleDestinations = () => DESTINATIONS.filter((d) => d.id !== "exams" || hasExamSeating());
+
 const KEY_TO_ID = { 1: "home", 2: "week", 3: "attendance", 4: "profile" };
 const G_TO_ID = { e: "exams", r: "grades", i: "internals", s: "subjects", f: "friends", c: "calculator" };
 
-const SHORTCUT_ROWS = [
+const shortcutRows = () => [
   ["Open the command palette", [`${MOD_KEY} K`]],
   ["Show this list", ["?"]],
   ["Today · Week · Attendance · Profile", ["1", "2", "3", "4"]],
-  ["Exams · Grades · Subjects · Friends · Calculator", ["G E", "G R", "G S", "G F", "G C"]],
+  hasExamSeating()
+    ? ["Exams · Grades · Subjects · Friends · Calculator", ["G E", "G R", "G S", "G F", "G C"]]
+    : ["Grades · Subjects · Friends · Calculator", ["G R", "G S", "G F", "G C"]],
   ...(internalsEnabled() ? [["Internals", ["G I"]]] : []),
   ["Sync now", ["R"]],
   ["Week: previous / next day", ["←", "→"]],
@@ -101,10 +107,10 @@ export default function KeyboardLayer() {
       // "g" then a letter
       if (performance.now() - pendingG.current < 900) {
         pendingG.current = 0;
-        const id = G_TO_ID[key];
-        if (id) {
+        const dest = visibleDestinations().find((d) => d.id === G_TO_ID[key]);
+        if (dest) {
           event.preventDefault();
-          go(DESTINATIONS.find((d) => d.id === id).to);
+          go(dest.to);
           return;
         }
       }
@@ -115,7 +121,7 @@ export default function KeyboardLayer() {
 
       if (KEY_TO_ID[key]) {
         event.preventDefault();
-        go(DESTINATIONS.find((d) => d.id === KEY_TO_ID[key]).to);
+        go(visibleDestinations().find((d) => d.id === KEY_TO_ID[key]).to);
         return;
       }
       if (key === "r") {
@@ -150,7 +156,7 @@ export default function KeyboardLayer() {
       />
       <NeoModal open={helpOpen} title="Keyboard shortcuts" onClose={() => setHelpOpen(false)}>
         <div className="np-kbd-list">
-          {SHORTCUT_ROWS.map(([label, keys]) => (
+          {shortcutRows().map(([label, keys]) => (
             <div key={label} className="np-kbd-list__row">
               <span>{label}</span>
               <span className="np-kbd-list__keys">
@@ -176,7 +182,7 @@ function Palette({ open, onClose, onGo, onSync, onHelp }) {
 
   const items = useMemo(() => {
     const all = [
-      ...DESTINATIONS.map((d) => ({ id: d.id, label: d.label, hint: `Go to · ${d.keys}`, words: d.words, run: () => onGo(d.to) })),
+      ...visibleDestinations().map((d) => ({ id: d.id, label: d.label, hint: `Go to · ${d.keys}`, words: d.words, run: () => onGo(d.to) })),
       { id: "sync", label: "Sync now", hint: "Action · R", words: "refresh update erp", run: onSync },
       { id: "help", label: "Keyboard shortcuts", hint: "Action · ?", words: "help keys", run: onHelp },
     ];

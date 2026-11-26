@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useEffect, useState } from "react";
 import { HeadProvider } from "react-head";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { hasExamSeating } from "./utils/slotTimes";
 import { SyncProvider } from "./contexts/SyncContext";
 import AuthGuard from "./components/AuthGuard.jsx";
 import GoogleAnalytics from "./components/GoogleAnalytics.jsx";
@@ -44,6 +45,13 @@ const MaddyClassInfo = lazy(pages.maddyClass);
 const MaddyTimetable = lazy(pages.maddyTimetable);
 const ExamPage = lazy(pages.exam);
 const CalculatorPage = lazy(pages.calculator);
+
+/** Exams only exists in the ERP for Vijayawada IDs (a friend's view is judged by the friend's ID). */
+function ExamRoute() {
+  const friend = useLocation().state?.friendCredentials;
+  if (!hasExamSeating(friend ? friend.username : null)) return <Navigate to="/home" replace />;
+  return <ExamPage />;
+}
 
 const DesktopCompanion = lazy(() => import("./neo/bot/DesktopCompanion.jsx"));
 
@@ -117,7 +125,7 @@ function App() {
                   <Route path="/outpass" element={<OutpassPage />} />
                   <Route path="/handouts" element={<HandoutsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/exam" element={<ExamPage />} />
+                  <Route path="/exam" element={<ExamRoute />} />
                   <Route path="/kl-calculator" element={<CalculatorPage />} />
                   <Route path="/kl-attendance-calculator" element={<CalculatorPage />} />
                 </Routes>
