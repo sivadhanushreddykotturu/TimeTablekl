@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { FiShare2, FiGrid } from "react-icons/fi";
 import NeoShell, { NeoModal } from "../Shell.jsx";
 import TimetableChangesModal from "../components/TimetableChangesModal.jsx";
+import SubjectNameSheet from "../components/SubjectNameSheet.jsx";
 import { ClassProgressBar } from "../components/ClassTimer.jsx";
 import Toast from "../../components/Toast.jsx";
 import GuestAuthModal from "../../components/GuestAuthModal.jsx";
@@ -38,6 +40,8 @@ export default function NeoTimetable() {
   const [showTableView, setShowTableView] = useState(false);
   const [showGuestModal, setShowGuestModal] = useState(() => !getCredentials());
   const [activeDay, setActiveDay] = useState(() => getInitialDay(timetable));
+  const [renaming, setRenaming] = useState(null); // course code being given a short name
+  const [nameVersion, setNameVersion] = useState(0); // bumped after a rename so titles are rebuilt
 
   const format = getTimeFormat();
   const days = DAY_ORDER.filter((day) => timetable[day]);
@@ -72,7 +76,7 @@ export default function NeoTimetable() {
   const blocks = useMemo(
     () => (isToday ? getDayState(timetable).blocks : getDayBlocks(timetable, activeDay)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [timetable, activeDay, isToday, nowTick]
+    [timetable, activeDay, isToday, nowTick, nameVersion]
   );
 
   const refreshTimetable = async () => {
@@ -188,7 +192,17 @@ export default function NeoTimetable() {
                       )}
                       <div
                         className={`np-slot${block.status === "live" ? " is-live" : ""}${block.status === "done" ? " is-done" : ""}`}
-                        style={{ "--hue": subjectHue(block.code) }}
+                        style={{ "--hue": subjectHue(block.code), cursor: "pointer" }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Rename ${block.title}`}
+                        onClick={() => setRenaming(block.code)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setRenaming(block.code);
+                          }
+                        }}
                       >
                         <div className="np-slot__time">
                           {formatTimeStr(block.start, format)}
@@ -210,10 +224,17 @@ export default function NeoTimetable() {
                   );
                 })}
               </div>
+
+              <p className="np-note" style={{ marginTop: 16, textAlign: "center" }}>
+                Tap a class to give it a short name.{" "}
+                <Link to="/subjects" style={{ color: "var(--np-soft)", textDecoration: "underline" }}>All courses</Link>
+              </p>
             </>
           )}
         </>
       )}
+
+      <SubjectNameSheet code={renaming} onClose={() => setRenaming(null)} onSaved={() => setNameVersion((v) => v + 1)} />
 
       {/* whole week at a glance */}
       <NeoModal open={showTableView} title="Week grid" onClose={() => setShowTableView(false)} wide>

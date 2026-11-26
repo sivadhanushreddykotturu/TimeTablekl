@@ -14,6 +14,22 @@ export const getSubjectName = (courseCode) => {
   return subjectMappings[mainCode] || mainCode;
 };
 
+// Save (or, with an empty name, clear) the custom name for a course
+export const setSubjectName = (courseCode, name) => {
+  const mainCode = extractMainCode(courseCode);
+  if (!mainCode) return;
+  let mappings = {};
+  try {
+    mappings = JSON.parse(localStorage.getItem("subjectMappings") || "{}") || {};
+  } catch {
+    mappings = {};
+  }
+  const clean = (name || "").trim();
+  if (clean) mappings[mainCode] = clean;
+  else delete mappings[mainCode];
+  localStorage.setItem("subjectMappings", JSON.stringify(mappings));
+};
+
 // Function to get today's unique subjects (deduplicated by main course code)
 export const getTodaySubjects = () => {
   const timetable = JSON.parse(localStorage.getItem("timetable") || "{}");

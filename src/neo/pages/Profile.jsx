@@ -6,7 +6,6 @@ import {
   MdSchool,
   MdFactCheck,
   MdPeople,
-  MdEdit,
   MdEventNote,
   MdSchedule,
   MdInstallMobile,
@@ -296,12 +295,6 @@ export default function NeoProfile() {
           title="Docs"
           description="Friends' timetables and attendance"
           onClick={() => navigate("/maddys")}
-        />
-        <SettingsRow
-          icon={<MdEdit size={24} />}
-          title="Subject names"
-          description="Short nicknames for course codes"
-          onClick={() => navigate("/subjects")}
         />
         {showOutpass && (
           <SettingsRow
