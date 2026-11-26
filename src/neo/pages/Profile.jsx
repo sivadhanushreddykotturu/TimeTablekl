@@ -45,6 +45,7 @@ import { getCurrentAcademicYearOptions } from "../../config/api.js";
 import { clearInternals, internalsEnabled } from "../../utils/internals.js";
 import { clearHostelStatus, hostelEnabled, useHostelState } from "../../utils/hostel.js";
 import { outpassEnabled } from "../../utils/outpass.js";
+import { hasExamSeating } from "../../utils/slotTimes";
 import { clearHandouts, handoutsEnabled } from "../../utils/handouts.js";
 import HostelCheckModal from "../components/HostelCheckModal.jsx";
 
@@ -329,12 +330,14 @@ export default function NeoProfile() {
             onClick={() => navigate("/handouts")}
           />
         )}
-        <SettingsRow
-          icon={<MdEventNote size={24} />}
-          title="Exams"
-          description="Exam dates and seating"
-          onClick={() => navigate("/exam")}
-        />
+        {hasExamSeating() && (
+          <SettingsRow
+            icon={<MdEventNote size={24} />}
+            title="Exams"
+            description="Exam dates and seating"
+            onClick={() => navigate("/exam")}
+          />
+        )}
       </SettingsGroup>
 
       <SettingsGroup title="App">

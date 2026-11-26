@@ -26,9 +26,6 @@ const todayISO = () => {
 };
 const statusTone = (status) => (/approv/i.test(status) ? "var(--np-good)" : /reject|cancel|den/i.test(status) ? "var(--np-pink)" : "var(--np-orange)");
 
-/** A local outing starts and ends the same day; a home outing spans days. */
-const isLocalOutpass = (o) => (o.out_time || "").slice(0, 10) === (o.in_time || "").slice(0, 10);
-
 /** "2026-11-08 09:00:30" -> "8 Nov, 09:00" */
 function when(stamp) {
   const [date, time] = (stamp || "").split(" ");
@@ -177,8 +174,6 @@ export default function NeoOutpass() {
     }
   };
 
-  const visible = items.filter((o) => (kind === "local") === isLocalOutpass(o));
-
   const summary =
     kind === "local"
       ? [
@@ -238,13 +233,13 @@ export default function NeoOutpass() {
               <p className="np-empty__text">{error.message}</p>
               <button type="button" className="np-btn" onClick={load}>Try again</button>
             </div>
-          ) : visible.length === 0 ? (
+          ) : items.length === 0 ? (
             <div className="np-empty">
-              <h2 className="np-empty__title">No {kind} outpasses yet</h2>
+              <h2 className="np-empty__title">No outpasses yet</h2>
               <p className="np-empty__text">Your requests will show up here.</p>
             </div>
           ) : (
-            visible.map((o) => (
+            items.map((o) => (
               <article key={o.id} className="np-att" style={{ padding: "16px 18px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
                   <span className="np-att__name" style={{ minWidth: 0, overflowWrap: "anywhere" }}>{o.reason || "Outpass"}</span>

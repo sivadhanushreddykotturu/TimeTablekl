@@ -64,6 +64,16 @@ export function detectCampus(username) {
 }
 
 /**
+ * Only Vijayawada students have exam dates and seating in the ERP, so Exams is hidden for everyone else.
+ * An ID that is missing or not a 10-digit number counts as Vijayawada (same default as detectCampus).
+ * @param {string} username - ERP ID (optional, defaults to the logged-in user)
+ */
+export function hasExamSeating(username = null) {
+  const id = username || JSON.parse(localStorage.getItem("erp_creds") || "{}").username;
+  return detectCampus(id) === 'vijayawada';
+}
+
+/**
  * Gets slot times based on campus
  * @param {string} username - 10-digit username/ID (optional, defaults to current user)
  * @returns {Object} Slot times object
