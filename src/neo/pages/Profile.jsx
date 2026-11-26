@@ -15,6 +15,8 @@ import {
   MdLogout,
   MdPhotoCamera,
   MdImage,
+  MdExitToApp,
+  MdMenuBook,
 } from "react-icons/md";
 import { FiGithub, FiLinkedin } from "react-icons/fi";
 import NeoShell, { NeoModal } from "../Shell.jsx";
@@ -42,6 +44,10 @@ import {
 } from "../../../utils/storage.js";
 import { getCurrentAcademicYearOptions } from "../../config/api.js";
 import { clearInternals, internalsEnabled } from "../../utils/internals.js";
+import { clearHostelStatus, hostelEnabled, useHostelState } from "../../utils/hostel.js";
+import { outpassEnabled } from "../../utils/outpass.js";
+import { clearHandouts, handoutsEnabled } from "../../utils/handouts.js";
+import HostelCheckModal from "../components/HostelCheckModal.jsx";
 
 const SEMESTER_NAMES = {
   odd: "Odd sem",
@@ -173,6 +179,8 @@ export default function NeoProfile() {
     if (credsChanged) {
       clearCookies();
       clearInternals();
+      clearHostelStatus();
+      clearHandouts();
     }
 
     saveCredentials({ username: username.trim(), password });
@@ -195,6 +203,8 @@ export default function NeoProfile() {
     clearCredentials();
     clearCookies();
     clearInternals();
+    clearHostelStatus();
+    clearHandouts();
     ["timetable", "timetable_last_sync", "examMode", "seatingPlan", "cached_attendance", "cached_attendance_time"]
       .forEach((key) => localStorage.removeItem(key));
     navigate("/");
@@ -241,6 +251,9 @@ export default function NeoProfile() {
   };
 
   const savedId = credsSnapshotRef.current.username;
+  const hostel = useHostelState();
+  const [showHostelCheck, setShowHostelCheck] = useState(false);
+  const showOutpass = Boolean(savedId) && outpassEnabled() && hostelEnabled() && hostel !== "no";
 
   return (
     <NeoShell>
@@ -278,6 +291,26 @@ export default function NeoProfile() {
           description={`${SEMESTER_NAMES[semester] || semester} · ${academicYear}`}
           onClick={() => setSheet("semester")}
         />
+        <SettingsRow
+          icon={<MdPeople size={24} />}
+          title="Docs"
+          description="Friends' timetables and attendance"
+          onClick={() => navigate("/maddys")}
+        />
+        <SettingsRow
+          icon={<MdEdit size={24} />}
+          title="Subject names"
+          description="Short nicknames for course codes"
+          onClick={() => navigate("/subjects")}
+        />
+        {showOutpass && (
+          <SettingsRow
+            icon={<MdExitToApp size={24} />}
+            title="Outpass"
+            description="Hostel outpass requests"
+            onClick={() => (hostel === "yes" ? navigate("/outpass") : setShowHostelCheck(true))}
+          />
+        )}
       </SettingsGroup>
 
       <SettingsGroup title="Study">
@@ -295,18 +328,14 @@ export default function NeoProfile() {
             onClick={() => navigate("/internals")}
           />
         )}
-        <SettingsRow
-          icon={<MdPeople size={24} />}
-          title="Docs"
-          description="Friends' timetables and attendance"
-          onClick={() => navigate("/maddys")}
-        />
-        <SettingsRow
-          icon={<MdEdit size={24} />}
-          title="Subject names"
-          description="Short nicknames for course codes"
-          onClick={() => navigate("/subjects")}
-        />
+        {handoutsEnabled() && (
+          <SettingsRow
+            icon={<MdMenuBook size={24} />}
+            title="Handouts"
+            description="Syllabus, outcomes and plan for each course"
+            onClick={() => navigate("/handouts")}
+          />
+        )}
         <SettingsRow
           icon={<MdEventNote size={24} />}
           title="Exams"
@@ -366,6 +395,15 @@ export default function NeoProfile() {
           onClick={() => setShowLogoutConfirm(true)}
         />
       </SettingsGroup>
+
+      <HostelCheckModal
+        open={showHostelCheck}
+        onClose={() => setShowHostelCheck(false)}
+        onHostler={() => {
+          setShowHostelCheck(false);
+          navigate("/outpass");
+        }}
+      />
 
       {/* account sheet */}
       <NeoModal open={sheet === "account"} title="Account" onClose={() => setSheet(null)}>

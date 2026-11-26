@@ -7,7 +7,7 @@ import KeyboardLayer from "./KeyboardLayer.jsx";
 import { avatarUrl, getAvatarSeed } from "../utils/avatar.js";
 
 // Screens that show the tab bar (everything inside the signed-in app).
-const NAV_ROUTES = /^\/(home|timetable|attendance|profile|grades|internals|subjects|maddys|exam)(\/|$)/;
+const NAV_ROUTES = /^\/(home|timetable|attendance|profile|grades|internals|outpass|handouts|subjects|maddys|exam)(\/|$)/;
 
 const LAPTOP = "(min-width: 1024px) and (hover: hover) and (pointer: fine)";
 
